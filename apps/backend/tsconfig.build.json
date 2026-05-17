@@ -2,6 +2,9 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "rootDir": "./src",
+    // Hindari TS2688 di monorepo pnpm: hanya muat @types/node secara global;
+    // @types/express & passport-local tetap dipakai lewat import modul.
+    "types": ["node"],
     // Saat build produksi, abaikan path mapping ke source shared packages —
     // tsc akan resolve via pnpm workspace symlinks ke dist masing-masing.
     "paths": {}

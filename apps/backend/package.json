@@ -4,7 +4,7 @@
   "private": true,
   "description": "BinGo API — NestJS + Prisma (PostgreSQL/PostGIS)",
   "scripts": {
-    "prebuild": "rimraf dist tsconfig.build.tsbuildinfo",
+    "prebuild": "prisma generate && rimraf dist tsconfig.build.tsbuildinfo",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "prestart:dev": "pnpm build",

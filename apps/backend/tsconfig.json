@@ -20,6 +20,7 @@
     "forceConsistentCasingInFileNames": true,
     "noFallthroughCasesInSwitch": true,
     "resolveJsonModule": true,
+    "typeRoots": ["./node_modules/@types"],
     "paths": {
       "@bingo/shared-types": ["../../packages/shared-types/src"],
       "@bingo/shared-utils": ["../../packages/shared-utils/src"]
