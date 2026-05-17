@@ -7,6 +7,10 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { PointsModule } from './modules/points/points.module';
+import { PickupRequestsModule } from './modules/pickup-requests/pickup-requests.module';
+import { ReportsModule } from './modules/reports/reports.module';
+import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -31,6 +35,10 @@ import { RolesGuard } from './common/guards/roles.guard';
     HealthModule,
     UsersModule,
     AuthModule,
+    PointsModule,
+    PickupRequestsModule,
+    ReportsModule,
+    MarketplaceModule,
   ],
   providers: [
     // Semua endpoint default-nya wajib JWT, kecuali yang ditandai `@Public()`.

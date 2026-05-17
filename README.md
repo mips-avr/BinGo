@@ -150,6 +150,100 @@ curl -s http://localhost:3000/api/v1/auth/register \
 
 ---
 
+## Phase 3 — Core API (Pickup, Reports, Marketplace, Points)
+
+Phase 3 melengkapi backend dengan empat modul fungsional yang menjadi
+**fondasi** seluruh fitur warga, pemulung, dan UMKM, plus modul **TrashLink
+Points** sebagai gamifikasi.
+
+### Endpoint baru
+
+#### Pickup Requests (penjemputan sampah)
+
+| Method | URL | Role | Deskripsi |
+| --- | --- | --- | --- |
+| `POST`  | `/api/v1/pickup-requests`             | `CITIZEN`     | Buat permintaan baru (lat/lng + material + estimasi berat) |
+| `GET`   | `/api/v1/pickup-requests/mine`        | `CITIZEN`     | Daftar permintaan milik sendiri |
+| `GET`   | `/api/v1/pickup-requests/nearby`      | `WASTE_AGENT` | Cari permintaan `PENDING` dalam radius (PostGIS `ST_DWithin`) |
+| `GET`   | `/api/v1/pickup-requests/assigned`    | `WASTE_AGENT` | Pekerjaan yang sudah diterima |
+| `GET`   | `/api/v1/pickup-requests/:id`         | bearer        | Detail (akses dicek berbasis kepemilikan/role) |
+| `PATCH` | `/api/v1/pickup-requests/:id/accept`  | `WASTE_AGENT` | Ambil pekerjaan (race-safe; satu agen menang) |
+| `PATCH` | `/api/v1/pickup-requests/:id/complete`| `WASTE_AGENT` | Selesaikan → warga otomatis dapat **25 poin** |
+| `PATCH` | `/api/v1/pickup-requests/:id/cancel`  | `CITIZEN`     | Batalkan (hanya bila masih `PENDING`) |
+
+#### Reports (laporan pembuangan ilegal)
+
+| Method | URL | Role | Deskripsi |
+| --- | --- | --- | --- |
+| `POST`  | `/api/v1/reports`              | `CITIZEN`               | Buat laporan dengan foto + GPS |
+| `GET`   | `/api/v1/reports`              | bearer                  | Daftar laporan (opsional filter status/radius PostGIS) |
+| `GET`   | `/api/v1/reports/mine`         | `CITIZEN`               | Daftar laporan sendiri |
+| `GET`   | `/api/v1/reports/:id`          | bearer                  | Detail laporan |
+| `PATCH` | `/api/v1/reports/:id/verify`   | `CITIZEN`, `WASTE_AGENT`| Verifikasi (bukan oleh pembuat). 3 vote → status `DIVERIFIKASI` & pelapor dapat **50 poin** |
+| `PATCH` | `/api/v1/reports/:id/resolve`  | `CITIZEN`, `WASTE_AGENT`| Tutup laporan setelah ditangani (status `SELESAI`) |
+
+#### Marketplace (WasteMart)
+
+| Method | URL | Role | Deskripsi |
+| --- | --- | --- | --- |
+| `GET`  | `/api/v1/marketplace/items`            | bearer | Daftar produk (opsional `?search=`) |
+| `GET`  | `/api/v1/marketplace/items/:id`        | bearer | Detail produk |
+| `POST` | `/api/v1/marketplace/items`            | `MSME` | Tambah produk baru |
+| `POST` | `/api/v1/marketplace/checkout`         | `MSME` | Checkout keranjang (atomik: stok berkurang & transaksi tercatat) |
+| `GET`  | `/api/v1/marketplace/transactions/mine`| `MSME` | Riwayat transaksi |
+
+### Highlight implementasi
+
+- **Geospasial nyata** — `pickup-requests/nearby` memakai `ST_DWithin` pada
+  kolom `location::geography` dengan **GIST index**, mengembalikan
+  `distanceMeters` per baris. Trigger `bingo_sync_latlng_to_geom` (Phase 1)
+  yang menyinkronkan `lat`/`lng` → `location`, sehingga service layer cukup
+  menulis dua kolom skalar tersebut.
+- **Race-safe transitions** — `accept` memakai
+  `updateMany({ where: { id, status: 'PENDING' } })` agar dua agen yang
+  menekan tombol bersamaan tidak saling menimpa. Checkout memakai
+  `updateMany({ where: { stock: { gte: qty } } })` di dalam `$transaction`,
+  jadi stok mustahil negatif walau ada pembeli paralel.
+- **Atomic side-effects** — pemberian poin oleh `PointsService` berjalan
+  di dalam transaksi DB yang sama dengan transisi status (`complete` pickup
+  dan threshold `verify`), sehingga saldo poin tidak pernah drift.
+- **Validasi & pesan Indonesia** — DTO memakai `class-validator` dengan
+  pesan Bahasa Indonesia (mis. *"Estimasi berat harus lebih dari 0"*,
+  *"Minimal pesanan untuk &lt;produk&gt; adalah 100"*,
+  *"Stok '&lt;produk&gt;' tidak cukup (tersisa 100)"*).
+
+### Seed data WasteMart
+
+```bash
+pnpm backend:prisma:seed     # idempoten — aman dijalankan ulang
+```
+
+Mengisi 4 produk contoh dari UMKM (kantong kraft, sedotan bambu, kotak
+makan bagasse, beeswax wrap) agar layar marketplace di mobile sudah punya
+katalog sejak hari pertama.
+
+### Verifikasi end-to-end
+
+| Perintah | Cakupan |
+| --- | --- |
+| `pnpm backend:test`            | 55 unit test (auth, users, points, pickup, reports, items, transactions, guards) |
+| `pnpm backend:test:e2e`        | 25 e2e termasuk skenario PostGIS ST_DWithin, verifikasi laporan, checkout RBAC |
+| `bash infra/scripts/verify-phase3.sh` | 21 cek live curl: register multi-role → pickup geospatial → report 3-vote → checkout → stok berkurang → RBAC denial |
+
+Contoh keluaran skrip live:
+
+```
+[ OK ] ST_DWithin OK, jarak=2154.4m
+[ OK ] pointsBalance=25 (PICKUP_COMPLETED)
+[ OK ] Status auto → DIVERIFIKASI
+[ OK ] pointsBalance=75 (25 + 50)
+[ OK ] Checkout OK — totalAmount=Rp250000
+[ OK ] stock=1900 (≤1900)
+[ OK ] Ditolak 403 (MSME-only)
+```
+
+---
+
 ## Skrip umum
 
 | Perintah | Deskripsi |
@@ -197,8 +291,8 @@ BinGo/
 ## Roadmap fase
 
 - ✅ **Phase 1** — Inisialisasi proyek & database
-- ✅ **Phase 2** — Autentikasi & RBAC (JWT, login/register) (Anda di sini)
-- ⏭ Phase 3 — Core API (Reports, Pickup Requests, Marketplace)
+- ✅ **Phase 2** — Autentikasi & RBAC (JWT, login/register)
+- ✅ **Phase 3** — Core API (Pickup, Reports, Marketplace, Points) (Anda di sini)
 - ⏭ Phase 4 — Frontend Warga (TrashScan, Maps, request flow)
 - ⏭ Phase 5 — Frontend Pemulung (Dashboard, accept/complete)
 - ⏭ Phase 6 — Integrasi AI/ML (TensorFlow Lite + Vision Camera)
