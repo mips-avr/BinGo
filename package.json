@@ -1,0 +1,45 @@
+{
+  "name": "bingo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BinGo - Aplikasi pengelolaan sampah & kemasan ramah lingkungan untuk Indonesia",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "backend:dev": "pnpm --filter @bingo/backend start:dev",
+    "backend:build": "pnpm --filter @bingo/backend build",
+    "backend:test": "pnpm --filter @bingo/backend test",
+    "backend:test:e2e": "pnpm --filter @bingo/backend test:e2e",
+    "backend:prisma:migrate": "pnpm --filter @bingo/backend prisma:migrate",
+    "backend:prisma:generate": "pnpm --filter @bingo/backend prisma:generate",
+    "backend:prisma:seed": "pnpm --filter @bingo/backend prisma:seed",
+    "mobile:start": "pnpm --filter @bingo/mobile start",
+    "mobile:android": "pnpm --filter @bingo/mobile android",
+    "mobile:ios": "pnpm --filter @bingo/mobile ios",
+    "mobile:test": "pnpm --filter @bingo/mobile test",
+    "shared:build": "pnpm --filter \"@bingo/shared-*\" build && pnpm --filter @bingo/i18n build",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "lint": "pnpm -r --parallel lint",
+    "test": "pnpm -r --parallel test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "@swc/core",
+      "esbuild"
+    ]
+  }
+}

@@ -1,0 +1,178 @@
+// =====================================================================
+// BinGo — Prisma schema (Phase 1)
+//
+// Database: PostgreSQL 16 + ekstensi PostGIS 3.4
+// Catatan PostGIS:
+//   - Ekstensi `postgis` & `postgis_topology` diaktifkan via migrasi
+//     `0000_init_postgis_extensions`.
+//   - Kolom geospasial (geometry(Point, 4326)) tidak didukung native oleh
+//     Prisma. Kami menyimpannya sebagai kolom `location` dengan tipe
+//     `Unsupported("geometry(Point, 4326)")`, lalu menambahkan GIST index
+//     melalui migrasi SQL kustom. Pembacaan/penulisan koordinat dilakukan
+//     via raw query di service (lihat PrismaService di Phase 3).
+// =====================================================================
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis(version: "3.4.2")]
+}
+
+// ----------------------------- Enum types -----------------------------
+
+enum UserRole {
+  CITIZEN
+  WASTE_AGENT
+  MSME
+}
+
+enum PickupStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ReportStatus {
+  DILAPORKAN
+  DIVERIFIKASI
+  SELESAI
+}
+
+enum TransactionStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum MaterialType {
+  PET
+  HDPE
+  PVC
+  LDPE
+  PP
+  PS
+  OTHER_PLASTIC
+  PAPER
+  METAL
+  GLASS
+  ORGANIC
+  MIXED
+}
+
+// ------------------------------- Models -------------------------------
+
+model User {
+  id            String   @id @default(uuid())
+  /// NIK 16 digit (opsional untuk MSME). Disimpan unik bila ada.
+  nik           String?  @unique @db.VarChar(16)
+  name          String   @db.VarChar(120)
+  /// Nomor telepon dalam format E.164 (+62…). Identitas login utama.
+  phone         String   @unique @db.VarChar(20)
+  role          UserRole
+  passwordHash  String   @map("password_hash")
+  pointsBalance Int      @default(0) @map("points_balance")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  pickupRequestsAsCitizen PickupRequest[] @relation("CitizenPickups")
+  pickupRequestsAsAgent   PickupRequest[] @relation("AgentPickups")
+  reports                 Report[]
+  transactions            Transaction[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model PickupRequest {
+  id                String                                @id @default(uuid())
+  citizenId         String                                @map("citizen_id")
+  agentId           String?                               @map("agent_id")
+  status            PickupStatus                          @default(PENDING)
+  /// Latitude WGS84 (-90..90). Disimpan duplikatif untuk kemudahan baca via Prisma.
+  lat               Float
+  /// Longitude WGS84 (-180..180).
+  lng               Float
+  /// Kolom geospasial PostGIS — diisi melalui trigger/raw SQL pada service layer.
+  location          Unsupported("geometry(Point, 4326)")?
+  address           String                                @db.VarChar(255)
+  materialType      MaterialType                          @map("material_type")
+  estimatedWeightKg Decimal                               @map("estimated_weight_kg") @db.Decimal(6, 2)
+  notes             String?                               @db.Text
+  createdAt         DateTime                              @default(now()) @map("created_at")
+  updatedAt         DateTime                              @updatedAt @map("updated_at")
+
+  citizen User  @relation("CitizenPickups", fields: [citizenId], references: [id], onDelete: Cascade)
+  agent   User? @relation("AgentPickups", fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([citizenId])
+  @@index([agentId])
+  @@map("pickup_requests")
+}
+
+model Report {
+  id                String                                @id @default(uuid())
+  citizenId         String                                @map("citizen_id")
+  status            ReportStatus                          @default(DILAPORKAN)
+  lat               Float
+  lng               Float
+  location          Unsupported("geometry(Point, 4326)")?
+  description       String?                               @db.Text
+  imageUrl          String                                @map("image_url") @db.VarChar(512)
+  verificationCount Int                                   @default(0) @map("verification_count")
+  createdAt         DateTime                              @default(now()) @map("created_at")
+  updatedAt         DateTime                              @updatedAt @map("updated_at")
+
+  citizen User @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([citizenId])
+  @@map("reports")
+}
+
+model MarketplaceItem {
+  id           String   @id @default(uuid())
+  supplierName String   @map("supplier_name") @db.VarChar(160)
+  itemName     String   @map("item_name") @db.VarChar(160)
+  description  String   @db.Text
+  /// Harga dalam Rupiah (IDR), simpan sebagai integer agar bebas masalah desimal.
+  price        Int
+  minOrderQty  Int      @map("min_order_qty")
+  stock        Int      @default(0)
+  imageUrl     String?  @map("image_url") @db.VarChar(512)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  transactions Transaction[]
+
+  @@index([supplierName])
+  @@map("marketplace_items")
+}
+
+model Transaction {
+  id         String            @id @default(uuid())
+  buyerId    String            @map("buyer_id")
+  itemId     String            @map("item_id")
+  qty        Int
+  totalPrice Int               @map("total_price")
+  status     TransactionStatus @default(PENDING)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  buyer User            @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  item  MarketplaceItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([buyerId])
+  @@index([itemId])
+  @@index([status])
+  @@map("transactions")
+}

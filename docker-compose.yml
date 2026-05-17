@@ -1,0 +1,26 @@
+services:
+  postgres:
+    # Image resmi PostgreSQL 16 + ekstensi PostGIS 3.4 (untuk query geospasial)
+    image: postgis/postgis:16-3.4
+    container_name: bingo-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bingo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bingo_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-bingo}
+      # Aktifkan ekstensi PostGIS otomatis pada template1 saat init container pertama kali
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - bingo_pgdata:/var/lib/postgresql/data
+      - ./infra/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bingo} -d ${POSTGRES_DB:-bingo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bingo_pgdata:
+    name: bingo_pgdata
