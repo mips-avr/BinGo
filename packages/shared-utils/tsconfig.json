@@ -5,7 +5,6 @@
     "rootDir": "src",
     "module": "CommonJS",
     "moduleResolution": "Node",
-    "composite": true,
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"]

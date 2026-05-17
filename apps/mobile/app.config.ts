@@ -11,7 +11,6 @@ const config: ExpoConfig = {
   version: '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
   platforms: ['ios', 'android'],
   ios: {
     supportsTablet: false,

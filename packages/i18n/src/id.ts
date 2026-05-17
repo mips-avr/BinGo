@@ -5,7 +5,80 @@
  * Hindari penggabungan kalimat dari potongan terpisah; pakai placeholder
  * `{name}` untuk interpolasi agar tata bahasa tetap natural.
  */
-export const id = {
+export interface TranslationDict {
+  common: {
+    appName: string;
+    tagline: string;
+    loading: string;
+    save: string;
+    cancel: string;
+    retry: string;
+    error: string;
+    success: string;
+  };
+  auth: {
+    login: string;
+    register: string;
+    logout: string;
+    phone: string;
+    password: string;
+    name: string;
+    nik: string;
+    chooseRole: string;
+    role: {
+      CITIZEN: string;
+      WASTE_AGENT: string;
+      MSME: string;
+    };
+  };
+  pickup: {
+    title: string;
+    create: string;
+    nearby: string;
+    accept: string;
+    complete: string;
+    cancel: string;
+    status: {
+      PENDING: string;
+      ACCEPTED: string;
+      IN_PROGRESS: string;
+      COMPLETED: string;
+      CANCELLED: string;
+    };
+  };
+  report: {
+    title: string;
+    create: string;
+    status: {
+      DILAPORKAN: string;
+      DIVERIFIKASI: string;
+      SELESAI: string;
+    };
+  };
+  marketplace: {
+    title: string;
+    cart: string;
+    checkout: string;
+    addToCart: string;
+    minOrder: string;
+    stock: string;
+  };
+  points: {
+    label: string;
+    earned: string;
+  };
+  scanner: {
+    title: string;
+    instruction: string;
+    result: {
+      material: string;
+      disposal: string;
+      points: string;
+    };
+  };
+}
+
+export const id: TranslationDict = {
   common: {
     appName: 'BinGo',
     tagline: 'Aksi kecil untuk Indonesia yang lebih bersih',
@@ -76,6 +149,4 @@ export const id = {
       points: 'Nilai poin',
     },
   },
-} as const;
-
-export type TranslationDict = typeof id;
+};

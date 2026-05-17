@@ -1,9 +1,14 @@
 import { join } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { validateConfiguration } from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { RolesGuard } from './common/guards/roles.guard';
 
 @Module({
   imports: [
@@ -24,6 +29,16 @@ import { HealthModule } from './modules/health/health.module';
     }),
     PrismaModule,
     HealthModule,
+    UsersModule,
+    AuthModule,
+  ],
+  providers: [
+    // Semua endpoint default-nya wajib JWT, kecuali yang ditandai `@Public()`.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // RolesGuard ditempatkan setelah JwtAuthGuard supaya `req.user` sudah ada
+    // ketika RolesGuard mengecek peran. Bila handler tidak punya `@Roles()`,
+    // guard ini otomatis lolos.
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

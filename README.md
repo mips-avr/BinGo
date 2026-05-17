@@ -94,6 +94,62 @@ beserta URL API yang sedang dipakai.
 
 ---
 
+## Phase 2 — Autentikasi & RBAC
+
+Phase 2 menambahkan autentikasi berbasis **JWT** dengan **Role-Based Access
+Control** untuk tiga peran utama (`CITIZEN`, `WASTE_AGENT`, `MSME`).
+
+### Endpoint baru
+
+| Method | URL | Akses | Deskripsi |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/auth/register` | publik | Daftar user baru (nama, telepon, password, role; opsional NIK) |
+| `POST` | `/api/v1/auth/login`    | publik | Login via telepon + password, mengembalikan JWT |
+| `GET`  | `/api/v1/auth/me`       | bearer | Profil user yang sedang login |
+| `GET`  | `/api/v1/users/me`      | bearer | Alias profil user (untuk modul mobile) |
+
+Semua endpoint selain yang dimarkah `@Public()` di-protect secara **global**
+melalui `JwtAuthGuard` + `RolesGuard` (terpasang via `APP_GUARD`).
+
+### Arsitektur
+
+- **Backend** — `bcrypt` untuk hash password (cost 10), `@nestjs/jwt` +
+  Passport JWT strategy, custom guards (`JwtAuthGuard`, `RolesGuard`) dan
+  decorator (`@Public`, `@Roles`, `@CurrentUser`). DTO `RegisterDto`/`LoginDto`
+  divalidasi `class-validator` plus validator kustom Indonesia: nomor
+  telepon dinormalisasi ke format `+628…`, dan NIK dicek 16 digit + komponen
+  tanggal lahir valid via `@bingo/shared-utils`. Seluruh pesan error
+  berbahasa Indonesia (lewat `AllExceptionsFilter`).
+- **Mobile** — Axios client dengan interceptor JWT (`apps/mobile/src/lib/api/client.ts`),
+  `expo-secure-store` untuk persistensi token, dan **Zustand** store
+  (`authStore`) yang menjalankan `hydrate()` di `app/_layout.tsx`. Layar
+  `/(auth)/login`, `/(auth)/role-select`, dan `/(auth)/register` (Expo Router)
+  memakai komponen `Button`/`Input` (NativeWind) plus `LoginForm`/`RegisterForm`
+  yang memvalidasi telepon & NIK di sisi klien sebelum hit API.
+- **Shared** — `@bingo/shared-types` mengekspor `UserRole`, `AuthResponse`,
+  `JwtPayload`, `UserProfile` sehingga kontrak DTO tidak drift.
+
+### Cara verifikasi
+
+```bash
+pnpm backend:test          # 20 unit test (AuthService, UsersService, RolesGuard, …)
+pnpm backend:test:e2e      # 9 e2e: register → login → /me → error path
+pnpm mobile:test           # 9 test mobile (authStore + LoginForm)
+```
+
+Atau coba manual:
+
+```bash
+curl -s http://localhost:3000/api/v1/auth/register \
+  -H 'content-type: application/json' \
+  -d '{"name":"Budi","phone":"08123456789","password":"rahasiaSekali123","role":"CITIZEN"}'
+
+# Pesan error berbahasa Indonesia, mis. NIK tidak valid:
+# {"statusCode":400,"message":"NIK harus 16 digit angka dan memuat tanggal lahir yang valid"}
+```
+
+---
+
 ## Skrip umum
 
 | Perintah | Deskripsi |
@@ -140,8 +196,8 @@ BinGo/
 
 ## Roadmap fase
 
-- ✅ **Phase 1** — Inisialisasi proyek & database (Anda di sini)
-- ⏭ Phase 2 — Autentikasi & RBAC (JWT, login/register)
+- ✅ **Phase 1** — Inisialisasi proyek & database
+- ✅ **Phase 2** — Autentikasi & RBAC (JWT, login/register) (Anda di sini)
 - ⏭ Phase 3 — Core API (Reports, Pickup Requests, Marketplace)
 - ⏭ Phase 4 — Frontend Warga (TrashScan, Maps, request flow)
 - ⏭ Phase 5 — Frontend Pemulung (Dashboard, accept/complete)
