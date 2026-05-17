@@ -5,8 +5,9 @@ export function getAuthenticatedHome(role: UserRole): string {
   switch (role) {
     case 'WASTE_AGENT':
       return '/(agent-tabs)';
-    case 'CITIZEN':
     case 'MSME':
+      return '/(msme-tabs)';
+    case 'CITIZEN':
     default:
       return '/(tabs)';
   }

@@ -19,7 +19,7 @@ const config: ExpoConfig = {
       NSLocationWhenInUseUsageDescription:
         'BinGo memakai lokasi Anda untuk menentukan titik penjemputan sampah & laporan ilegal.',
       NSCameraUsageDescription:
-        'BinGo memerlukan kamera untuk memotret bukti laporan pembuangan ilegal.',
+        'BinGo memerlukan kamera untuk TrashScan, laporan, dan foto bukti.',
       NSPhotoLibraryUsageDescription:
         'BinGo memerlukan akses foto untuk melampirkan bukti laporan.',
     },
@@ -48,6 +48,12 @@ const config: ExpoConfig = {
       {
         cameraPermission: 'BinGo memerlukan kamera untuk memotret bukti laporan.',
         photosPermission: 'BinGo memerlukan akses foto untuk melampirkan bukti laporan.',
+      },
+    ],
+    [
+      'expo-camera',
+      {
+        cameraPermission: 'BinGo memakai kamera untuk TrashScan dan identifikasi kemasan.',
       },
     ],
   ],

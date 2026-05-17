@@ -37,6 +37,7 @@ export interface TranslationDict {
   };
   tabs: {
     home: string;
+    scanner: string;
     pickups: string;
     reports: string;
     marketplace: string;
@@ -48,6 +49,7 @@ export interface TranslationDict {
     recent: string;
     requestPickup: string;
     reportDump: string;
+    scanTrash: string;
     browseMart: string;
   };
   pickup: {
@@ -187,10 +189,46 @@ export interface TranslationDict {
   scanner: {
     title: string;
     instruction: string;
+    capture: string;
+    analyzing: string;
+    manualCode: string;
+    manualCodeHint: string;
+    permissionDenied: string;
+    resultTitle: string;
+    confidence: string;
+    scanAgain: string;
+    useForPickup: string;
+    engineHeuristic: string;
+    engineTflite: string;
     result: {
       material: string;
       disposal: string;
       points: string;
+    };
+  };
+  msme: {
+    tabs: {
+      shop: string;
+      cart: string;
+      orders: string;
+      profile: string;
+    };
+    cart: {
+      title: string;
+      emptyTitle: string;
+      emptyMessage: string;
+      total: string;
+      checkout: string;
+      checkoutSuccess: string;
+      addToCart: string;
+      qty: string;
+      remove: string;
+      minOrderWarning: string;
+    };
+    orders: {
+      title: string;
+      emptyTitle: string;
+      emptyMessage: string;
     };
   };
 }
@@ -227,6 +265,7 @@ export const id: TranslationDict = {
   },
   tabs: {
     home: 'Beranda',
+    scanner: 'TrashScan',
     pickups: 'Pickup',
     reports: 'Lapor',
     marketplace: 'WasteMart',
@@ -238,6 +277,7 @@ export const id: TranslationDict = {
     recent: 'Aktivitas terbaru',
     requestPickup: 'Minta penjemputan',
     reportDump: 'Lapor pembuangan ilegal',
+    scanTrash: 'Pindai kemasan (TrashScan)',
     browseMart: 'Jelajah WasteMart',
   },
   pickup: {
@@ -377,10 +417,46 @@ export const id: TranslationDict = {
   scanner: {
     title: 'TrashScan',
     instruction: 'Arahkan kamera ke simbol daur ulang pada kemasan',
+    capture: 'Pindai sekarang',
+    analyzing: 'Menganalisis kemasan…',
+    manualCode: 'Atau pilih kode daur ulang',
+    manualCodeHint: 'Angka di dalam segitiga daur ulang (1–7)',
+    permissionDenied: 'Izin kamera ditolak. Aktifkan di pengaturan perangkat.',
+    resultTitle: 'Hasil pemindaian',
+    confidence: 'Keyakinan model: {percent}%',
+    scanAgain: 'Pindai lagi',
+    useForPickup: 'Buat permintaan pickup',
+    engineHeuristic: 'Mode edukasi (heuristik warna)',
+    engineTflite: 'TensorFlow Lite',
     result: {
       material: 'Jenis material',
       disposal: 'Cara pembuangan',
-      points: 'Nilai poin',
+      points: 'Nilai poin edukasi',
+    },
+  },
+  msme: {
+    tabs: {
+      shop: 'Belanja',
+      cart: 'Keranjang',
+      orders: 'Pesanan',
+      profile: 'Profil',
+    },
+    cart: {
+      title: 'Keranjang WasteMart',
+      emptyTitle: 'Keranjang kosong',
+      emptyMessage: 'Tambahkan produk ramah lingkungan dari tab Belanja.',
+      total: 'Total',
+      checkout: 'Bayar sekarang',
+      checkoutSuccess: 'Pesanan berhasil. Stok telah dikurangi.',
+      addToCart: 'Tambah ke keranjang',
+      qty: 'Jumlah',
+      remove: 'Hapus',
+      minOrderWarning: 'Minimal pesanan {min} unit',
+    },
+    orders: {
+      title: 'Riwayat pesanan',
+      emptyTitle: 'Belum ada pesanan',
+      emptyMessage: 'Checkout produk dari keranjang untuk melihat riwayat di sini.',
     },
   },
 };

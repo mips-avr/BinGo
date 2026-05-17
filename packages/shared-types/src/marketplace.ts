@@ -38,3 +38,8 @@ export interface TransactionDto {
   status: TransactionStatus;
   createdAt: string;
 }
+
+export interface CheckoutResult {
+  transactions: TransactionDto[];
+  totalAmount: number;
+}

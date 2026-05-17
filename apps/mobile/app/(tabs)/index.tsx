@@ -62,6 +62,11 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/pickups/new')}
             />
             <QuickAction
+              icon="♻️"
+              label={t.home.scanTrash}
+              onPress={() => router.push('/(tabs)/scanner')}
+            />
+            <QuickAction
               icon="📷"
               label={t.home.reportDump}
               onPress={() => router.push('/(tabs)/reports/new')}

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import type { LatLng, MaterialType } from '@bingo/shared-types';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { MaterialType, type LatLng } from '@bingo/shared-types';
 import { Button } from '../../../src/components/ui/Button';
 import { Input } from '../../../src/components/ui/Input';
 import { MaterialPicker } from '../../../src/components/pickups/MaterialPicker';
@@ -19,13 +19,21 @@ interface FormErrors {
   weight?: string;
 }
 
+const MATERIAL_VALUES = Object.values(MaterialType) as MaterialType[];
+
 export default function NewPickupScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ materialType?: string }>();
   const create = useCreatePickup();
+
+  const initialMaterial =
+    params.materialType && MATERIAL_VALUES.includes(params.materialType as MaterialType)
+      ? (params.materialType as MaterialType)
+      : null;
 
   const [location, setLocation] = useState<LatLng | null>(null);
   const [address, setAddress] = useState('');
-  const [material, setMaterial] = useState<MaterialType | null>(null);
+  const [material, setMaterial] = useState<MaterialType | null>(initialMaterial);
   const [weight, setWeight] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});

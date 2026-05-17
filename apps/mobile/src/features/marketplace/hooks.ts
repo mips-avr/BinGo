@@ -1,6 +1,12 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CheckoutRequest } from '@bingo/shared-types';
 import { queryKeys } from '../../lib/query/client';
-import { getMarketplaceItem, listMarketplaceItems } from './api';
+import {
+  checkoutMarketplace,
+  getMarketplaceItem,
+  listMarketplaceItems,
+  listMyTransactions,
+} from './api';
 
 export function useMarketplaceItems(search = '') {
   return useQuery({
@@ -14,5 +20,23 @@ export function useMarketplaceItem(id: string | undefined) {
     queryKey: id ? queryKeys.marketplace.item(id) : ['marketplace', 'item', 'noop'],
     queryFn: () => getMarketplaceItem(id as string),
     enabled: Boolean(id),
+  });
+}
+
+export function useMyTransactions() {
+  return useQuery({
+    queryKey: queryKeys.marketplace.myTransactions,
+    queryFn: listMyTransactions,
+  });
+}
+
+export function useCheckout() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CheckoutRequest) => checkoutMarketplace(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['marketplace'] });
+      qc.invalidateQueries({ queryKey: queryKeys.marketplace.myTransactions });
+    },
   });
 }

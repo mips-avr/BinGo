@@ -9,7 +9,7 @@ describe('getAuthenticatedHome', () => {
     expect(getAuthenticatedHome('WASTE_AGENT')).toBe('/(agent-tabs)');
   });
 
-  it('mengarahkan UMKM ke tab warga (marketplace)', () => {
-    expect(getAuthenticatedHome('MSME')).toBe('/(tabs)');
+  it('mengarahkan UMKM ke tab WasteMart', () => {
+    expect(getAuthenticatedHome('MSME')).toBe('/(msme-tabs)');
   });
 });

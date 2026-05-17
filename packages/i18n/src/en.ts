@@ -36,6 +36,7 @@ export const en: TranslationDict = {
   },
   tabs: {
     home: 'Home',
+    scanner: 'TrashScan',
     pickups: 'Pickups',
     reports: 'Reports',
     marketplace: 'WasteMart',
@@ -47,6 +48,7 @@ export const en: TranslationDict = {
     recent: 'Recent activity',
     requestPickup: 'Request pickup',
     reportDump: 'Report illegal dumping',
+    scanTrash: 'Scan packaging (TrashScan)',
     browseMart: 'Browse WasteMart',
   },
   pickup: {
@@ -186,10 +188,46 @@ export const en: TranslationDict = {
   scanner: {
     title: 'TrashScan',
     instruction: 'Point the camera at the recycling symbol on the packaging',
+    capture: 'Scan now',
+    analyzing: 'Analyzing packaging…',
+    manualCode: 'Or pick recycling code',
+    manualCodeHint: 'Number inside the recycling triangle (1–7)',
+    permissionDenied: 'Camera permission denied. Enable it in device settings.',
+    resultTitle: 'Scan result',
+    confidence: 'Model confidence: {percent}%',
+    scanAgain: 'Scan again',
+    useForPickup: 'Create pickup request',
+    engineHeuristic: 'Education mode (color heuristic)',
+    engineTflite: 'TensorFlow Lite',
     result: {
       material: 'Material type',
       disposal: 'Disposal instructions',
-      points: 'Point value',
+      points: 'Educational point value',
+    },
+  },
+  msme: {
+    tabs: {
+      shop: 'Shop',
+      cart: 'Cart',
+      orders: 'Orders',
+      profile: 'Profile',
+    },
+    cart: {
+      title: 'WasteMart cart',
+      emptyTitle: 'Cart is empty',
+      emptyMessage: 'Add eco-friendly products from the Shop tab.',
+      total: 'Total',
+      checkout: 'Pay now',
+      checkoutSuccess: 'Order placed. Stock has been updated.',
+      addToCart: 'Add to cart',
+      qty: 'Quantity',
+      remove: 'Remove',
+      minOrderWarning: 'Minimum order is {min} units',
+    },
+    orders: {
+      title: 'Order history',
+      emptyTitle: 'No orders yet',
+      emptyMessage: 'Checkout from your cart to see history here.',
     },
   },
 };

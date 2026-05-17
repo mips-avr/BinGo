@@ -315,7 +315,7 @@ pnpm shared:build          # paket shared-types / shared-utils / i18n
 Mobile:
 
 ```bash
-pnpm mobile:typecheck
+pnpm --filter @bingo/mobile typecheck
 pnpm mobile:test           # ±24 test (auth, warga, pemulung, lokasi, upload, …)
 ```
 
@@ -352,7 +352,7 @@ Setelah login, `app/index.tsx` memanggil `getAuthenticatedHome(role)`:
 | --- | --- |
 | `CITIZEN` | `/(tabs)` — tab warga (Phase 4) |
 | `WASTE_AGENT` | `/(agent-tabs)` — tab pemulung |
-| `MSME` | `/(tabs)` — marketplace & profil (checkout UMKM menyusul) |
+| `MSME` | `/(msme-tabs)` — belanja, keranjang, checkout (Phase 6) |
 
 Layout `(tabs)` menolak akses pemulung (redirect ke `/(agent-tabs)`), dan sebaliknya.
 
@@ -388,10 +388,58 @@ Polling ringan: query terdekat di-refresh otomatis setiap **30 detik** bila tab 
 
 ```bash
 pnpm shared:build
-pnpm mobile:typecheck
+pnpm --filter @bingo/mobile typecheck
 pnpm mobile:test           # ±24 test (termasuk routing peran, jarak, NearbyPickupCard)
 pnpm backend:test:e2e      # alur pickup geospasial & resolve sudah dicakup Phase 3
 ```
+
+---
+
+## Phase 6 — TrashScan & checkout UMKM
+
+Phase 6 menambahkan **pemindai kemasan (TrashScan)** untuk warga dan alur
+**belanja WasteMart** penuh untuk akun **UMKM (`MSME`)**.
+
+### TrashScan (warga — tab `/(tabs)/scanner`)
+
+| Komponen | Lokasi |
+| --- | --- |
+| Kamera & UI | `app/(tabs)/scanner/` — tangkap foto atau pilih kode daur ulang 1–7 |
+| Hasil & edukasi | `scanner/result` — material, tips pembuangan (ID), hint poin edukasi |
+| Pipeline klasifikasi | `src/features/scanner/` — `classifyPackaging()` → coba TFLite, fallback heuristik warna |
+| Prefill pickup | Tombol **Buat permintaan pickup** → `pickups/new?materialType=…` |
+
+**Mode model**
+
+- **Expo Go / tanpa dev client:** heuristik thumbnail (`expo-image-manipulator`) + pemetaan manual kode 1–7.
+- **Dev build (opsional):** pasang `react-native-fast-tflite` + bundel `.tflite` — `tfliteBridge.ts` akan memilih engine `tflite` bila modul native tersedia.
+
+Dependensi: `expo-camera`, `expo-image-manipulator` (plugin kamera di `app.config.ts`).
+
+### Checkout UMKM (`/(msme-tabs)`)
+
+| Tab | Fitur |
+| --- | --- |
+| **Belanja** | Katalog WasteMart + detail produk |
+| **Keranjang** | Zustand `cartStore` — qty, total, `POST /api/v1/marketplace/checkout` |
+| **Pesanan** | `GET /api/v1/marketplace/transactions/mine` |
+| **Profil** | `ProfileView` (tanpa badge poin) |
+
+Routing: `getAuthenticatedHome('MSME')` → `/(msme-tabs)`; layout `(tabs)` mengalihkan MSME & pemulung ke home masing-masing.
+
+### Verifikasi
+
+```bash
+pnpm shared:build
+pnpm --filter @bingo/mobile typecheck
+pnpm mobile:test           # termasuk classifier TrashScan, cartStore, routing MSME
+pnpm backend:test:e2e      # checkout & RBAC MSME sudah di Phase 3
+```
+
+Alur uji manual:
+
+1. **Warga** — tab TrashScan → pindai / pilih kode → buat pickup dengan material terisi.
+2. **UMKM** — login MSME → belanja → keranjang → bayar → cek tab Pesanan & stok produk berkurang di API.
 
 ---
 
@@ -446,4 +494,4 @@ BinGo/
 - ✅ **Phase 3** — Core API (Pickup, Reports, Marketplace, Points)
 - ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads)
 - ✅ **Phase 5** — Frontend Pemulung (dashboard, terdekat, terima/selesai, resolve laporan)
-- ⏭ Phase 6 — Integrasi AI/ML (TensorFlow Lite + Vision Camera) & checkout UMKM
+- ✅ **Phase 6** — TrashScan (kamera + heuristik/TFLite-ready) & checkout UMKM (keranjang + pesanan)

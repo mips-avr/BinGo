@@ -1,20 +1,14 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
 import { useAuthStore } from '../../src/store/authStore';
+import { useCartStore } from '../../src/store/cartStore';
 import { t } from '../../src/i18n';
 
-/**
- * Tab bar warga (Phase 4). Tab pemulung (Phase 5) dan UMKM (Phase 6+)
- * akan menggunakan layout group terpisah sehingga setiap peran punya
- * navigasi yang berbeda.
- */
 const ICONS = {
-  home: '🏠',
-  scanner: '♻️',
-  pickups: '🚚',
-  reports: '📷',
-  marketplace: '🛒',
+  shop: '🛒',
+  cart: '🧺',
+  orders: '📦',
   profile: '👤',
 } as const;
 
@@ -24,18 +18,30 @@ function Icon({ name, focused }: { name: keyof typeof ICONS; focused: boolean })
   );
 }
 
-export default function TabsLayout() {
+function CartBadge() {
+  const count = useCartStore((s) => s.itemCount());
+  if (count === 0) return null;
+  return (
+    <View className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-red-500 px-1">
+      <Text className="text-center text-[10px] font-bold text-white">
+        {count > 99 ? '99+' : count}
+      </Text>
+    </View>
+  );
+}
+
+/** Tab navigator khusus UMKM (`MSME`) — belanja, keranjang, pesanan. */
+export default function MsmeTabsLayout() {
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
+
   if (status === 'unauthenticated' || !user) {
     return <Redirect href="/(auth)/login" />;
   }
-  if (user.role === 'WASTE_AGENT') {
+  if (user.role !== 'MSME') {
     return <Redirect href={getAuthenticatedHome(user.role)} />;
   }
-  if (user.role === 'MSME') {
-    return <Redirect href={getAuthenticatedHome(user.role)} />;
-  }
+
   return (
     <Tabs
       screenOptions={{
@@ -47,44 +53,35 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
-        options={{
-          title: t.tabs.home,
-          tabBarIcon: ({ focused }) => <Icon name="home" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="scanner"
-        options={{
-          title: t.tabs.scanner,
-          tabBarIcon: ({ focused }) => <Icon name="scanner" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="pickups"
-        options={{
-          title: t.tabs.pickups,
-          tabBarIcon: ({ focused }) => <Icon name="pickups" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: t.tabs.reports,
-          tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
         name="marketplace"
         options={{
-          title: t.tabs.marketplace,
-          tabBarIcon: ({ focused }) => <Icon name="marketplace" focused={focused} />,
+          title: t.msme.tabs.shop,
+          tabBarIcon: ({ focused }) => <Icon name="shop" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="cart"
+        options={{
+          title: t.msme.tabs.cart,
+          tabBarIcon: ({ focused }) => (
+            <View>
+              <Icon name="cart" focused={focused} />
+              <CartBadge />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="orders"
+        options={{
+          title: t.msme.tabs.orders,
+          tabBarIcon: ({ focused }) => <Icon name="orders" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: t.tabs.profile,
+          title: t.msme.tabs.profile,
           tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
         }}
       />
