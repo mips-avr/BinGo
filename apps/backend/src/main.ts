@@ -1,10 +1,12 @@
 import 'reflect-metadata';
 import { Logger, RequestMethod, ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { UPLOADS_DIR } from './modules/uploads/uploads.constants';
 
 /**
  * Entry point aplikasi BinGo API.
@@ -15,12 +17,16 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
  */
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['log', 'warn', 'error', 'debug'],
   });
 
-  app.use(helmet());
+  // Disable CORP supaya `<Image src="...">` di Expo dapat memuat foto
+  // dari `/uploads/...` di domain backend (dev: localhost).
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.enableCors({ origin: true, credentials: true });
+
+  app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
 
   // Endpoint /health sengaja diletakkan di root (tanpa prefix /api dan tanpa
   // versi) agar mudah dipakai sebagai liveness/readiness probe.

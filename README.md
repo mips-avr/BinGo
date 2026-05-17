@@ -132,10 +132,12 @@ melalui `JwtAuthGuard` + `RolesGuard` (terpasang via `APP_GUARD`).
 ### Cara verifikasi
 
 ```bash
-pnpm backend:test          # 20 unit test (AuthService, UsersService, RolesGuard, …)
-pnpm backend:test:e2e      # 9 e2e: register → login → /me → error path
-pnpm mobile:test           # 9 test mobile (authStore + LoginForm)
+pnpm backend:test          # unit test NestJS (termasuk modul yang lebih baru dari Phase 2)
+pnpm backend:test:e2e      # integration test NestJS termasuk auth
+pnpm mobile:test           # unit test mobile (auth + Phase 4+)
 ```
+
+Untuk perkiraan jumlah tes terkini, lihat rangkuman pada **Phase 4**.
 
 Atau coba manual:
 
@@ -227,7 +229,7 @@ katalog sejak hari pertama.
 | Perintah | Cakupan |
 | --- | --- |
 | `pnpm backend:test`            | 55 unit test (auth, users, points, pickup, reports, items, transactions, guards) |
-| `pnpm backend:test:e2e`        | 25 e2e termasuk skenario PostGIS ST_DWithin, verifikasi laporan, checkout RBAC |
+| `pnpm backend:test:e2e`        | ±28 e2e termasuk auth, PostGIS pickup/report, uploads & statik `/uploads` |
 | `bash infra/scripts/verify-phase3.sh` | 21 cek live curl: register multi-role → pickup geospatial → report 3-vote → checkout → stok berkurang → RBAC denial |
 
 Contoh keluaran skrip live:
@@ -241,6 +243,97 @@ Contoh keluaran skrip live:
 [ OK ] stock=1900 (≤1900)
 [ OK ] Ditolak 403 (MSME-only)
 ```
+
+---
+
+## Phase 4 — Frontend Warga & unggah foto
+
+Phase 4 menambahkan pengalaman **warga (`CITIZEN`)** di aplikasi Expo: navigasi tab,
+pemanggilan REST Phase 3 lewat React Query, **GPS** & **kamera/galeri** untuk
+laporan, plus endpoint backend untuk **upload gambar** (lalu digunakan sebagai
+URL di field `reports.imageUrl`).
+
+### Backend — unggah & penyajian gambar
+
+| Method | URL | Akses | Deskripsi |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/uploads/image` | bearer | Unggah foto (`multipart/form-data`, field `file`). MIME: jpeg, png, webp, heic; maks 5 MB |
+
+Respons mencakup `url` publik, misalnya `http://localhost:3000/uploads/<filename>.png`.
+
+- File disimpan di `apps/backend/uploads/` (default); override dengan env **`UPLOADS_DIR`** di production (volume/S3-gateway).
+- **Helmet**: `crossOriginResourcePolicy` diset **`cross-origin`** supaya `<Image>` di simulator/device dapat memuat `http://HOST/uploads/…`.
+- **`PUBLIC_BASE_URL`** (opsional): basis URL lengkap untuk field `url` bila aplikasi ada di balik proxy/HTTPS.
+
+Lintas file inti:
+
+- Modul **`UploadsModule`** — `apps/backend/src/modules/uploads/`.
+- Serving statis **`/uploads/*`** dan konfig `NestExpressApplication` — `apps/backend/src/main.ts`.
+
+### Mobile — apa yang dibuat untuk warga
+
+Setelah login, root `app/index.tsx` mengarahkan ke **`app/(tabs)/`** — tab Expo Router:
+
+| Tab | Konten singkat |
+| --- | --- |
+| **Beranda** | Salam, badge poin TrashLink, aksi cepat (Pickup / Lapor / WasteMart), ringkasan permintaan & laporan terbaru |
+| **Pickup** | Stack: daftar `mine`, formulir baru (lokasi + alamat + material + berat), detail & **batalkan** bila masih `PENDING` |
+| **Lapor** | Stack: feed laporan komunitas, formulir baru (foto dari kamera/galeri, upload ke `/uploads`, GPS otomatis), detail & tombol verifikasi (bukan pemilik) |
+| **WasteMart** | Stack: katalog dengan pencarian, detail produk, harga `formatIDR`; **browse** untuk warga, catatan bahwa checkout khusus UMKM (Phase selanjutnya) |
+| **Profil** | Data akun, poin, **keluar** dengan konfirmasi |
+
+Dependensi utama: **`@tanstack/react-query`**, **`expo-location`**, **`expo-image-picker`**. Provider `QueryClient` dipasang di `app/_layout.tsx`.
+
+Konvensi kode berada di antara lain:
+
+```
+apps/mobile/
+├── app/(tabs)/              # tab + stack pickups / reports / marketplace
+├── src/features/{pickups,reports,marketplace,uploads}/
+├── src/lib/{api,location,image,query}/
+├── src/components/{ui,pickups,reports,marketplace}/
+├── __mocks__/expo-*.ts     # lokasi & image picker untuk Jest
+```
+
+Izinkan kamera & lokasi juga dideklarasikan di **`app.config.ts`** (plugin Expo + pesan bahasa Indonesia untuk iOS/Android).
+
+### Shared helpers
+
+`@bingo/shared-utils`: **`formatRelativeId`** untuk teks relativ di feed/list (Bahasa Indonesia, mis. *"5 menit lalu"*).
+
+### Cara verifikasi
+
+Backend (termasuk unggah & statis `/uploads`):
+
+```bash
+pnpm backend:test          # ±55 unit
+pnpm backend:test:e2e      # ±28 e2e (auth, pickup/report, uploads)
+pnpm shared:build          # paket shared-types / shared-utils / i18n
+```
+
+Mobile:
+
+```bash
+pnpm mobile:typecheck
+pnpm mobile:test           # ±17 test (login, auth store, lokasi, upload API, picker material, …)
+```
+
+Shared utils:
+
+```bash
+pnpm --filter @bingo/shared-utils test   # ±20 unit (geo, validators, date, …)
+```
+
+Contoh cepat dengan backend hidup (`pnpm backend:dev`): daftar/register warga → dapat JWT → kirim foto:
+
+```bash
+TOKEN="<paste accessToken>"
+curl -s -X POST http://localhost:3000/api/v1/uploads/image \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@/path/to/photo.jpg"
+```
+
+Gunakan URL yang dikembalikan sebagai `imageUrl` saat membuat laporan dari mobile atau dari `curl`.
 
 ---
 
@@ -292,7 +385,7 @@ BinGo/
 
 - ✅ **Phase 1** — Inisialisasi proyek & database
 - ✅ **Phase 2** — Autentikasi & RBAC (JWT, login/register)
-- ✅ **Phase 3** — Core API (Pickup, Reports, Marketplace, Points) (Anda di sini)
-- ⏭ Phase 4 — Frontend Warga (TrashScan, Maps, request flow)
+- ✅ **Phase 3** — Core API (Pickup, Reports, Marketplace, Points)
+- ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads) *(TrashScan/peta mendalam menyusul)*
 - ⏭ Phase 5 — Frontend Pemulung (Dashboard, accept/complete)
 - ⏭ Phase 6 — Integrasi AI/ML (TensorFlow Lite + Vision Camera)

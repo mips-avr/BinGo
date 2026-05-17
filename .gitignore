@@ -55,6 +55,9 @@ android/app/build/
 apps/backend/prisma/*.db
 apps/backend/prisma/*.db-journal
 
+# Uploaded user content (kept out of git; persisted via volume mount in prod)
+apps/backend/uploads/
+
 # Misc
 *.tgz
 .DS_Store?
