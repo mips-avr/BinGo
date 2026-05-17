@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { LatLng } from '@bingo/shared-types';
@@ -11,6 +11,7 @@ import { pickFromGallery, takePhoto, type PickedImage } from '../../../src/lib/i
 import { uploadImage } from '../../../src/features/uploads/api';
 import { useCreateReport } from '../../../src/features/reports/hooks';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors, shadow } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function NewReportScreen() {
@@ -93,49 +94,43 @@ export default function NewReportScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.report.create} />
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Text className="mb-2 text-sm font-medium text-neutral-700">{t.report.photo}</Text>
-        <View className="mb-3 overflow-hidden rounded-2xl bg-white">
+        <Text style={s.fieldLabel}>{t.report.photo}</Text>
+        <View style={s.photoCard}>
           {photo ? (
-            <Image
-              source={{ uri: photo.uri }}
-              className="h-56 w-full bg-neutral-200"
-              resizeMode="cover"
-            />
+            <Image source={{ uri: photo.uri }} style={s.photoImage} resizeMode="cover" />
           ) : (
-            <View className="h-56 items-center justify-center bg-neutral-100">
-              <Text className="text-4xl">📷</Text>
-              <Text className="mt-2 text-sm text-neutral-500">{t.report.photo}</Text>
+            <View style={s.photoPlaceholder}>
+              <Text style={s.photoIcon}>📷</Text>
+              <Text style={s.photoPlaceholderText}>{t.report.photo}</Text>
             </View>
           )}
-          <View className="flex-row gap-2 p-3">
-            <View className="flex-1">
+          <View style={s.photoBtnRow}>
+            <View style={s.photoBtnHalf}>
               <Button label={t.report.photoTake} variant="primary" onPress={onTake} testID="photo-take" />
             </View>
-            <View className="flex-1">
+            <View style={s.photoBtnHalf}>
               <Button label={t.report.photoPick} variant="secondary" onPress={onPick} />
             </View>
           </View>
         </View>
-        {photoError ? <Text className="mb-2 text-xs text-red-600">{photoError}</Text> : null}
+        {photoError ? <Text style={s.fieldError}>{photoError}</Text> : null}
 
-        <View className="mb-3 rounded-xl border border-neutral-300 bg-white p-3">
-          <Text className="text-xs font-semibold uppercase text-neutral-500">
-            {t.pickup.locationLabel}
-          </Text>
+        <View style={s.locCard}>
+          <Text style={s.locLabel}>{t.pickup.locationLabel}</Text>
           {locationLoading ? (
-            <View className="mt-2 flex-row items-center">
-              <ActivityIndicator color="#15803D" />
-              <Text className="ml-2 text-sm text-neutral-500">{t.common.loading}</Text>
+            <View style={s.locRow}>
+              <ActivityIndicator color={colors.bingo700} />
+              <Text style={s.locLoading}>{t.common.loading}</Text>
             </View>
           ) : location ? (
-            <Text className="mt-2 text-base font-semibold text-neutral-900">
+            <Text style={s.locCoords}>
               📍 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
             </Text>
           ) : (
@@ -152,14 +147,12 @@ export default function NewReportScreen() {
                   setLocationLoading(false);
                 }
               }}
-              className="mt-2 self-start rounded-lg bg-bingo-50 px-3 py-2 active:opacity-70"
+              style={s.locRetryBtn}
             >
-              <Text className="text-sm font-semibold text-bingo-700">{t.pickup.locationPick}</Text>
+              <Text style={s.locRetryText}>{t.pickup.locationPick}</Text>
             </Pressable>
           )}
-          {locationError ? (
-            <Text className="mt-2 text-xs text-red-600">{locationError}</Text>
-          ) : null}
+          {locationError ? <Text style={s.fieldError}>{locationError}</Text> : null}
         </View>
 
         <Input
@@ -172,7 +165,7 @@ export default function NewReportScreen() {
           textAlignVertical="top"
         />
 
-        {submitError ? <Text className="mb-3 text-sm text-red-600">{submitError}</Text> : null}
+        {submitError ? <Text style={s.submitError}>{submitError}</Text> : null}
 
         <Button
           label={t.report.submit}
@@ -184,3 +177,26 @@ export default function NewReportScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  fieldLabel: { marginBottom: 8, fontSize: 14, fontWeight: '500', color: colors.neutral800 },
+  photoCard: { marginBottom: 12, borderRadius: 16, backgroundColor: colors.white, overflow: 'hidden', ...shadow(2) },
+  photoImage: { height: 224, width: '100%', backgroundColor: colors.neutral200 },
+  photoPlaceholder: { height: 224, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.neutral100 },
+  photoIcon: { fontSize: 40 },
+  photoPlaceholderText: { marginTop: 8, fontSize: 14, color: colors.neutral600 },
+  photoBtnRow: { flexDirection: 'row', gap: 8, padding: 12 },
+  photoBtnHalf: { flex: 1 },
+  fieldError: { marginBottom: 8, fontSize: 12, color: colors.red600 },
+  locCard: { marginBottom: 12, borderRadius: 12, borderWidth: 1, borderColor: colors.neutral300, backgroundColor: colors.white, padding: 12 },
+  locLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', color: colors.neutral600 },
+  locRow: { marginTop: 8, flexDirection: 'row', alignItems: 'center' },
+  locLoading: { marginLeft: 8, fontSize: 14, color: colors.neutral600 },
+  locCoords: { marginTop: 8, fontSize: 16, fontWeight: '600', color: colors.neutral900 },
+  locRetryBtn: { marginTop: 8, alignSelf: 'flex-start', borderRadius: 8, backgroundColor: colors.bingo50, paddingHorizontal: 12, paddingVertical: 8 },
+  locRetryText: { fontSize: 14, fontWeight: '600', color: colors.bingo700 },
+  submitError: { marginBottom: 12, fontSize: 14, color: colors.red600 },
+});

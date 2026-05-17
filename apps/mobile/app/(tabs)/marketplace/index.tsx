@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../../../src/store/authStore';
@@ -8,6 +8,7 @@ import { ItemCard } from '../../../src/components/marketplace/ItemCard';
 import { Input } from '../../../src/components/ui/Input';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function MarketplaceList() {
@@ -17,14 +18,14 @@ export default function MarketplaceList() {
   const query = useMarketplaceItems(search);
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
-      <View className="px-5 py-4">
-        <Text className="text-xl font-bold text-neutral-900">{t.marketplace.title}</Text>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <View style={s.headerWrap}>
+        <Text style={s.title}>{t.marketplace.title}</Text>
         {role === 'CITIZEN' ? (
-          <Text className="mt-1 text-xs text-neutral-500">{t.marketplace.citizenNotice}</Text>
+          <Text style={s.notice}>{t.marketplace.citizenNotice}</Text>
         ) : null}
       </View>
-      <View className="px-5">
+      <View style={s.searchWrap}>
         <Input
           label={t.common.search}
           placeholder={t.marketplace.searchPlaceholder}
@@ -35,16 +36,16 @@ export default function MarketplaceList() {
       </View>
 
       {query.isLoading ? (
-        <ActivityIndicator className="mt-6" color="#15803D" />
+        <ActivityIndicator style={s.loader} color={colors.bingo700} />
       ) : query.isError ? (
-        <Text className="mx-5 mt-3 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       ) : (
         <FlatList
           data={query.data ?? []}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          contentContainerStyle={s.listContent}
           renderItem={({ item }) => (
             <ItemCard item={item} onPress={() => router.push(`/(tabs)/marketplace/${item.id}`)} />
           )}
@@ -59,7 +60,7 @@ export default function MarketplaceList() {
             <RefreshControl
               refreshing={query.isFetching && !query.isLoading}
               onRefresh={() => query.refetch()}
-              tintColor="#15803D"
+              tintColor={colors.bingo700}
             />
           }
         />
@@ -67,3 +68,14 @@ export default function MarketplaceList() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  headerWrap: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  notice: { marginTop: 4, fontSize: 12, color: colors.neutral600 },
+  searchWrap: { paddingHorizontal: 20 },
+  loader: { marginTop: 24 },
+  errorText: { marginHorizontal: 20, marginTop: 12, fontSize: 14, color: colors.red600 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+});

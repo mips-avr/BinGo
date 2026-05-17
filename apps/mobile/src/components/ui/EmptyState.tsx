@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../theme/screen';
 
 export interface EmptyStateProps {
   title: string;
@@ -6,15 +7,39 @@ export interface EmptyStateProps {
   icon?: string;
 }
 
-/** State kosong yang ramah; tetap simpel tanpa ilustrasi agar bundle ringan. */
+/** State kosong yang ramah — StyleSheet eksplisit agar teks terbaca. */
 export function EmptyState({ title, message, icon = '🌱' }: EmptyStateProps) {
   return (
-    <View className="items-center justify-center px-6 py-10">
-      <Text className="text-5xl">{icon}</Text>
-      <Text className="mt-3 text-center text-base font-semibold text-neutral-800">{title}</Text>
-      {message ? (
-        <Text className="mt-1 text-center text-sm text-neutral-500">{message}</Text>
-      ) : null}
+    <View style={emptyStyles.container}>
+      <Text style={emptyStyles.icon}>{icon}</Text>
+      <Text style={emptyStyles.title}>{title}</Text>
+      {message ? <Text style={emptyStyles.message}>{message}</Text> : null}
     </View>
   );
 }
+
+const emptyStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+  },
+  icon: {
+    fontSize: 48,
+  },
+  title: {
+    marginTop: 12,
+    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.neutral800,
+  },
+  message: {
+    marginTop: 6,
+    textAlign: 'center',
+    fontSize: 14,
+    color: colors.neutral600,
+    lineHeight: 20,
+  },
+});

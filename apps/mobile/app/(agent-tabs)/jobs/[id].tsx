@@ -1,4 +1,4 @@
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { formatWaktuID } from '@bingo/shared-utils';
@@ -8,6 +8,7 @@ import { Card } from '../../../src/components/ui/Card';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function AgentJobDetail() {
@@ -37,17 +38,17 @@ export default function AgentJobDetail() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50" edges={['top']}>
-        <Text className="text-sm text-neutral-500">{t.common.loading}</Text>
+      <SafeAreaView style={s.center} edges={['top']}>
+        <Text style={s.loadingText}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+      <SafeAreaView style={s.safe} edges={['top']}>
         <ScreenHeader title={t.pickup.detailTitle} />
-        <Text className="mx-5 mt-4 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       </SafeAreaView>
@@ -58,35 +59,33 @@ export default function AgentJobDetail() {
   const canComplete = p.status === 'ACCEPTED' || p.status === 'IN_PROGRESS';
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.pickup.detailTitle} subtitle={p.address} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={s.scrollContent}>
         <Card>
-          <View className="flex-row items-center justify-between">
-            <Text className="flex-1 text-base font-bold text-neutral-900">{p.address}</Text>
+          <View style={s.row}>
+            <Text style={s.addressTitle}>{p.address}</Text>
             <StatusBadge status={p.status} />
           </View>
-          <Text className="mt-2 text-sm text-neutral-600">
+          <Text style={s.coordsText}>
             📍 {p.location.lat.toFixed(5)}, {p.location.lng.toFixed(5)}
           </Text>
         </Card>
 
-        <Card className="mt-3">
-          <Text className="text-xs font-semibold uppercase text-neutral-500">
-            {t.pickup.material}
-          </Text>
-          <Text className="mt-1 text-base text-neutral-900">
+        <Card style={s.mt12}>
+          <Text style={s.sectionLabel}>{t.pickup.material}</Text>
+          <Text style={s.sectionValue}>
             {t.pickup.material_label[p.materialType]}
           </Text>
-          <Text className="mt-2 text-base text-neutral-900">{p.estimatedWeightKg} kg</Text>
+          <Text style={s.weightText}>{p.estimatedWeightKg} kg</Text>
           {p.notes ? (
-            <Text className="mt-2 text-sm text-neutral-600">{p.notes}</Text>
+            <Text style={s.notesText}>{p.notes}</Text>
           ) : null}
-          <Text className="mt-3 text-xs text-neutral-500">{formatWaktuID(p.createdAt)}</Text>
+          <Text style={s.dateText}>{formatWaktuID(p.createdAt)}</Text>
         </Card>
 
         {canComplete ? (
-          <View className="mt-6">
+          <View style={s.btnWrap}>
             <Button
               label={t.pickup.complete}
               onPress={confirmComplete}
@@ -99,3 +98,21 @@ export default function AgentJobDetail() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  loadingText: { fontSize: 14, color: colors.neutral600 },
+  errorText: { marginHorizontal: 20, marginTop: 16, fontSize: 14, color: colors.red600 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  addressTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.neutral900, marginRight: 8 },
+  coordsText: { marginTop: 8, fontSize: 14, color: colors.neutral700 },
+  mt12: { marginTop: 12 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', color: colors.neutral600 },
+  sectionValue: { marginTop: 4, fontSize: 16, color: colors.neutral900 },
+  weightText: { marginTop: 8, fontSize: 16, color: colors.neutral900 },
+  notesText: { marginTop: 8, fontSize: 14, color: colors.neutral700 },
+  dateText: { marginTop: 12, fontSize: 12, color: colors.neutral600 },
+  btnWrap: { marginTop: 24 },
+});

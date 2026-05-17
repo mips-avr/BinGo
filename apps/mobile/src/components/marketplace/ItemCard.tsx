@@ -1,7 +1,8 @@
-import { Image, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import type { MarketplaceItemDto } from '@bingo/shared-types';
 import { formatIDR } from '@bingo/shared-utils';
 import { Card } from '../ui/Card';
+import { colors } from '../../theme/screen';
 import { t } from '../../i18n';
 
 const FALLBACK = 'https://placehold.co/600x400/16A34A/FFFFFF?text=BinGo';
@@ -14,20 +15,20 @@ export function ItemCard({
   onPress?: () => void;
 }) {
   return (
-    <Card onPress={onPress} className="mb-3" padded={false}>
+    <Card onPress={onPress} style={cardS.mb} padded={false}>
       <Image
         source={{ uri: item.imageUrl ?? FALLBACK }}
-        className="h-36 w-full rounded-t-2xl bg-neutral-200"
+        style={cardS.image}
         resizeMode="cover"
       />
-      <View className="p-4">
-        <Text className="text-xs uppercase text-neutral-500">{item.supplierName}</Text>
-        <Text className="mt-0.5 text-base font-semibold text-neutral-900" numberOfLines={2}>
+      <View style={cardS.body}>
+        <Text style={cardS.supplier}>{item.supplierName}</Text>
+        <Text style={cardS.name} numberOfLines={2}>
           {item.itemName}
         </Text>
-        <View className="mt-2 flex-row items-center justify-between">
-          <Text className="text-base font-bold text-bingo-700">{formatIDR(item.price)}</Text>
-          <Text className="text-xs text-neutral-500">
+        <View style={cardS.priceRow}>
+          <Text style={cardS.price}>{formatIDR(item.price)}</Text>
+          <Text style={cardS.minOrder}>
             {t.marketplace.minOrder}: {item.minOrderQty}
           </Text>
         </View>
@@ -35,3 +36,45 @@ export function ItemCard({
     </Card>
   );
 }
+
+const cardS = StyleSheet.create({
+  mb: { marginBottom: 12 },
+  image: {
+    height: 144,
+    width: '100%',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    backgroundColor: colors.neutral200,
+  },
+  body: {
+    padding: 16,
+  },
+  supplier: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    color: colors.neutral600,
+    letterSpacing: 0.3,
+  },
+  name: {
+    marginTop: 2,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral900,
+  },
+  priceRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.bingo700,
+  },
+  minOrder: {
+    fontSize: 12,
+    color: colors.neutral600,
+  },
+});

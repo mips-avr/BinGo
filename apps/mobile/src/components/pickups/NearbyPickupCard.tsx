@@ -1,8 +1,9 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { NearbyPickupResult } from '../../features/pickups/api';
 import { formatDistanceMeters } from '../../lib/geo/format';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { colors } from '../../theme/screen';
 import { t } from '../../i18n';
 
 export function NearbyPickupCard({
@@ -17,22 +18,22 @@ export function NearbyPickupCard({
   accepting?: boolean;
 }) {
   return (
-    <Card onPress={onPress} className="mb-3">
-      <View className="flex-row items-start justify-between">
-        <View className="flex-1 pr-2">
-          <Text className="text-base font-semibold text-neutral-900" numberOfLines={2}>
+    <Card onPress={onPress} style={cardS.mb}>
+      <View style={cardS.row}>
+        <View style={cardS.content}>
+          <Text style={cardS.address} numberOfLines={2}>
             {pickup.address}
           </Text>
-          <Text className="mt-1 text-sm text-bingo-700">
+          <Text style={cardS.distance}>
             📍 {formatDistanceMeters(pickup.distanceMeters)}
           </Text>
-          <Text className="mt-1 text-sm text-neutral-600">
+          <Text style={cardS.material}>
             {t.pickup.material_label[pickup.materialType]} · {pickup.estimatedWeightKg} kg
           </Text>
         </View>
       </View>
       {onAccept ? (
-        <View className="mt-3">
+        <View style={cardS.btnWrap}>
           <Button
             label={t.pickup.accept}
             onPress={onAccept}
@@ -44,3 +45,35 @@ export function NearbyPickupCard({
     </Card>
   );
 }
+
+const cardS = StyleSheet.create({
+  mb: { marginBottom: 12 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  content: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  address: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral900,
+  },
+  distance: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.bingo700,
+  },
+  material: {
+    marginTop: 4,
+    fontSize: 14,
+    color: colors.neutral700,
+  },
+  btnWrap: {
+    marginTop: 12,
+  },
+});

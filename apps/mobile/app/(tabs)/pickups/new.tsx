@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialType, type LatLng } from '@bingo/shared-types';
@@ -10,6 +10,7 @@ import { LocationPicker } from '../../../src/components/pickups/LocationPicker';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useCreatePickup } from '../../../src/features/pickups/hooks';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 interface FormErrors {
@@ -72,11 +73,11 @@ export default function NewPickupScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.pickup.create} />
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         <LocationPicker
@@ -118,10 +119,10 @@ export default function NewPickupScreen() {
         />
 
         {submitError ? (
-          <Text className="mb-3 text-sm text-red-600">{submitError}</Text>
+          <Text style={s.errorText}>{submitError}</Text>
         ) : null}
 
-        <View className="mt-2">
+        <View style={s.btnWrap}>
           <Button
             label={t.pickup.create}
             onPress={onSubmit}
@@ -133,3 +134,11 @@ export default function NewPickupScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  errorText: { marginBottom: 12, fontSize: 14, color: colors.red600 },
+  btnWrap: { marginTop: 8 },
+});

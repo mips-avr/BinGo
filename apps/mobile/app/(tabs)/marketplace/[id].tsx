@@ -1,4 +1,4 @@
-import { Image, ScrollView, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { formatIDR } from '@bingo/shared-utils';
@@ -7,6 +7,7 @@ import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useMarketplaceItem } from '../../../src/features/marketplace/hooks';
 import { useAuthStore } from '../../../src/store/authStore';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 const FALLBACK = 'https://placehold.co/800x500/16A34A/FFFFFF?text=BinGo';
@@ -18,17 +19,17 @@ export default function MarketplaceItemDetail() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50" edges={['top']}>
-        <Text className="text-sm text-neutral-500">{t.common.loading}</Text>
+      <SafeAreaView style={s.center} edges={['top']}>
+        <Text style={s.loadingText}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+      <SafeAreaView style={s.safe} edges={['top']}>
         <ScreenHeader title={t.marketplace.title} />
-        <Text className="mx-5 mt-4 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       </SafeAreaView>
@@ -38,49 +39,66 @@ export default function MarketplaceItemDetail() {
   const item = query.data;
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={item.itemName} subtitle={item.supplierName} />
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
       >
         <Image
           source={{ uri: item.imageUrl ?? FALLBACK }}
-          className="h-56 w-full rounded-2xl bg-neutral-200"
+          style={s.image}
           resizeMode="cover"
         />
 
-        <Card className="mt-3">
-          <Text className="text-xs uppercase text-neutral-500">{item.supplierName}</Text>
-          <Text className="mt-0.5 text-xl font-bold text-neutral-900">{item.itemName}</Text>
-          <Text className="mt-2 text-2xl font-bold text-bingo-700">{formatIDR(item.price)}</Text>
-          <View className="mt-3 flex-row">
-            <View className="mr-6">
-              <Text className="text-xs font-semibold uppercase text-neutral-500">
-                {t.marketplace.minOrder}
-              </Text>
-              <Text className="mt-1 text-base text-neutral-900">{item.minOrderQty}</Text>
+        <Card style={s.mt12}>
+          <Text style={s.supplierText}>{item.supplierName}</Text>
+          <Text style={s.itemName}>{item.itemName}</Text>
+          <Text style={s.priceText}>{formatIDR(item.price)}</Text>
+          <View style={s.metaRow}>
+            <View style={s.metaCol}>
+              <Text style={s.sectionLabel}>{t.marketplace.minOrder}</Text>
+              <Text style={s.sectionValue}>{item.minOrderQty}</Text>
             </View>
             <View>
-              <Text className="text-xs font-semibold uppercase text-neutral-500">
-                {t.marketplace.stock}
-              </Text>
-              <Text className="mt-1 text-base text-neutral-900">{item.stock}</Text>
+              <Text style={s.sectionLabel}>{t.marketplace.stock}</Text>
+              <Text style={s.sectionValue}>{item.stock}</Text>
             </View>
           </View>
         </Card>
 
-        <Card className="mt-3">
-          <Text className="text-xs font-semibold uppercase text-neutral-500">Deskripsi</Text>
-          <Text className="mt-1 text-base leading-6 text-neutral-800">{item.description}</Text>
+        <Card style={s.mt12}>
+          <Text style={s.sectionLabel}>Deskripsi</Text>
+          <Text style={s.descText}>{item.description}</Text>
         </Card>
 
         {role === 'CITIZEN' ? (
-          <Card className="mt-3 bg-amber-50">
-            <Text className="text-sm text-amber-800">{t.marketplace.citizenNotice}</Text>
+          <Card style={[s.mt12, s.noticeCard]}>
+            <Text style={s.noticeText}>{t.marketplace.citizenNotice}</Text>
           </Card>
         ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  loadingText: { fontSize: 14, color: colors.neutral600 },
+  errorText: { marginHorizontal: 20, marginTop: 16, fontSize: 14, color: colors.red600 },
+  image: { height: 224, width: '100%', borderRadius: 16, backgroundColor: colors.neutral200 },
+  mt12: { marginTop: 12 },
+  supplierText: { fontSize: 12, textTransform: 'uppercase', color: colors.neutral600 },
+  itemName: { marginTop: 2, fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  priceText: { marginTop: 8, fontSize: 24, fontWeight: '700', color: colors.bingo700 },
+  metaRow: { marginTop: 12, flexDirection: 'row' },
+  metaCol: { marginRight: 24 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', color: colors.neutral600 },
+  sectionValue: { marginTop: 4, fontSize: 16, color: colors.neutral900 },
+  descText: { marginTop: 4, fontSize: 16, lineHeight: 24, color: colors.neutral800 },
+  noticeCard: { backgroundColor: colors.amber50 },
+  noticeText: { fontSize: 14, color: colors.amber800 },
+});

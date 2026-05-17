@@ -1,5 +1,6 @@
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialType } from '@bingo/shared-types';
+import { colors, shadow } from '../../theme/screen';
 import { t } from '../../i18n';
 
 export interface MaterialPickerProps {
@@ -25,12 +26,12 @@ const ORDER: MaterialType[] = [
 
 export function MaterialPicker({ value, onChange, error }: MaterialPickerProps) {
   return (
-    <View className="mb-3">
-      <Text className="mb-1 text-sm font-medium text-neutral-700">{t.pickup.material}</Text>
+    <View style={mpS.wrap}>
+      <Text style={mpS.label}>{t.pickup.material}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingVertical: 4 }}
+        contentContainerStyle={mpS.scrollContent}
       >
         {ORDER.map((mat) => {
           const selected = value === mat;
@@ -40,20 +41,41 @@ export function MaterialPicker({ value, onChange, error }: MaterialPickerProps) 
               onPress={() => onChange(mat)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              className={`mr-2 rounded-full border px-3 py-2 ${
-                selected
-                  ? 'border-bingo-600 bg-bingo-600'
-                  : 'border-neutral-300 bg-white'
-              }`}
+              style={[mpS.chip, selected ? mpS.chipSelected : mpS.chipDefault]}
             >
-              <Text className={`text-sm ${selected ? 'font-semibold text-white' : 'text-neutral-700'}`}>
+              <Text style={[mpS.chipText, selected ? mpS.chipTextSelected : mpS.chipTextDefault]}>
                 {t.pickup.material_label[mat]}
               </Text>
             </Pressable>
           );
         })}
       </ScrollView>
-      {error ? <Text className="mt-1 text-xs text-red-600">{error}</Text> : null}
+      {error ? <Text style={mpS.error}>{error}</Text> : null}
     </View>
   );
 }
+
+const mpS = StyleSheet.create({
+  wrap: { marginBottom: 12 },
+  label: { marginBottom: 6, fontSize: 14, fontWeight: '600', color: colors.neutral700 },
+  scrollContent: { paddingVertical: 4 },
+  chip: {
+    marginRight: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipSelected: {
+    borderColor: colors.bingo600,
+    backgroundColor: colors.bingo600,
+  },
+  chipDefault: {
+    borderColor: colors.neutral300,
+    backgroundColor: colors.white,
+  },
+  chipText: { fontSize: 14 },
+  chipTextSelected: { fontWeight: '700', color: colors.white },
+  chipTextDefault: { fontWeight: '500', color: colors.neutral800 },
+  error: { marginTop: 4, fontSize: 12, color: colors.red600 },
+});

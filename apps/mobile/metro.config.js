@@ -8,12 +8,15 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
-// Dukungan pnpm workspaces: lacak semua node_modules monorepo.
 config.watchFolders = [monorepoRoot];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(monorepoRoot, 'node_modules'),
 ];
-config.resolver.disableHierarchicalLookup = true;
+config.resolver.unstable_enableSymlinks = true;
 
-module.exports = withNativeWind(config, { input: './src/styles/global.css' });
+module.exports = withNativeWind(config, {
+  input: './src/styles/global.css',
+  projectRoot,
+  cliCommand: 'npx --no-install tailwindcss',
+});

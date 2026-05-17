@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { formatIDR } from '@bingo/shared-utils';
@@ -10,6 +10,7 @@ import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useMarketplaceItem } from '../../../src/features/marketplace/hooks';
 import { useCartStore } from '../../../src/store/cartStore';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 const FALLBACK = 'https://placehold.co/800x500/16A34A/FFFFFF?text=BinGo';
@@ -23,17 +24,17 @@ export default function MsmeMarketplaceItemDetail() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50" edges={['top']}>
-        <Text className="text-sm text-neutral-500">{t.common.loading}</Text>
+      <SafeAreaView style={s.center} edges={['top']}>
+        <Text style={s.loadingText}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+      <SafeAreaView style={s.safe} edges={['top']}>
         <ScreenHeader title={t.marketplace.title} />
-        <Text className="mx-5 mt-4 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       </SafeAreaView>
@@ -64,27 +65,27 @@ export default function MsmeMarketplaceItemDetail() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={item.itemName} subtitle={item.supplierName} />
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
       >
         <Image
           source={{ uri: item.imageUrl ?? FALLBACK }}
-          className="h-56 w-full rounded-2xl bg-neutral-200"
+          style={s.image}
           resizeMode="cover"
         />
 
-        <Card className="mt-3">
-          <Text className="text-2xl font-bold text-bingo-700">{formatIDR(item.price)}</Text>
-          <Text className="mt-2 text-sm text-neutral-600">
+        <Card style={s.mt12}>
+          <Text style={s.priceText}>{formatIDR(item.price)}</Text>
+          <Text style={s.metaText}>
             {t.marketplace.minOrder}: {item.minOrderQty} · {t.marketplace.stock}: {item.stock}
           </Text>
-          <Text className="mt-3 text-base leading-6 text-neutral-800">{item.description}</Text>
+          <Text style={s.descText}>{item.description}</Text>
         </Card>
 
-        <View className="mt-4">
+        <View style={s.actionWrap}>
           <Input
             label={t.msme.cart.qty}
             placeholder={String(item.minOrderQty)}
@@ -98,3 +99,18 @@ export default function MsmeMarketplaceItemDetail() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  loadingText: { fontSize: 14, color: colors.neutral600 },
+  errorText: { marginHorizontal: 20, marginTop: 16, fontSize: 14, color: colors.red600 },
+  image: { height: 224, width: '100%', borderRadius: 16, backgroundColor: colors.neutral200 },
+  mt12: { marginTop: 12 },
+  priceText: { fontSize: 24, fontWeight: '700', color: colors.bingo700 },
+  metaText: { marginTop: 8, fontSize: 14, color: colors.neutral700 },
+  descText: { marginTop: 12, fontSize: 16, lineHeight: 24, color: colors.neutral800 },
+  actionWrap: { marginTop: 16 },
+});

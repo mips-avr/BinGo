@@ -1,23 +1,26 @@
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuthStore } from '../../store/authStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { PointsBadge } from '../ui/PointsBadge';
+import { colors, shadow } from '../../theme/screen';
 import { t } from '../../i18n';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <View className="flex-row items-center justify-between border-b border-neutral-100 py-3 last:border-b-0">
-      <Text className="text-sm text-neutral-500">{label}</Text>
-      <Text className="text-sm font-semibold text-neutral-900">{value}</Text>
+    <View style={profileS.row}>
+      <Text style={profileS.rowLabel}>{label}</Text>
+      <Text style={profileS.rowValue}>{value}</Text>
     </View>
   );
 }
 
 /** Layar profil bersama untuk warga, pemulung, dan UMKM. */
 export function ProfileView() {
-  const user = useAuthStore((s) => s.user)!;
+  const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+
+  if (!user) return null;
 
   function confirmLogout() {
     Alert.alert(t.profile.logoutConfirmTitle, t.profile.logoutConfirmMessage, [
@@ -28,36 +31,36 @@ export function ProfileView() {
 
   return (
     <ScrollView
-      className="flex-1"
-      contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+      style={profileS.scroll}
+      contentContainerStyle={profileS.scrollContent}
     >
-      <View className="my-5 items-center">
-        <View className="h-20 w-20 items-center justify-center rounded-full bg-bingo-100">
-          <Text className="text-3xl font-bold text-bingo-700">
+      <View style={profileS.avatarSection}>
+        <View style={profileS.avatar}>
+          <Text style={profileS.avatarLetter}>
             {user.name.charAt(0).toUpperCase()}
           </Text>
         </View>
-        <Text className="mt-3 text-xl font-bold text-neutral-900">{user.name}</Text>
-        <Text className="text-sm text-neutral-500">{t.auth.role[user.role]}</Text>
+        <Text style={profileS.userName}>{user.name}</Text>
+        <Text style={profileS.userRole}>{t.auth.role[user.role]}</Text>
         {user.role === 'CITIZEN' ? (
-          <View className="mt-3">
+          <View style={profileS.pointsWrap}>
             <PointsBadge points={user.pointsBalance} />
           </View>
         ) : null}
       </View>
 
       <Card>
-        <Text className="text-xs font-semibold uppercase text-neutral-500">
+        <Text style={profileS.sectionLabel}>
           {t.profile.accountInfo}
         </Text>
-        <View className="mt-2">
+        <View style={profileS.rowsWrap}>
           <Row label={t.auth.name} value={user.name} />
           <Row label={t.auth.phone} value={user.phone} />
           {user.nik ? <Row label={t.auth.nik} value={user.nik} /> : null}
         </View>
       </Card>
 
-      <View className="mt-6">
+      <View style={profileS.logoutWrap}>
         <Button
           label={t.auth.logout}
           variant="secondary"
@@ -68,3 +71,72 @@ export function ProfileView() {
     </ScrollView>
   );
 }
+
+const profileS = StyleSheet.create({
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  avatarSection: {
+    marginVertical: 20,
+    alignItems: 'center',
+  },
+  avatar: {
+    height: 80,
+    width: 80,
+    borderRadius: 40,
+    backgroundColor: colors.bingo100,
+    borderWidth: 2,
+    borderColor: colors.bingo200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow(2),
+  },
+  avatarLetter: {
+    fontSize: 30,
+    fontWeight: '700',
+    color: colors.bingo700,
+  },
+  userName: {
+    marginTop: 12,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.neutral900,
+  },
+  userRole: {
+    fontSize: 14,
+    color: colors.neutral600,
+    marginTop: 2,
+  },
+  pointsWrap: {
+    marginTop: 12,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    color: colors.neutral600,
+    letterSpacing: 0.5,
+  },
+  rowsWrap: {
+    marginTop: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral100,
+    paddingVertical: 12,
+  },
+  rowLabel: {
+    fontSize: 14,
+    color: colors.neutral600,
+  },
+  rowValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral900,
+  },
+  logoutWrap: {
+    marginTop: 24,
+  },
+});

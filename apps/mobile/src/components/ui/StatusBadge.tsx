@@ -1,24 +1,32 @@
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { PickupStatus, ReportStatus, TransactionStatus } from '@bingo/shared-types';
+import { colors } from '../../theme/screen';
 import { t } from '../../i18n';
 
 type AnyStatus = PickupStatus | ReportStatus | TransactionStatus;
 
-const TONE: Record<string, string> = {
+interface ToneConfig {
+  bg: string;
+  text: string;
+}
+
+const TONE: Record<string, ToneConfig> = {
   // pickup
-  PENDING: 'bg-amber-100 text-amber-800',
-  ACCEPTED: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-indigo-100 text-indigo-800',
-  COMPLETED: 'bg-emerald-100 text-emerald-800',
-  CANCELLED: 'bg-neutral-200 text-neutral-700',
+  PENDING: { bg: colors.amber100, text: colors.amber800 },
+  ACCEPTED: { bg: colors.blue100, text: colors.blue800 },
+  IN_PROGRESS: { bg: colors.indigo100, text: colors.indigo800 },
+  COMPLETED: { bg: colors.emerald100, text: colors.emerald800 },
+  CANCELLED: { bg: colors.neutral200, text: colors.neutral700 },
   // report
-  DILAPORKAN: 'bg-amber-100 text-amber-800',
-  DIVERIFIKASI: 'bg-blue-100 text-blue-800',
-  SELESAI: 'bg-emerald-100 text-emerald-800',
+  DILAPORKAN: { bg: colors.amber100, text: colors.amber800 },
+  DIVERIFIKASI: { bg: colors.blue100, text: colors.blue800 },
+  SELESAI: { bg: colors.emerald100, text: colors.emerald800 },
   // transaction
-  PAID: 'bg-emerald-100 text-emerald-800',
-  SHIPPED: 'bg-indigo-100 text-indigo-800',
+  PAID: { bg: colors.emerald100, text: colors.emerald800 },
+  SHIPPED: { bg: colors.indigo100, text: colors.indigo800 },
 };
+
+const DEFAULT_TONE: ToneConfig = { bg: colors.neutral100, text: colors.neutral700 };
 
 function labelFor(status: AnyStatus): string {
   const pickup = (t.pickup.status as Record<string, string>)[status];
@@ -29,11 +37,23 @@ function labelFor(status: AnyStatus): string {
 }
 
 export function StatusBadge({ status }: { status: AnyStatus }) {
-  const tone = TONE[status] ?? 'bg-neutral-100 text-neutral-700';
-  const [bg, text] = tone.split(' ');
+  const tone = TONE[status] ?? DEFAULT_TONE;
   return (
-    <View className={`self-start rounded-full px-2.5 py-0.5 ${bg}`}>
-      <Text className={`text-xs font-semibold ${text}`}>{labelFor(status)}</Text>
+    <View style={[badgeStyles.container, { backgroundColor: tone.bg }]}>
+      <Text style={[badgeStyles.label, { color: tone.text }]}>{labelFor(status)}</Text>
     </View>
   );
 }
+
+const badgeStyles = StyleSheet.create({
+  container: {
+    alignSelf: 'flex-start',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+});

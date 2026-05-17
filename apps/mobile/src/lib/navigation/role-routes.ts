@@ -1,14 +1,15 @@
 import type { UserRole } from '@bingo/shared-types';
 
 /** Rute home Expo Router setelah autentikasi, per peran. */
-export function getAuthenticatedHome(role: UserRole): string {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getAuthenticatedHome(role: UserRole): any {
   switch (role) {
     case 'WASTE_AGENT':
-      return '/(agent-tabs)';
+      return '/(agent-tabs)' as const;
     case 'MSME':
-      return '/(msme-tabs)';
+      return '/(msme-tabs)' as const;
     case 'CITIZEN':
     default:
-      return '/(tabs)';
+      return '/(tabs)' as const;
   }
 }

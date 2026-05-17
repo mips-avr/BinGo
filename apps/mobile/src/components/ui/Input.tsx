@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
-import { Text, TextInput, View, type TextInputProps } from 'react-native';
+import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { colors } from '../../theme/screen';
 
 export interface InputProps extends TextInputProps {
   label: string;
@@ -10,21 +11,36 @@ export interface InputProps extends TextInputProps {
 export const Input = forwardRef<TextInput, InputProps>(
   ({ label, error, testID, ...rest }, ref) => {
     return (
-      <View className="mb-3">
-        <Text className="mb-1 text-sm font-medium text-neutral-700">{label}</Text>
+      <View style={inputStyles.wrap}>
+        <Text style={inputStyles.label}>{label}</Text>
         <TextInput
           ref={ref}
           testID={testID}
-          placeholderTextColor="#9CA3AF"
-          className={`rounded-xl border bg-white px-4 py-3 text-base text-neutral-900 ${
-            error ? 'border-red-500' : 'border-neutral-300'
-          }`}
+          placeholderTextColor={colors.neutral500}
+          style={[inputStyles.field, error ? inputStyles.fieldError : null]}
           {...rest}
         />
-        {error ? <Text className="mt-1 text-xs text-red-600">{error}</Text> : null}
+        {error ? <Text style={inputStyles.error}>{error}</Text> : null}
       </View>
     );
   },
 );
 
 Input.displayName = 'Input';
+
+const inputStyles = StyleSheet.create({
+  wrap: { marginBottom: 14 },
+  label: { marginBottom: 6, fontSize: 14, fontWeight: '600', color: colors.neutral700 },
+  field: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D4D4D4',
+    backgroundColor: colors.white,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: colors.neutral900,
+  },
+  fieldError: { borderColor: '#EF4444' },
+  error: { marginTop: 6, fontSize: 12, color: colors.red600 },
+});

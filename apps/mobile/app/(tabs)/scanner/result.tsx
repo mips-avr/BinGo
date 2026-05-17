@@ -1,10 +1,11 @@
-import { ScrollView, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { MaterialType } from '@bingo/shared-types';
 import { Button } from '../../../src/components/ui/Button';
 import { Card } from '../../../src/components/ui/Card';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function ScanResultScreen() {
@@ -21,34 +22,38 @@ export default function ScanResultScreen() {
   const confidence = Number(params.confidence ?? 0);
   const percent = Math.round(confidence * 100);
   const engineLabel =
-    params.engine === 'tflite' ? t.scanner.engineTflite : t.scanner.engineHeuristic;
+    params.engine === 'tflite'
+      ? t.scanner.engineTflite
+      : params.engine === 'enhanced-heuristic'
+        ? t.scanner.engineEnhanced
+        : t.scanner.engineHeuristic;
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.scanner.resultTitle} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={s.scrollContent}>
         <Card>
-          <Text className="text-xs uppercase text-neutral-500">{t.scanner.result.material}</Text>
-          <Text className="mt-1 text-2xl font-bold text-bingo-700">
+          <Text style={s.sectionLabel}>{t.scanner.result.material}</Text>
+          <Text style={s.materialText}>
             {t.pickup.material_label[materialType]}
           </Text>
-          <Text className="mt-2 text-sm text-neutral-500">
+          <Text style={s.confidenceText}>
             {t.scanner.confidence.replace('{percent}', String(percent))}
           </Text>
-          <Text className="mt-1 text-xs text-neutral-400">{engineLabel}</Text>
+          <Text style={s.engineText}>{engineLabel}</Text>
         </Card>
 
-        <Card className="mt-3">
-          <Text className="text-xs uppercase text-neutral-500">{t.scanner.result.disposal}</Text>
-          <Text className="mt-2 text-base leading-6 text-neutral-800">{params.disposalTip}</Text>
+        <Card style={s.mt12}>
+          <Text style={s.sectionLabel}>{t.scanner.result.disposal}</Text>
+          <Text style={s.disposalText}>{params.disposalTip}</Text>
         </Card>
 
-        <Card className="mt-3 bg-bingo-50">
-          <Text className="text-xs uppercase text-neutral-500">{t.scanner.result.points}</Text>
-          <Text className="mt-1 text-xl font-bold text-bingo-700">+{params.pointsHint}</Text>
+        <Card style={[s.mt12, s.pointsCard]}>
+          <Text style={s.sectionLabel}>{t.scanner.result.points}</Text>
+          <Text style={s.pointsText}>+{params.pointsHint}</Text>
         </Card>
 
-        <View className="mt-6 gap-3">
+        <View style={s.btnGroup}>
           <Button
             label={t.scanner.useForPickup}
             onPress={() =>
@@ -58,6 +63,7 @@ export default function ScanResultScreen() {
               })
             }
           />
+          <View style={s.btnSpacer} />
           <Button
             label={t.scanner.scanAgain}
             variant="secondary"
@@ -68,3 +74,18 @@ export default function ScanResultScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  sectionLabel: { fontSize: 12, textTransform: 'uppercase', color: colors.neutral600 },
+  materialText: { marginTop: 4, fontSize: 24, fontWeight: '700', color: colors.bingo700 },
+  confidenceText: { marginTop: 8, fontSize: 14, color: colors.neutral600 },
+  engineText: { marginTop: 4, fontSize: 12, color: colors.neutral500 },
+  mt12: { marginTop: 12 },
+  disposalText: { marginTop: 8, fontSize: 16, lineHeight: 24, color: colors.neutral800 },
+  pointsCard: { backgroundColor: colors.bingo100 },
+  pointsText: { marginTop: 4, fontSize: 20, fontWeight: '700', color: colors.bingo700 },
+  btnGroup: { marginTop: 24 },
+  btnSpacer: { height: 12 },
+});

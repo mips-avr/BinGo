@@ -1,11 +1,18 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { UserRole } from '@bingo/shared-types';
 import { RegisterForm } from '../../src/components/forms/RegisterForm';
 import { t } from '../../src/i18n';
+import { colors, screenStyles } from '../../src/theme/screen';
 
 const VALID_ROLES: UserRole[] = ['CITIZEN', 'WASTE_AGENT', 'MSME'];
+
+const ROLE_ICON: Record<UserRole, string> = {
+  CITIZEN: '🏡',
+  WASTE_AGENT: '🚚',
+  MSME: '🏪',
+};
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -15,22 +22,35 @@ export default function RegisterScreen() {
     : 'CITIZEN';
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50">
+    <SafeAreaView style={screenStyles.safeRoot}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}>
-          <Text className="text-2xl font-semibold text-neutral-900">{t.auth.register}</Text>
-          <Text className="mt-1 mb-4 text-sm text-bingo-700">
-            {t.auth.role[role]}
-          </Text>
+        <ScrollView
+          contentContainerStyle={screenStyles.scrollContentForm}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            onPress={() => router.back()}
+            style={screenStyles.backRow}
+            accessibilityRole="button"
+            accessibilityLabel="Kembali"
+          >
+            <Text style={{ fontSize: 18, color: colors.bingo700 }}>←</Text>
+            <Text style={screenStyles.backText}>Ganti peran</Text>
+          </Pressable>
+
+          <Text style={{ fontSize: 40, marginBottom: 8 }}>{ROLE_ICON[role]}</Text>
+          <Text style={screenStyles.screenTitle}>{t.auth.register}</Text>
+          <Text style={screenStyles.screenSubtitle}>{t.auth.role[role]}</Text>
 
           <RegisterForm role={role} onSuccess={() => router.replace('/')} />
 
-          <View className="mt-6 flex-row items-center justify-center">
-            <Text className="text-sm text-neutral-600">Sudah punya akun? </Text>
-            <Link href="/(auth)/login" className="text-sm font-semibold text-bingo-700">
+          <View style={screenStyles.footerRow}>
+            <Text style={screenStyles.footerText}>Sudah punya akun? </Text>
+            <Link href="/(auth)/login" style={screenStyles.footerLink}>
               {t.auth.login}
             </Link>
           </View>

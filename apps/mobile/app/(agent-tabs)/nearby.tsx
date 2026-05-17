@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAcceptPickup, useNearbyPickups } from '../../src/features/pickups/hooks';
@@ -7,6 +7,7 @@ import { NearbyPickupCard } from '../../src/components/pickups/NearbyPickupCard'
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { useAgentLocation } from '../../src/hooks/useAgentLocation';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
+import { colors } from '../../src/theme/screen';
 import { t } from '../../src/i18n';
 
 const RADIUS_OPTIONS = [3, 5, 10, 15];
@@ -34,27 +35,21 @@ export default function AgentNearbyScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
-      <View className="px-5 py-4">
-        <Text className="text-xl font-bold text-neutral-900">{t.agent.nearby.title}</Text>
-        <Pressable onPress={location.refresh} className="mt-2 self-start">
-          <Text className="text-sm font-semibold text-bingo-700">
-            {t.agent.nearby.refreshLocation}
-          </Text>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <View style={s.headerWrap}>
+        <Text style={s.title}>{t.agent.nearby.title}</Text>
+        <Pressable onPress={location.refresh} style={s.refreshBtn}>
+          <Text style={s.refreshText}>{t.agent.nearby.refreshLocation}</Text>
         </Pressable>
-        <View className="mt-3 flex-row flex-wrap gap-2">
+        <View style={s.radiusRow}>
           {RADIUS_OPTIONS.map((r) => (
             <Pressable
               key={r}
               onPress={() => setRadiusKm(r)}
-              className={`rounded-full px-3 py-1.5 ${
-                radiusKm === r ? 'bg-bingo-600' : 'border border-neutral-300 bg-white'
-              }`}
+              style={[s.radiusBtn, radiusKm === r ? s.radiusBtnActive : s.radiusBtnInactive]}
             >
               <Text
-                className={`text-sm font-semibold ${
-                  radiusKm === r ? 'text-white' : 'text-neutral-700'
-                }`}
+                style={[s.radiusText, radiusKm === r ? s.radiusTextActive : s.radiusTextInactive]}
               >
                 {r} km
               </Text>
@@ -64,12 +59,12 @@ export default function AgentNearbyScreen() {
       </View>
 
       {location.loading || (nearby.isLoading && !nearby.data) ? (
-        <ActivityIndicator className="mt-8" color="#15803D" />
+        <ActivityIndicator style={s.loader} color={colors.bingo700} />
       ) : (
         <FlatList
           data={nearby.data ?? []}
           keyExtractor={(p) => p.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          contentContainerStyle={s.listContent}
           renderItem={({ item }) => (
             <NearbyPickupCard
               pickup={item}
@@ -92,7 +87,7 @@ export default function AgentNearbyScreen() {
                 location.refresh();
                 nearby.refetch();
               }}
-              tintColor="#15803D"
+              tintColor={colors.bingo700}
             />
           }
         />
@@ -100,3 +95,20 @@ export default function AgentNearbyScreen() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  headerWrap: { paddingHorizontal: 20, paddingVertical: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  refreshBtn: { marginTop: 8, alignSelf: 'flex-start' },
+  refreshText: { fontSize: 14, fontWeight: '600', color: colors.bingo700 },
+  radiusRow: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  radiusBtn: { borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6 },
+  radiusBtnActive: { backgroundColor: colors.bingo600 },
+  radiusBtnInactive: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.neutral300 },
+  radiusText: { fontSize: 14, fontWeight: '600' },
+  radiusTextActive: { color: colors.white },
+  radiusTextInactive: { color: colors.neutral700 },
+  loader: { marginTop: 32 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+});

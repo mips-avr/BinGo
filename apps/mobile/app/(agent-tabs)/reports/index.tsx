@@ -1,11 +1,12 @@
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReportStatus } from '@bingo/shared-types';
 import { useReportsFeed } from '../../../src/features/reports/hooks';
 import { ReportCard } from '../../../src/components/reports/ReportCard';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function AgentReportsList() {
@@ -14,21 +15,21 @@ export default function AgentReportsList() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50" edges={['top']}>
-        <ActivityIndicator color="#15803D" />
+      <SafeAreaView style={s.center} edges={['top']}>
+        <ActivityIndicator color={colors.bingo700} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
-      <View className="px-5 py-4">
-        <Text className="text-xl font-bold text-neutral-900">{t.agent.reports.toResolveTitle}</Text>
-        <Text className="mt-1 text-xs text-neutral-500">{t.agent.reports.filterVerified}</Text>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <View style={s.header}>
+        <Text style={s.title}>{t.agent.reports.toResolveTitle}</Text>
+        <Text style={s.subtitle}>{t.agent.reports.filterVerified}</Text>
       </View>
 
       {query.isError ? (
-        <Text className="mx-5 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       ) : null}
@@ -36,7 +37,7 @@ export default function AgentReportsList() {
       <FlatList
         data={query.data ?? []}
         keyExtractor={(r) => r.id}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+        contentContainerStyle={s.listContent}
         renderItem={({ item }) => (
           <ReportCard
             report={item}
@@ -54,10 +55,20 @@ export default function AgentReportsList() {
           <RefreshControl
             refreshing={query.isFetching && !query.isLoading}
             onRefresh={() => query.refetch()}
-            tintColor="#15803D"
+            tintColor={colors.bingo700}
           />
         }
       />
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  header: { paddingHorizontal: 20, paddingVertical: 16 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  subtitle: { marginTop: 4, fontSize: 12, color: colors.neutral600 },
+  errorText: { marginHorizontal: 20, fontSize: 14, color: colors.red600 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+});

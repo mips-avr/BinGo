@@ -1,4 +1,4 @@
-import { Alert, Image, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { formatWaktuID } from '@bingo/shared-utils';
@@ -8,6 +8,7 @@ import { Card } from '../../../src/components/ui/Card';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function AgentReportDetail() {
@@ -17,17 +18,17 @@ export default function AgentReportDetail() {
 
   if (query.isLoading) {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50" edges={['top']}>
-        <Text className="text-sm text-neutral-500">{t.common.loading}</Text>
+      <SafeAreaView style={s.center} edges={['top']}>
+        <Text style={s.loadingText}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }
 
   if (query.isError || !query.data) {
     return (
-      <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+      <SafeAreaView style={s.safe} edges={['top']}>
         <ScreenHeader title={t.report.detailTitle} />
-        <Text className="mx-5 mt-4 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       </SafeAreaView>
@@ -47,32 +48,30 @@ export default function AgentReportDetail() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
+    <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.report.detailTitle} />
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={s.scrollContent}>
         <Image
           source={{ uri: r.imageUrl }}
-          className="h-64 w-full rounded-2xl bg-neutral-200"
+          style={s.image}
           resizeMode="cover"
         />
-        <Card className="mt-3">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-xs font-semibold uppercase text-neutral-500">
-              {t.report.title}
-            </Text>
+        <Card style={s.mt12}>
+          <View style={s.row}>
+            <Text style={s.sectionLabel}>{t.report.title}</Text>
             <StatusBadge status={r.status} />
           </View>
           {r.description ? (
-            <Text className="mt-2 text-base text-neutral-900">{r.description}</Text>
+            <Text style={s.descText}>{r.description}</Text>
           ) : null}
-          <Text className="mt-2 text-sm text-neutral-600">
+          <Text style={s.coordsText}>
             📍 {r.location.lat.toFixed(5)}, {r.location.lng.toFixed(5)}
           </Text>
-          <Text className="mt-1 text-xs text-neutral-500">{formatWaktuID(r.createdAt)}</Text>
+          <Text style={s.dateText}>{formatWaktuID(r.createdAt)}</Text>
         </Card>
 
         {canResolve ? (
-          <View className="mt-6">
+          <View style={s.btnWrap}>
             <Button
               label={t.agent.reports.resolve}
               onPress={onResolve}
@@ -85,3 +84,19 @@ export default function AgentReportDetail() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  loadingText: { fontSize: 14, color: colors.neutral600 },
+  errorText: { marginHorizontal: 20, marginTop: 16, fontSize: 14, color: colors.red600 },
+  image: { height: 256, width: '100%', borderRadius: 16, backgroundColor: colors.neutral200 },
+  mt12: { marginTop: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionLabel: { fontSize: 12, fontWeight: '600', textTransform: 'uppercase', color: colors.neutral600 },
+  descText: { marginTop: 8, fontSize: 16, color: colors.neutral900 },
+  coordsText: { marginTop: 8, fontSize: 14, color: colors.neutral700 },
+  dateText: { marginTop: 4, fontSize: 12, color: colors.neutral600 },
+  btnWrap: { marginTop: 24 },
+});

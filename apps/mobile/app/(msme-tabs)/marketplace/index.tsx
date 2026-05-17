@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useMarketplaceItems } from '../../../src/features/marketplace/hooks';
@@ -7,6 +7,7 @@ import { ItemCard } from '../../../src/components/marketplace/ItemCard';
 import { Input } from '../../../src/components/ui/Input';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors } from '../../../src/theme/screen';
 import { t } from '../../../src/i18n';
 
 export default function MsmeMarketplaceList() {
@@ -15,12 +16,12 @@ export default function MsmeMarketplaceList() {
   const query = useMarketplaceItems(search);
 
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50" edges={['top']}>
-      <View className="px-5 py-4">
-        <Text className="text-xl font-bold text-neutral-900">{t.marketplace.title}</Text>
-        <Text className="mt-1 text-xs text-neutral-500">{t.msme.tabs.shop}</Text>
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <View style={s.header}>
+        <Text style={s.title}>{t.marketplace.title}</Text>
+        <Text style={s.subtitle}>{t.msme.tabs.shop}</Text>
       </View>
-      <View className="px-5">
+      <View style={s.searchWrap}>
         <Input
           label={t.common.search}
           placeholder={t.marketplace.searchPlaceholder}
@@ -31,16 +32,16 @@ export default function MsmeMarketplaceList() {
       </View>
 
       {query.isLoading ? (
-        <ActivityIndicator className="mt-6" color="#15803D" />
+        <ActivityIndicator style={s.loader} color={colors.bingo700} />
       ) : query.isError ? (
-        <Text className="mx-5 mt-3 text-sm text-red-600">
+        <Text style={s.errorText}>
           {extractApiErrorMessage(query.error, t.common.error)}
         </Text>
       ) : (
         <FlatList
           data={query.data ?? []}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          contentContainerStyle={s.listContent}
           renderItem={({ item }) => (
             <ItemCard
               item={item}
@@ -58,7 +59,7 @@ export default function MsmeMarketplaceList() {
             <RefreshControl
               refreshing={query.isFetching && !query.isLoading}
               onRefresh={() => query.refetch()}
-              tintColor="#15803D"
+              tintColor={colors.bingo700}
             />
           }
         />
@@ -66,3 +67,14 @@ export default function MsmeMarketplaceList() {
     </SafeAreaView>
   );
 }
+
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bingo50 },
+  header: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 4 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  subtitle: { marginTop: 4, fontSize: 12, color: colors.neutral600 },
+  searchWrap: { paddingHorizontal: 20 },
+  loader: { marginTop: 24 },
+  errorText: { marginHorizontal: 20, marginTop: 12, fontSize: 14, color: colors.red600 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+});

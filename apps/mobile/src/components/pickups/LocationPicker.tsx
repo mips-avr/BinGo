@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LatLng } from '@bingo/shared-types';
 import { getCurrentLocation } from '../../lib/location';
+import { colors, shadow } from '../../theme/screen';
 import { t } from '../../i18n';
 
 export interface LocationPickerProps {
@@ -28,35 +29,63 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
   }
 
   return (
-    <View className="mb-3">
-      <Text className="mb-1 text-sm font-medium text-neutral-700">{t.pickup.locationLabel}</Text>
-      <View className="rounded-xl border border-neutral-300 bg-white p-3">
-        <Text className="text-xs text-neutral-500">{t.pickup.locationHint}</Text>
+    <View style={lpS.wrap}>
+      <Text style={lpS.label}>{t.pickup.locationLabel}</Text>
+      <View style={lpS.card}>
+        <Text style={lpS.hint}>{t.pickup.locationHint}</Text>
         {value ? (
-          <Text className="mt-2 text-base font-semibold text-neutral-900">
+          <Text style={lpS.coords}>
             📍 {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           </Text>
         ) : (
-          <Text className="mt-2 text-base text-neutral-400">—</Text>
+          <Text style={lpS.placeholder}>—</Text>
         )}
         <Pressable
           onPress={pick}
           accessibilityRole="button"
           disabled={loading}
-          className="mt-3 flex-row items-center justify-center rounded-lg bg-bingo-50 px-3 py-2 active:opacity-70"
+          style={({ pressed }) => [lpS.pickBtn, pressed ? lpS.pickBtnPressed : null]}
         >
           {loading ? (
-            <ActivityIndicator color="#15803D" />
+            <ActivityIndicator color={colors.bingo700} />
           ) : (
-            <Text className="text-sm font-semibold text-bingo-700">{t.pickup.locationPick}</Text>
+            <Text style={lpS.pickBtnText}>{t.pickup.locationPick}</Text>
           )}
         </Pressable>
       </View>
       {permissionError ? (
-        <Text className="mt-1 text-xs text-red-600">{permissionError}</Text>
+        <Text style={lpS.error}>{permissionError}</Text>
       ) : error ? (
-        <Text className="mt-1 text-xs text-red-600">{error}</Text>
+        <Text style={lpS.error}>{error}</Text>
       ) : null}
     </View>
   );
 }
+
+const lpS = StyleSheet.create({
+  wrap: { marginBottom: 12 },
+  label: { marginBottom: 6, fontSize: 14, fontWeight: '600', color: colors.neutral700 },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.neutral300,
+    backgroundColor: colors.white,
+    padding: 12,
+  },
+  hint: { fontSize: 12, color: colors.neutral600 },
+  coords: { marginTop: 8, fontSize: 16, fontWeight: '600', color: colors.neutral900 },
+  placeholder: { marginTop: 8, fontSize: 16, color: colors.neutral400 },
+  pickBtn: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: colors.bingo100,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  pickBtnPressed: { opacity: 0.7 },
+  pickBtnText: { fontSize: 14, fontWeight: '700', color: colors.bingo700 },
+  error: { marginTop: 4, fontSize: 12, color: colors.red600 },
+});

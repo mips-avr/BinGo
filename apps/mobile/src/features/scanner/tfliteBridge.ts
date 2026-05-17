@@ -1,36 +1,20 @@
 import type { ScanResult } from './types';
 import { classifyHeuristic } from './heuristicClassifier';
 
-let tfliteAvailable: boolean | null = null;
-
 /**
- * Mencoba memuat inferensi TFLite native (`react-native-fast-tflite`).
- * Modul ini hanya tersedia pada development build (bukan Expo Go).
- * Bila tidak ada, pemanggil harus memakai `classifyHeuristic`.
+ * TFLite dinonaktifkan untuk MVP Expo Go.
+ * Saat dev build tersedia, modul ini akan memuat model .tflite
+ * dan mengembalikan ScanResult bertipe engine='tflite'.
  */
-export async function tryClassifyTflite(imageUri: string): Promise<ScanResult | null> {
-  if (tfliteAvailable === false) return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Tflite = require('react-native-fast-tflite') as {
-      loadTensorflowModel: (source: number) => Promise<{
-        run: (input: Float32Array) => Promise<Float32Array>;
-      }>;
-    };
-    if (!Tflite?.loadTensorflowModel) {
-      tfliteAvailable = false;
-      return null;
-    }
-    // Model kustom belum dibundel — integrasi siap, fallback ke heuristik.
-    tfliteAvailable = false;
-    return null;
-  } catch {
-    tfliteAvailable = false;
-    return null;
-  }
+export async function tryClassifyTflite(_imageUri: string): Promise<ScanResult | null> {
+  return null;
 }
 
-/** Pipeline utama: TFLite jika tersedia, selain itu heuristik. */
+/**
+ * Pipeline utama TrashScan:
+ * 1. Coba TFLite (dev build) → jika tersedia, return hasilnya.
+ * 2. Fallback ke enhanced-heuristic (multi-feature scoring).
+ */
 export async function classifyPackaging(imageUri: string): Promise<ScanResult> {
   const tflite = await tryClassifyTflite(imageUri);
   if (tflite) return tflite;

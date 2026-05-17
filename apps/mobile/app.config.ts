@@ -33,6 +33,7 @@ const config: ExpoConfig = {
   },
   experiments: {
     typedRoutes: true,
+    tsconfigPaths: true,
   },
   plugins: [
     'expo-router',

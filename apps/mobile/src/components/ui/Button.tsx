@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, Text, type PressableProps } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+import { colors } from '../../theme/screen';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 
@@ -9,18 +10,6 @@ export interface ButtonProps extends Omit<PressableProps, 'children'> {
   testID?: string;
 }
 
-const containerByVariant: Record<Variant, string> = {
-  primary: 'bg-bingo-600 active:bg-bingo-700',
-  secondary: 'bg-white border border-bingo-600 active:bg-bingo-50',
-  ghost: 'bg-transparent',
-};
-
-const labelByVariant: Record<Variant, string> = {
-  primary: 'text-white',
-  secondary: 'text-bingo-700',
-  ghost: 'text-bingo-700',
-};
-
 export function Button({
   label,
   variant = 'primary',
@@ -30,22 +19,64 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const isDisabled = disabled || loading;
+  const containerStyle =
+    variant === 'primary'
+      ? buttonStyles.primary
+      : variant === 'secondary'
+        ? buttonStyles.secondary
+        : buttonStyles.ghost;
+
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       testID={testID}
       disabled={isDisabled}
-      className={`flex-row items-center justify-center rounded-xl px-4 py-3 ${
-        containerByVariant[variant]
-      } ${isDisabled ? 'opacity-60' : ''}`}
+      style={({ pressed }) => [
+        buttonStyles.base,
+        containerStyle,
+        isDisabled ? buttonStyles.disabled : null,
+        pressed && !isDisabled ? buttonStyles.pressed : null,
+      ]}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#fff' : '#15803D'} />
+        <ActivityIndicator color={variant === 'primary' ? colors.neutral900 : colors.bingo700} />
       ) : (
-        <Text className={`text-base font-semibold ${labelByVariant[variant]}`}>{label}</Text>
+        <Text
+          style={[
+            buttonStyles.label,
+            variant === 'primary' ? buttonStyles.labelOnPrimary : buttonStyles.labelOnLight,
+          ]}
+        >
+          {label}
+        </Text>
       )}
     </Pressable>
   );
 }
+
+const buttonStyles = StyleSheet.create({
+  base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 8,
+    minHeight: 50,
+  },
+  primary: { backgroundColor: colors.bingo500 },
+  secondary: {
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
+    borderColor: colors.bingo600,
+  },
+  ghost: { backgroundColor: 'transparent', marginTop: 0 },
+  pressed: { opacity: 0.88 },
+  disabled: { opacity: 0.55 },
+  label: { fontSize: 16, fontWeight: '700' },
+  labelOnPrimary: { color: colors.neutral900 },
+  labelOnLight: { color: colors.bingo700 },
+});

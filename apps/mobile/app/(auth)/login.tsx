@@ -4,27 +4,39 @@ import { KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoginForm } from '../../src/components/forms/LoginForm';
 import { t } from '../../src/i18n';
+import { screenStyles } from '../../src/theme/screen';
 
+/**
+ * Layar masuk — ini bukan landing marketing, tapi entry utama setelah splash.
+ * Memakai StyleSheet eksplisit agar teks & form selalu terlihat di device
+ * (NativeWind kadang hanya menerapkan warna latar di beberapa setup Expo Go).
+ */
 export default function LoginScreen() {
   const router = useRouter();
   return (
-    <SafeAreaView className="flex-1 bg-bingo-50">
+    <SafeAreaView style={screenStyles.safeRoot}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1"
+        style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, justifyContent: 'center' }}>
-          <View className="mb-8">
-            <Text className="text-3xl font-bold text-bingo-700">{t.common.appName}</Text>
-            <Text className="mt-1 text-sm text-bingo-600">{t.common.tagline}</Text>
+        <ScrollView
+          contentContainerStyle={screenStyles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={{ fontSize: 48, marginBottom: 8 }} accessibilityLabel="BinGo">
+            ♻️
+          </Text>
+          <View style={{ marginBottom: 32 }}>
+            <Text style={screenStyles.brandTitle}>{t.common.appName}</Text>
+            <Text style={screenStyles.brandTagline}>{t.common.tagline}</Text>
           </View>
 
-          <Text className="mb-4 text-2xl font-semibold text-neutral-900">{t.auth.login}</Text>
+          <Text style={screenStyles.screenTitle}>{t.auth.login}</Text>
           <LoginForm onSuccess={() => router.replace('/')} />
 
-          <View className="mt-6 flex-row items-center justify-center">
-            <Text className="text-sm text-neutral-600">Belum punya akun? </Text>
-            <Link href="/(auth)/role-select" className="text-sm font-semibold text-bingo-700">
+          <View style={screenStyles.footerRow}>
+            <Text style={screenStyles.footerText}>Belum punya akun? </Text>
+            <Link href="/(auth)/role-select" style={screenStyles.footerLink}>
               {t.auth.register}
             </Link>
           </View>

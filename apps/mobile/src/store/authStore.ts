@@ -37,14 +37,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    */
   async hydrate() {
     set({ status: 'loading' });
+    const timeoutMs = 8_000;
     try {
-      const token = await secureStorage.get(STORAGE_KEYS.accessToken);
-      if (!token) {
-        set({ status: 'unauthenticated', user: null, accessToken: null });
-        return;
-      }
-      const user = await meApi();
-      set({ status: 'authenticated', user, accessToken: token });
+      await Promise.race([
+        (async () => {
+          const token = await secureStorage.get(STORAGE_KEYS.accessToken);
+          if (!token) {
+            set({ status: 'unauthenticated', user: null, accessToken: null });
+            return;
+          }
+          const user = await meApi();
+          set({ status: 'authenticated', user, accessToken: token });
+        })(),
+        new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error('hydrate_timeout')), timeoutMs);
+        }),
+      ]);
     } catch {
       await secureStorage.remove(STORAGE_KEYS.accessToken);
       set({ status: 'unauthenticated', user: null, accessToken: null });

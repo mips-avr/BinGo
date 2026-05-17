@@ -6,6 +6,9 @@ export interface ScanResult {
   confidence: number;
   disposalTip: string;
   pointsHint: number;
-  /** `heuristic` = fallback tanpa model; `tflite` = inferensi native (dev build). */
-  engine: 'heuristic' | 'tflite';
+  /**
+   * `enhanced-heuristic` = multi-feature color/edge analysis (Expo Go compatible);
+   * `tflite` = inferensi native CNN (dev build only).
+   */
+  engine: 'enhanced-heuristic' | 'tflite';
 }

@@ -4,12 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAuthenticatedHome } from '../src/lib/navigation/role-routes';
 import { useAuthStore } from '../src/store/authStore';
 import { t } from '../src/i18n';
+import { colors, screenStyles } from '../src/theme/screen';
 
 /**
- * Router root.
- * - Saat masih `loading`/`idle` → splash sederhana.
- * - `unauthenticated` → ke flow auth.
- * - `authenticated` → tab bar sesuai peran (warga/UMKM vs pemulung).
+ * Router root — splash singkat lalu redirect ke login atau home.
  */
 export default function IndexRoute() {
   const status = useAuthStore((s) => s.status);
@@ -17,9 +15,11 @@ export default function IndexRoute() {
 
   if (status === 'idle' || status === 'loading') {
     return (
-      <SafeAreaView className="flex-1 items-center justify-center bg-bingo-50">
-        <ActivityIndicator color="#15803D" />
-        <Text className="mt-3 text-sm text-bingo-700">{t.common.loading}</Text>
+      <SafeAreaView style={screenStyles.splash}>
+        <Text style={{ fontSize: 56 }}>♻️</Text>
+        <Text style={screenStyles.brandTitle}>{t.common.appName}</Text>
+        <ActivityIndicator color={colors.bingo700} style={{ marginTop: 24 }} />
+        <Text style={screenStyles.splashText}>{t.common.loading}</Text>
       </SafeAreaView>
     );
   }

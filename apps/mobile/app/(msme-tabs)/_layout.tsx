@@ -1,5 +1,5 @@
 import { Tabs, Redirect } from 'expo-router';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
 import { useAuthStore } from '../../src/store/authStore';
 import { useCartStore } from '../../src/store/cartStore';
@@ -22,8 +22,8 @@ function CartBadge() {
   const count = useCartStore((s) => s.itemCount());
   if (count === 0) return null;
   return (
-    <View className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-red-500 px-1">
-      <Text className="text-center text-[10px] font-bold text-white">
+    <View style={badgeS.dot}>
+      <Text style={badgeS.dotText}>
         {count > 99 ? '99+' : count}
       </Text>
     </View>
@@ -88,3 +88,22 @@ export default function MsmeTabsLayout() {
     </Tabs>
   );
 }
+
+const badgeS = StyleSheet.create({
+  dot: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    minWidth: 16,
+    borderRadius: 8,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 4,
+    alignItems: 'center',
+  },
+  dotText: {
+    textAlign: 'center',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+});

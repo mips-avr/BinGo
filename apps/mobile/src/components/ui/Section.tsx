@@ -1,4 +1,5 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors } from '../../theme/screen';
 
 export interface SectionProps {
   title: string;
@@ -8,12 +9,12 @@ export interface SectionProps {
 
 export function Section({ title, action, children }: SectionProps) {
   return (
-    <View className="mb-6">
-      <View className="mb-3 flex-row items-center justify-between">
-        <Text className="text-base font-bold text-neutral-900">{title}</Text>
+    <View style={sectionStyles.container}>
+      <View style={sectionStyles.header}>
+        <Text style={sectionStyles.title}>{title}</Text>
         {action ? (
           <Pressable onPress={action.onPress} accessibilityRole="button">
-            <Text className="text-sm font-semibold text-bingo-700">{action.label}</Text>
+            <Text style={sectionStyles.action}>{action.label}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -21,3 +22,25 @@ export function Section({ title, action, children }: SectionProps) {
     </View>
   );
 }
+
+const sectionStyles = StyleSheet.create({
+  container: {
+    marginBottom: 24,
+  },
+  header: {
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.neutral900,
+  },
+  action: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.bingo700,
+  },
+});
