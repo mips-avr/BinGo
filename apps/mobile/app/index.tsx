@@ -1,6 +1,7 @@
 import { Redirect } from 'expo-router';
 import { ActivityIndicator, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getAuthenticatedHome } from '../src/lib/navigation/role-routes';
 import { useAuthStore } from '../src/store/authStore';
 import { t } from '../src/i18n';
 
@@ -8,7 +9,7 @@ import { t } from '../src/i18n';
  * Router root.
  * - Saat masih `loading`/`idle` → splash sederhana.
  * - `unauthenticated` → ke flow auth.
- * - `authenticated` → ke tab bar warga (Phase 4).
+ * - `authenticated` → tab bar sesuai peran (warga/UMKM vs pemulung).
  */
 export default function IndexRoute() {
   const status = useAuthStore((s) => s.status);
@@ -27,5 +28,5 @@ export default function IndexRoute() {
     return <Redirect href="/(auth)/login" />;
   }
 
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href={getAuthenticatedHome(user.role)} />;
 }

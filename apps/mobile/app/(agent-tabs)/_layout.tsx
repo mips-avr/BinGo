@@ -4,16 +4,11 @@ import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
 import { useAuthStore } from '../../src/store/authStore';
 import { t } from '../../src/i18n';
 
-/**
- * Tab bar warga (Phase 4). Tab pemulung (Phase 5) dan UMKM (Phase 6+)
- * akan menggunakan layout group terpisah sehingga setiap peran punya
- * navigasi yang berbeda.
- */
 const ICONS = {
-  home: '🏠',
-  pickups: '🚚',
-  reports: '📷',
-  marketplace: '🛒',
+  home: '📊',
+  nearby: '📍',
+  jobs: '🚚',
+  reports: '📋',
   profile: '👤',
 } as const;
 
@@ -23,15 +18,18 @@ function Icon({ name, focused }: { name: keyof typeof ICONS; focused: boolean })
   );
 }
 
-export default function TabsLayout() {
+/** Tab navigator khusus pemulung (`WASTE_AGENT`). */
+export default function AgentTabsLayout() {
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
+
   if (status === 'unauthenticated' || !user) {
     return <Redirect href="/(auth)/login" />;
   }
-  if (user.role === 'WASTE_AGENT') {
+  if (user.role !== 'WASTE_AGENT') {
     return <Redirect href={getAuthenticatedHome(user.role)} />;
   }
+
   return (
     <Tabs
       screenOptions={{
@@ -45,35 +43,35 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: t.tabs.home,
+          title: t.agent.tabs.home,
           tabBarIcon: ({ focused }) => <Icon name="home" focused={focused} />,
         }}
       />
       <Tabs.Screen
-        name="pickups"
+        name="nearby"
         options={{
-          title: t.tabs.pickups,
-          tabBarIcon: ({ focused }) => <Icon name="pickups" focused={focused} />,
+          title: t.agent.tabs.nearby,
+          tabBarIcon: ({ focused }) => <Icon name="nearby" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="jobs"
+        options={{
+          title: t.agent.tabs.jobs,
+          tabBarIcon: ({ focused }) => <Icon name="jobs" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="reports"
         options={{
-          title: t.tabs.reports,
+          title: t.agent.tabs.reports,
           tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="marketplace"
-        options={{
-          title: t.tabs.marketplace,
-          tabBarIcon: ({ focused }) => <Icon name="marketplace" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: t.tabs.profile,
+          title: t.agent.tabs.profile,
           tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
         }}
       />

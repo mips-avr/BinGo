@@ -6,6 +6,7 @@ import {
   getReport,
   listMyReports,
   listReports,
+  resolveReport,
   verifyReport,
 } from './api';
 
@@ -47,6 +48,17 @@ export function useVerifyReport() {
       qc.invalidateQueries({ queryKey: queryKeys.reports.detail(report.id) });
       qc.invalidateQueries({ queryKey: ['reports', 'all'] });
       qc.invalidateQueries({ queryKey: queryKeys.me });
+    },
+  });
+}
+
+export function useResolveReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => resolveReport(id),
+    onSuccess: (report) => {
+      qc.invalidateQueries({ queryKey: queryKeys.reports.detail(report.id) });
+      qc.invalidateQueries({ queryKey: ['reports', 'all'] });
     },
   });
 }

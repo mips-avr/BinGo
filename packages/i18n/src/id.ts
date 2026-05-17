@@ -145,6 +145,45 @@ export interface TranslationDict {
     logoutConfirmTitle: string;
     logoutConfirmMessage: string;
   };
+  agent: {
+    tabs: {
+      home: string;
+      nearby: string;
+      jobs: string;
+      reports: string;
+      profile: string;
+    };
+    home: {
+      greeting: string;
+      subtitle: string;
+      nearbyCount: string;
+      activeJobs: string;
+      viewNearby: string;
+      viewJobs: string;
+      reportsToResolve: string;
+    };
+    nearby: {
+      title: string;
+      radiusLabel: string;
+      refreshLocation: string;
+      emptyTitle: string;
+      emptyMessage: string;
+      acceptSuccess: string;
+    };
+    jobs: {
+      title: string;
+      emptyTitle: string;
+      emptyMessage: string;
+      completeConfirm: string;
+      completeSuccess: string;
+    };
+    reports: {
+      toResolveTitle: string;
+      resolve: string;
+      resolveSuccess: string;
+      filterVerified: string;
+    };
+  };
   scanner: {
     title: string;
     instruction: string;
@@ -295,6 +334,45 @@ export const id: TranslationDict = {
     contact: 'Kontak',
     logoutConfirmTitle: 'Keluar dari akun?',
     logoutConfirmMessage: 'Anda perlu memasukkan ulang nomor telepon & kata sandi untuk masuk kembali.',
+  },
+  agent: {
+    tabs: {
+      home: 'Dashboard',
+      nearby: 'Terdekat',
+      jobs: 'Pekerjaan',
+      reports: 'Laporan',
+      profile: 'Profil',
+    },
+    home: {
+      greeting: 'Halo, {name}!',
+      subtitle: 'Siap menjemput sampah hari ini?',
+      nearbyCount: '{count} permintaan terdekat',
+      activeJobs: '{count} pekerjaan aktif',
+      viewNearby: 'Lihat permintaan terdekat',
+      viewJobs: 'Lihat pekerjaan saya',
+      reportsToResolve: '{count} laporan perlu ditangani',
+    },
+    nearby: {
+      title: 'Permintaan Terdekat',
+      radiusLabel: 'Radius pencarian',
+      refreshLocation: 'Perbarui lokasi saya',
+      emptyTitle: 'Tidak ada permintaan di sekitar',
+      emptyMessage: 'Perbesar radius atau pindah ke area lain, lalu tarik untuk memuat ulang.',
+      acceptSuccess: 'Pekerjaan diterima. Cek tab Pekerjaan untuk detail.',
+    },
+    jobs: {
+      title: 'Pekerjaan Saya',
+      emptyTitle: 'Belum ada pekerjaan',
+      emptyMessage: 'Terima permintaan dari tab Terdekat untuk mulai bekerja.',
+      completeConfirm: 'Tandai penjemputan ini selesai?',
+      completeSuccess: 'Penjemputan selesai. Warga mendapat poin TrashLink.',
+    },
+    reports: {
+      toResolveTitle: 'Laporan diverifikasi',
+      resolve: 'Tandai selesai ditangani',
+      resolveSuccess: 'Laporan ditandai selesai.',
+      filterVerified: 'Menampilkan laporan yang sudah diverifikasi komunitas',
+    },
   },
   scanner: {
     title: 'TrashScan',

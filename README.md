@@ -288,10 +288,11 @@ Konvensi kode berada di antara lain:
 
 ```
 apps/mobile/
-├── app/(tabs)/              # tab + stack pickups / reports / marketplace
+├── app/(tabs)/              # tab warga + stack pickups / reports / marketplace
+├── app/(agent-tabs)/        # tab pemulung: nearby, jobs, reports
 ├── src/features/{pickups,reports,marketplace,uploads}/
-├── src/lib/{api,location,image,query}/
-├── src/components/{ui,pickups,reports,marketplace}/
+├── src/lib/{api,location,image,query,navigation}/
+├── src/components/{ui,pickups,reports,marketplace,profile}/
 ├── __mocks__/expo-*.ts     # lokasi & image picker untuk Jest
 ```
 
@@ -315,7 +316,7 @@ Mobile:
 
 ```bash
 pnpm mobile:typecheck
-pnpm mobile:test           # ±17 test (login, auth store, lokasi, upload API, picker material, …)
+pnpm mobile:test           # ±24 test (auth, warga, pemulung, lokasi, upload, …)
 ```
 
 Shared utils:
@@ -334,6 +335,63 @@ curl -s -X POST http://localhost:3000/api/v1/uploads/image \
 ```
 
 Gunakan URL yang dikembalikan sebagai `imageUrl` saat membuat laporan dari mobile atau dari `curl`.
+
+---
+
+## Phase 5 — Frontend Pemulung (Dashboard, terdekat, pekerjaan)
+
+Phase 5 menambahkan pengalaman **pemulung (`WASTE_AGENT`)** di mobile: tab navigator
+terpisah, integrasi penuh dengan API Phase 3 (`/nearby`, `/assigned`, `accept`,
+`complete`, `resolve` laporan).
+
+### Routing per peran
+
+Setelah login, `app/index.tsx` memanggil `getAuthenticatedHome(role)`:
+
+| Peran | Rute home |
+| --- | --- |
+| `CITIZEN` | `/(tabs)` — tab warga (Phase 4) |
+| `WASTE_AGENT` | `/(agent-tabs)` — tab pemulung |
+| `MSME` | `/(tabs)` — marketplace & profil (checkout UMKM menyusul) |
+
+Layout `(tabs)` menolak akses pemulung (redirect ke `/(agent-tabs)`), dan sebaliknya.
+
+### Tab pemulung (`app/(agent-tabs)/`)
+
+| Tab | Fitur |
+| --- | --- |
+| **Dashboard** | Ringkasan: jumlah permintaan terdekat, pekerjaan aktif, laporan `DIVERIFIKASI` yang perlu ditangani |
+| **Terdekat** | GPS + pilih radius (3/5/10/15 km) → `GET /pickup-requests/nearby` → kartu dengan **jarak** (`formatDistanceMeters`) & tombol **Terima** |
+| **Pekerjaan** | Daftar `GET /pickup-requests/assigned` → detail → **Selesaikan** (`PATCH …/complete`, warga +25 poin) |
+| **Laporan** | Feed laporan berstatus `DIVERIFIKASI` → detail → **Tandai selesai ditangani** (`PATCH …/resolve`) |
+| **Profil** | `ProfileView` bersama (tanpa badge poin; poin hanya untuk warga) |
+
+### Hooks & utilitas baru
+
+- **`useNearbyPickups`**, **`useAssignedPickups`**, **`useAcceptPickup`**, **`useCompletePickup`** — `src/features/pickups/hooks.ts`
+- **`useResolveReport`** — `src/features/reports/hooks.ts`
+- **`useAgentLocation`** — lokasi foreground untuk query terdekat
+- **`getAuthenticatedHome`** — `src/lib/navigation/role-routes.ts`
+- **`formatDistanceMeters`** — `src/lib/geo/format.ts`
+
+Polling ringan: query terdekat di-refresh otomatis setiap **30 detik** bila tab aktif.
+
+### Alur uji manual (pemulung)
+
+1. Daftar/masuk sebagai **`WASTE_AGENT`** (atau akun pemulung dari skrip Phase 3).
+2. Pastikan ada permintaan `PENDING` dari akun warga (`pnpm backend:dev` + buat pickup dari app warga atau `verify-phase3.sh`).
+3. Tab **Terdekat** → izinkan lokasi → pilih radius → **Terima** permintaan.
+4. Tab **Pekerjaan** → buka detail → **Selesaikan** → cek saldo poin warga naik (+25) via `GET /auth/me`.
+5. Tab **Laporan** → buka laporan diverifikasi → **Tandai selesai**.
+
+### Verifikasi
+
+```bash
+pnpm shared:build
+pnpm mobile:typecheck
+pnpm mobile:test           # ±24 test (termasuk routing peran, jarak, NearbyPickupCard)
+pnpm backend:test:e2e      # alur pickup geospasial & resolve sudah dicakup Phase 3
+```
 
 ---
 
@@ -386,6 +444,6 @@ BinGo/
 - ✅ **Phase 1** — Inisialisasi proyek & database
 - ✅ **Phase 2** — Autentikasi & RBAC (JWT, login/register)
 - ✅ **Phase 3** — Core API (Pickup, Reports, Marketplace, Points)
-- ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads) *(TrashScan/peta mendalam menyusul)*
-- ⏭ Phase 5 — Frontend Pemulung (Dashboard, accept/complete)
-- ⏭ Phase 6 — Integrasi AI/ML (TensorFlow Lite + Vision Camera)
+- ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads)
+- ✅ **Phase 5** — Frontend Pemulung (dashboard, terdekat, terima/selesai, resolve laporan)
+- ⏭ Phase 6 — Integrasi AI/ML (TensorFlow Lite + Vision Camera) & checkout UMKM
