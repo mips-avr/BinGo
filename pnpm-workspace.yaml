@@ -1,3 +1,21 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Sejak pnpm 10, setelan berikut tidak lagi dibaca dari field "pnpm" di
+# package.json dan harus berada di berkas ini. Lihat https://pnpm.io/settings
+
+overrides:
+  metro: 0.80.12
+
+# Paket yang boleh menjalankan skrip build native. Tanpa daftar ini pnpm 10
+# memblokir skrip build, sehingga bcrypt dan Prisma engine tidak terpasang dan
+# backend gagal saat dijalankan.
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - prisma
+  - "@swc/core"
+  - esbuild
+  - bcrypt

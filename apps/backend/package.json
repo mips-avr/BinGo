@@ -1,6 +1,7 @@
 {
   "name": "@bingo/backend",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "BinGo API — NestJS + Prisma (PostgreSQL/PostGIS)",
   "scripts": {
