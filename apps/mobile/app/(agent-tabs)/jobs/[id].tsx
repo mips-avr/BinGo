@@ -94,6 +94,26 @@ export default function AgentJobDetail() {
             />
           </View>
         ) : null}
+
+        {p.status !== 'CANCELLED' ? (
+          <View style={s.btnWrap}>
+            <Button
+              label={t.weighing.createFromJob}
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: '/(agent-tabs)/receipts/new',
+                  params: {
+                    sellerId: p.citizenId,
+                    pickupRequestId: p.id,
+                    region: p.address,
+                  },
+                })
+              }
+              testID="issue-receipt-from-job"
+            />
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

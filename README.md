@@ -443,6 +443,115 @@ Alur uji manual:
 
 ---
 
+## Phase 7 — Bukti timbang digital (e-receipt) & papan harga
+
+Phase 7 menambahkan bagian yang menjadi inti klaim kebaruan BinGo: **setiap serah
+terima material meninggalkan catatan yang dapat diperiksa kedua pihak**, dan dari
+catatan itulah harga transaksi nyata dihitung.
+
+### Taksonomi grade material
+
+`MaterialType` menggolongkan berdasarkan jenis polimer (PET, PP, …). Penggolongan itu
+benar secara teknis tetapi tidak dipakai saat transaksi: dua barang dengan polimer
+sama bisa berbeda harga beberapa kali lipat. Karena itu ditambahkan **`MaterialGrade`**
+di `@bingo/shared-types` — 18 grade sebagaimana dipakai titik penerima di lapangan
+(botol bening, botol warna, gelas bening, gelas warna, kardus, koran, arsip, dan
+seterusnya), lengkap dengan label Bahasa Indonesia dan syarat kondisinya.
+
+Konstanta `MATERIAL_GRADES` sengaja **tidak memuat harga**. Harga hanya boleh berasal
+dari papan harga mitra di wilayah pengguna, bukan dari konstanta di dalam kode.
+
+### Endpoint baru
+
+| Method | URL | Role | Deskripsi |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/weighing-receipts` | `WASTE_AGENT` | Menerbitkan bukti timbang |
+| `GET` | `/api/v1/weighing-receipts/price-board?region=…&windowDays=7` | bearer | Sebaran harga per grade di satu wilayah |
+| `GET` | `/api/v1/weighing-receipts/mine` | bearer | Bukti di mana pengguna jadi penyetor atau penerbit |
+| `GET` | `/api/v1/weighing-receipts/:id` | bearer | Detail (hanya penyetor & penerbit) |
+
+### Keputusan desain yang penting
+
+- **Potongan tidak boleh disembunyikan di dalam harga.** Setiap baris punya
+  `deductionKg` (potongan berat, mis. kadar air) dan `deductionAmount` (potongan
+  rupiah, mis. biaya angkut) sebagai kolom terpisah, dan keduanya **wajib disertai
+  alasan**. Keluhan yang paling sering muncul di lapangan bukan harga per kilogram,
+  melainkan potongan yang tidak dijelaskan.
+- **Nomor tera timbangan.** Mengacu UU No. 2 Tahun 1981 tentang Metrologi Legal.
+  Bukti tanpa nomor tera tetap sah dicatat (`scaleVerified: false`) tetapi **tidak
+  dihitung ke papan harga**, karena beratnya tidak dapat dipertanggungjawabkan.
+- **Ambang minimum papan harga.** Sebaran hanya ditampilkan bila ada **≥3 baris data
+  dari ≥2 mitra berbeda** dalam jendela 7 hari. Di bawah itu grade masuk daftar
+  `insufficient` dan aplikasi menampilkan "data belum cukup" — menampilkan median dari
+  satu laporan tunggal berarti menyamarkan pengumuman satu pembeli sebagai informasi pasar.
+- **Yang ditampilkan adalah sebaran P25–median–P75, bukan satu angka**, agar
+  ketidakpastian terkomunikasikan apa adanya.
+- **Tidak ada harga nasional.** Setiap kueri papan harga wajib menyertakan `region`.
+- **Batasan ditegakkan di basis data**, bukan hanya di DTO: `CHECK` constraint
+  memastikan berat positif dan potongan berat tidak melebihi berat kotor.
+
+### Perhitungan
+
+```
+netWeightKg  = weightKg - deductionKg
+grossAmount  = round(netWeightKg × pricePerKg)
+subtotal     = grossAmount - deductionAmount
+```
+
+Bukti timbang ditolak bila potongan rupiah membuat pembayaran menjadi negatif.
+
+Nomor bukti berformat `BG-YYMMDD-XXXX`, memakai alfabet tanpa karakter yang mudah
+tertukar saat dibacakan (tanpa `0`/`O` dan `1`/`I`), dengan retry bila bertabrakan.
+
+### Antarmuka mobile
+
+| Peran | Layar | Lokasi |
+| --- | --- | --- |
+| Pemulung | Tab **Harga** — papan harga per wilayah | `app/(agent-tabs)/prices.tsx` |
+| Pemulung | Formulir terbitkan bukti timbang | `app/(agent-tabs)/receipts/new.tsx` |
+| Pemulung | Daftar & detail bukti timbang | `app/(agent-tabs)/receipts/` |
+| Warga | Daftar & detail bukti timbang, dibuka dari tab Profil | `app/(tabs)/receipts/` |
+
+Alur demo dari ujung ke ujung: pemulung buka **Pekerjaan → detail → Timbang & terbitkan
+bukti** → isi grade, berat, harga, potongan → bukti terbit → buka tab **Harga**, masukkan
+wilayah yang sama → sebaran harga bergerak. Warga melihat bukti yang sama dari
+**Profil → Bukti timbang saya**.
+
+Beberapa keputusan antarmuka yang disengaja:
+
+- **Pratinjau perhitungan langsung di formulir.** Rumusnya sama persis dengan sisi server
+  (`src/features/weighing/draft.ts`), sehingga angka yang dilihat pemulung saat mengisi
+  identik dengan angka pada bukti yang terbit. Kalau keduanya berbeda, bukti timbang
+  kehilangan kepercayaan.
+- **Kolom alasan potongan baru muncul ketika ada potongan**, lalu menjadi wajib. Pengguna
+  tidak dibebani kolom yang belum relevan, tetapi juga tidak bisa melewatinya.
+- **Grade menampilkan syarat kondisinya** begitu dipilih, dan grade yang tidak dibeli
+  titik penerima ditandai agar pemulung tidak membuang waktu mengumpulkannya.
+- **Papan harga menolak menampilkan angka** ketika data belum memenuhi ambang, dan
+  menyertakan halaman "Bagaimana angka ini dihitung" langsung di layar.
+
+### Cara verifikasi
+
+```bash
+pnpm backend:prisma:migrate   # migrasi 20260803000000_weighing_receipts
+pnpm backend:prisma:generate
+pnpm shared:build
+pnpm backend:test             # 75 unit test, 20 di antaranya untuk modul ini
+pnpm mobile:test              # 70 test, termasuk draft e-receipt & tampilan bukti
+pnpm --filter @bingo/mobile typecheck
+```
+
+---
+
+## Lisensi & komponen pihak ketiga
+
+BinGo dirilis di bawah **MIT License** (lihat `LICENSE`). Daftar seluruh pustaka pihak
+ketiga yang dideklarasikan langsung beserta lisensinya ada di
+[`docs/DAFTAR-KOMPONEN-DAN-LISENSI.md`](docs/DAFTAR-KOMPONEN-DAN-LISENSI.md) — 92
+komponen, seluruhnya berlisensi permisif (MIT, Apache-2.0, BSD-2-Clause, ISC).
+
+---
+
 ## Skrip umum
 
 | Perintah | Deskripsi |
@@ -495,3 +604,4 @@ BinGo/
 - ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads)
 - ✅ **Phase 5** — Frontend Pemulung (dashboard, terdekat, terima/selesai, resolve laporan)
 - ✅ **Phase 6** — TrashScan (kamera + heuristik/TFLite-ready) & checkout UMKM (keranjang + pesanan)
+- ✅ **Phase 7** — Bukti timbang digital (e-receipt), taksonomi grade material, dan papan harga per wilayah

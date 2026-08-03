@@ -12,6 +12,7 @@ import { PickupRequestsModule } from './modules/pickup-requests/pickup-requests.
 import { ReportsModule } from './modules/reports/reports.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
+import { WeighingReceiptsModule } from './modules/weighing-receipts/weighing-receipts.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -41,6 +42,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ReportsModule,
     MarketplaceModule,
     UploadsModule,
+    WeighingReceiptsModule,
   ],
   providers: [
     // Semua endpoint default-nya wajib JWT, kecuali yang ditandai `@Public()`.

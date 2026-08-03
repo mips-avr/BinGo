@@ -19,6 +19,9 @@ export interface TranslationDict {
     submit: string;
     empty: string;
     search: string;
+    viewAll: string;
+    explore: string;
+    redeemPoints: string;
   };
   auth: {
     login: string;
@@ -200,6 +203,7 @@ export interface TranslationDict {
     useForPickup: string;
     engineHeuristic: string;
     engineTflite: string;
+    engineEnhanced: string;
     result: {
       material: string;
       disposal: string;
@@ -231,6 +235,63 @@ export interface TranslationDict {
       emptyMessage: string;
     };
   };
+  weighing: {
+    tabTitle: string;
+    receiptTitle: string;
+    receiptListTitle: string;
+    newTitle: string;
+    emptyTitle: string;
+    emptyMessage: string;
+    partnerName: string;
+    partnerNamePlaceholder: string;
+    region: string;
+    regionPlaceholder: string;
+    scaleTeraNo: string;
+    scaleTeraNoHint: string;
+    scaleVerified: string;
+    scaleUnverified: string;
+    notes: string;
+    lines: string;
+    addLine: string;
+    removeLine: string;
+    grade: string;
+    weightKg: string;
+    pricePerKg: string;
+    deductionKg: string;
+    deductionAmount: string;
+    deductionReason: string;
+    deductionReasonRequired: string;
+    netWeight: string;
+    grossAmount: string;
+    subtotal: string;
+    totalWeight: string;
+    totalDeduction: string;
+    totalNet: string;
+    issue: string;
+    issueSuccess: string;
+    seller: string;
+    issuedBy: string;
+    issuedAt: string;
+    viewReceipt: string;
+    noDeduction: string;
+    createFromJob: string;
+    alreadyIssued: string;
+    priceBoardTitle: string;
+    priceBoardSubtitle: string;
+    priceBoardRegion: string;
+    priceBoardWindow: string;
+    priceBoardEmptyTitle: string;
+    priceBoardEmptyMessage: string;
+    priceBoardInsufficient: string;
+    priceBoardInsufficientHint: string;
+    priceRange: string;
+    median: string;
+    sampleCount: string;
+    partnerCount: string;
+    lastReported: string;
+    methodologyTitle: string;
+    methodologyBody: string;
+  };
 }
 
 export const id: TranslationDict = {
@@ -247,6 +308,9 @@ export const id: TranslationDict = {
     submit: 'Kirim',
     empty: 'Belum ada data',
     search: 'Cari',
+    viewAll: 'Lihat semua',
+    explore: 'Jelajahi',
+    redeemPoints: 'Tukar poin',
   },
   auth: {
     login: 'Masuk',
@@ -428,6 +492,7 @@ export const id: TranslationDict = {
     useForPickup: 'Buat permintaan pickup',
     engineHeuristic: 'Mode edukasi (heuristik warna)',
     engineTflite: 'TensorFlow Lite',
+    engineEnhanced: 'Analisis fitur citra',
     result: {
       material: 'Jenis material',
       disposal: 'Cara pembuangan',
@@ -458,5 +523,63 @@ export const id: TranslationDict = {
       emptyTitle: 'Belum ada pesanan',
       emptyMessage: 'Checkout produk dari keranjang untuk melihat riwayat di sini.',
     },
+  },
+  weighing: {
+    tabTitle: 'Harga',
+    receiptTitle: 'Bukti timbang',
+    receiptListTitle: 'Bukti timbang saya',
+    newTitle: 'Terbitkan bukti timbang',
+    emptyTitle: 'Belum ada bukti timbang',
+    emptyMessage: 'Bukti timbang muncul di sini setelah material ditimbang dan diserahterimakan.',
+    partnerName: 'Titik penerima',
+    partnerNamePlaceholder: 'Nama bank sampah atau lapak',
+    region: 'Wilayah',
+    regionPlaceholder: 'Kecamatan, kota',
+    scaleTeraNo: 'Nomor tera timbangan',
+    scaleTeraNoHint: 'Boleh dikosongkan, tetapi bukti tanpa nomor tera tidak dihitung ke papan harga.',
+    scaleVerified: 'Timbangan bertera',
+    scaleUnverified: 'Tanpa nomor tera',
+    notes: 'Catatan',
+    lines: 'Rincian material',
+    addLine: 'Tambah material',
+    removeLine: 'Hapus',
+    grade: 'Jenis material',
+    weightKg: 'Berat timbang (kg)',
+    pricePerKg: 'Harga per kg',
+    deductionKg: 'Potongan berat (kg)',
+    deductionAmount: 'Potongan rupiah',
+    deductionReason: 'Alasan potongan',
+    deductionReasonRequired: 'Setiap potongan wajib diberi alasan agar dapat diperiksa penyetor.',
+    netWeight: 'Berat bersih',
+    grossAmount: 'Nilai kotor',
+    subtotal: 'Dibayar',
+    totalWeight: 'Total berat timbang',
+    totalDeduction: 'Total potongan',
+    totalNet: 'Total dibayar',
+    issue: 'Terbitkan bukti',
+    issueSuccess: 'Bukti timbang berhasil diterbitkan.',
+    seller: 'Penyetor',
+    issuedBy: 'Diterbitkan oleh',
+    issuedAt: 'Waktu terbit',
+    viewReceipt: 'Lihat bukti timbang',
+    noDeduction: 'Tanpa potongan',
+    createFromJob: 'Timbang & terbitkan bukti',
+    alreadyIssued: 'Bukti timbang sudah diterbitkan untuk permintaan ini.',
+    priceBoardTitle: 'Papan harga',
+    priceBoardSubtitle: 'Rentang harga yang dilaporkan titik penerima di wilayah ini',
+    priceBoardRegion: 'Wilayah',
+    priceBoardWindow: '{days} hari terakhir',
+    priceBoardEmptyTitle: 'Data belum cukup untuk wilayah ini',
+    priceBoardEmptyMessage: 'Papan harga muncul setelah ada minimal 3 bukti timbang dari 2 titik penerima berbeda.',
+    priceBoardInsufficient: 'Belum cukup data',
+    priceBoardInsufficientHint: 'Material berikut sudah ada datanya, tetapi belum memenuhi ambang minimum sehingga rentangnya belum ditampilkan.',
+    priceRange: 'Rentang',
+    median: 'Median',
+    sampleCount: '{count} bukti timbang',
+    partnerCount: '{count} titik penerima',
+    lastReported: 'Terakhir dilaporkan {time}',
+    methodologyTitle: 'Bagaimana angka ini dihitung',
+    methodologyBody:
+      'Angka berasal dari bukti timbang bernomor tera yang tercatat di wilayah ini dalam jendela waktu di atas. Yang ditampilkan adalah sebaran persentil 25, median, dan persentil 75 — bukan satu angka tunggal — agar ketidakpastian terlihat apa adanya. Rentang hanya muncul bila ada minimal 3 bukti dari 2 titik penerima berbeda. Ini bukan harga acuan resmi dan tidak mengikat titik penerima manapun.',
   },
 };

@@ -88,6 +88,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
         }}
       />
+      {/* Bukti timbang dibuka dari Profil, bukan dari tombol tab tersendiri. */}
+      <Tabs.Screen name="receipts" options={{ href: null }} />
     </Tabs>
   );
 }

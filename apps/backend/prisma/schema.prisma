@@ -67,6 +67,30 @@ enum MaterialType {
   MIXED
 }
 
+/// Grade material sebagaimana dipakai titik penerima di lapangan. Lebih halus
+/// daripada MaterialType: dua grade dengan polimer sama dapat berbeda harga
+/// beberapa kali lipat (mis. gelas plastik bening vs berwarna).
+enum MaterialGrade {
+  PET_BOTOL_BENING
+  PET_BOTOL_WARNA
+  PP_GELAS_BENING
+  PP_GELAS_WARNA
+  PP_PLASTIK_PUTIH
+  LDPE_KRESEK
+  PLASTIK_CAMPUR
+  KERTAS_KORAN
+  KERTAS_ARSIP
+  KERTAS_KARDUS
+  KERTAS_DUPLEX
+  LOGAM_ALUMINIUM
+  LOGAM_TEMBAGA
+  LOGAM_BESI
+  LOGAM_KALENG
+  KACA_BELING
+  MINYAK_JELANTAH
+  MULTILAYER_SACHET
+}
+
 // ------------------------------- Models -------------------------------
 
 model User {
@@ -82,10 +106,12 @@ model User {
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  pickupRequestsAsCitizen PickupRequest[] @relation("CitizenPickups")
-  pickupRequestsAsAgent   PickupRequest[] @relation("AgentPickups")
+  pickupRequestsAsCitizen PickupRequest[]   @relation("CitizenPickups")
+  pickupRequestsAsAgent   PickupRequest[]   @relation("AgentPickups")
   reports                 Report[]
   transactions            Transaction[]
+  receiptsAsSeller        WeighingReceipt[] @relation("SellerReceipts")
+  receiptsIssued          WeighingReceipt[] @relation("IssuedReceipts")
 
   @@index([role])
   @@map("users")
@@ -109,13 +135,91 @@ model PickupRequest {
   createdAt         DateTime                              @default(now()) @map("created_at")
   updatedAt         DateTime                              @updatedAt @map("updated_at")
 
-  citizen User  @relation("CitizenPickups", fields: [citizenId], references: [id], onDelete: Cascade)
-  agent   User? @relation("AgentPickups", fields: [agentId], references: [id], onDelete: SetNull)
+  citizen User             @relation("CitizenPickups", fields: [citizenId], references: [id], onDelete: Cascade)
+  agent   User?            @relation("AgentPickups", fields: [agentId], references: [id], onDelete: SetNull)
+  receipt WeighingReceipt?
 
   @@index([status])
   @@index([citizenId])
   @@index([agentId])
   @@map("pickup_requests")
+}
+
+/// Bukti timbang digital (e-receipt).
+///
+/// Ini adalah inti klaim kebaruan BinGo: setiap serah terima material
+/// meninggalkan catatan yang dapat diperiksa kedua pihak, dan dari catatan
+/// itulah harga transaksi nyata pada papan harga dihitung. Percakapan
+/// WhatsApp tidak dapat menghasilkan data ini.
+model WeighingReceipt {
+  id              String  @id @default(uuid())
+  /// Nomor yang dibacakan saat serah terima, unik dan mudah diucapkan.
+  receiptNo       String  @unique @map("receipt_no") @db.VarChar(24)
+  pickupRequestId String? @unique @map("pickup_request_id")
+  /// Pihak yang menyerahkan material.
+  sellerId        String  @map("seller_id")
+  /// Pihak yang menerbitkan bukti (Waste Agent atau operator mitra).
+  issuedById      String  @map("issued_by_id")
+  partnerName     String  @map("partner_name") @db.VarChar(160)
+  /// Nomor tera timbangan mitra (UU No. 2 Tahun 1981 tentang Metrologi Legal).
+  /// Bukti tanpa nomor tera tetap sah dicatat, tetapi tidak dihitung ke papan harga.
+  scaleTeraNo     String? @map("scale_tera_no") @db.VarChar(64)
+  /// Wilayah tingkat kecamatan/kota. Papan harga selalu terikat wilayah.
+  region          String  @db.VarChar(120)
+  notes           String? @db.Text
+
+  /// Total disimpan hasil hitung agar papan harga dan riwayat tidak perlu
+  /// menjumlahkan ulang setiap kali dibaca. Nilai uang dalam Rupiah (integer).
+  totalWeightKg         Decimal @map("total_weight_kg") @db.Decimal(10, 2)
+  totalDeductionKg      Decimal @map("total_deduction_kg") @db.Decimal(10, 2)
+  totalGrossAmount      Int     @map("total_gross_amount")
+  totalDeductionAmount  Int     @map("total_deduction_amount")
+  totalNetAmount        Int     @map("total_net_amount")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seller        User                  @relation("SellerReceipts", fields: [sellerId], references: [id], onDelete: Cascade)
+  issuedBy      User                  @relation("IssuedReceipts", fields: [issuedById], references: [id], onDelete: Cascade)
+  pickupRequest PickupRequest?        @relation(fields: [pickupRequestId], references: [id], onDelete: SetNull)
+  lines         WeighingReceiptLine[]
+
+  @@index([sellerId])
+  @@index([issuedById])
+  @@index([region])
+  @@index([createdAt])
+  @@map("weighing_receipts")
+}
+
+/// Satu baris bukti timbang, satu grade material.
+///
+/// Potongan sengaja dipecah menjadi potongan berat dan potongan rupiah, dan
+/// tidak boleh dilebur ke dalam `price_per_kg`. Keluhan yang paling sering
+/// muncul di lapangan bukan harga per kilogram, melainkan potongan yang tidak
+/// dijelaskan; menyembunyikannya di dalam harga menghapus seluruh guna bukti ini.
+model WeighingReceiptLine {
+  id        String        @id @default(uuid())
+  receiptId String        @map("receipt_id")
+  grade     MaterialGrade
+  /// Berat kotor hasil timbang.
+  weightKg  Decimal       @map("weight_kg") @db.Decimal(8, 2)
+  /// Potongan berat, misalnya karena kadar air.
+  deductionKg     Decimal @default(0) @map("deduction_kg") @db.Decimal(8, 2)
+  deductionReason String? @map("deduction_reason") @db.VarChar(160)
+  /// Harga per kilogram dalam Rupiah.
+  pricePerKg      Int     @map("price_per_kg")
+  /// Potongan dalam Rupiah, misalnya biaya angkut.
+  deductionAmount Int     @default(0) @map("deduction_amount")
+  /// (weightKg - deductionKg) × pricePerKg, dibulatkan ke Rupiah terdekat.
+  grossAmount     Int     @map("gross_amount")
+  /// grossAmount - deductionAmount.
+  subtotal        Int
+
+  receipt WeighingReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
+  @@index([grade])
+  @@map("weighing_receipt_lines")
 }
 
 model Report {

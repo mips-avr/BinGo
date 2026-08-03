@@ -8,6 +8,7 @@ const ICONS = {
   home: '📊',
   nearby: '📍',
   jobs: '🚚',
+  prices: '🏷️',
   reports: '📋',
   profile: '👤',
 } as const;
@@ -62,12 +63,22 @@ export default function AgentTabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="prices"
+        options={{
+          title: t.weighing.tabTitle,
+          tabBarIcon: ({ focused }) => <Icon name="prices" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="reports"
         options={{
           title: t.agent.tabs.reports,
           tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
         }}
       />
+      {/* Stack bukti timbang tidak punya tombol tab sendiri — dibuka dari
+          detail pekerjaan dan dari dashboard. */}
+      <Tabs.Screen name="receipts" options={{ href: null }} />
       <Tabs.Screen
         name="profile"
         options={{

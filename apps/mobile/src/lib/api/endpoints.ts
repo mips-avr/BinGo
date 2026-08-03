@@ -34,6 +34,12 @@ export const ENDPOINTS = {
     checkout: '/api/v1/marketplace/checkout',
     myTransactions: '/api/v1/marketplace/transactions/mine',
   },
+  weighing: {
+    root: '/api/v1/weighing-receipts',
+    mine: '/api/v1/weighing-receipts/mine',
+    priceBoard: '/api/v1/weighing-receipts/price-board',
+    byId: (id: string) => `/api/v1/weighing-receipts/${id}`,
+  },
   uploads: {
     image: '/api/v1/uploads/image',
   },

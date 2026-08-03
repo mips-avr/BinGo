@@ -44,5 +44,11 @@ export const queryKeys = {
     item: (id: string) => ['marketplace', 'item', id] as const,
     myTransactions: ['marketplace', 'transactions', 'mine'] as const,
   },
+  weighing: {
+    mine: ['weighing', 'mine'] as const,
+    detail: (id: string) => ['weighing', 'detail', id] as const,
+    priceBoard: (region: string, windowDays: number) =>
+      ['weighing', 'price-board', region, windowDays] as const,
+  },
   me: ['auth', 'me'] as const,
 };
