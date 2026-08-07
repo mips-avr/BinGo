@@ -4,7 +4,7 @@ import type { PickupRequestDto } from '@bingo/shared-types';
 import { formatRelativeId } from '@bingo/shared-utils';
 import { Card } from '../ui/Card';
 import { StatusBadge } from '../ui/StatusBadge';
-import { colors } from '../../theme/screen';
+import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
 export function PickupCard({
@@ -15,7 +15,12 @@ export function PickupCard({
   onPress?: () => void;
 }) {
   return (
-    <Card onPress={onPress} style={cardS.mb}>
+    <Card
+      onPress={onPress}
+      style={cardS.mb}
+      accessibilityLabel={`${pickup.address}, ${t.pickup.material_label[pickup.materialType]}, ${pickup.estimatedWeightKg} kg`}
+      testID={`pickup-${pickup.id}`}
+    >
       <View style={cardS.row}>
         {/* Icon indicator */}
         <View style={cardS.iconCircle}>
@@ -39,7 +44,7 @@ export function PickupCard({
 }
 
 const cardS = StyleSheet.create({
-  mb: { marginBottom: 12 },
+  mb: { marginBottom: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -48,7 +53,7 @@ const cardS = StyleSheet.create({
   iconCircle: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: radius.md,
     backgroundColor: colors.bingo100,
     alignItems: 'center',
     justifyContent: 'center',
@@ -56,13 +61,12 @@ const cardS = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 15,
+    ...typography.cardTitle,
     fontWeight: '600',
-    color: colors.neutral900,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   divider: {
-    marginTop: 12,
+    marginTop: spacing.sm,
     marginBottom: 10,
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors.neutral200,

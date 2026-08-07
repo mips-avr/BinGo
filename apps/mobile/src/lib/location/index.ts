@@ -1,10 +1,44 @@
 import * as Location from 'expo-location';
 import type { LatLng } from '@bingo/shared-types';
+import { t } from '../../i18n';
 
 export interface LocationResult {
   coords: LatLng;
   accuracy: number | null;
   address?: string;
+}
+
+/** Berhenti mengikuti posisi. Wajib dipanggil saat komponen dilepas. */
+export interface LocationWatcher {
+  remove: () => void;
+}
+
+/**
+ * Mengikuti posisi secara terus-menerus.
+ *
+ * `distanceInterval` 25 meter dipilih sebagai kompromi: cukup rapat agar jarak
+ * pada radar pemulung tetap benar saat ia berjalan atau naik motor pelan,
+ * cukup renggang agar GPS tidak dibangunkan setiap detik. `timeInterval`
+ * menjadi batas atas agar posisi tetap diperbarui walau derau GPS membuat
+ * perpindahan tidak pernah menembus 25 meter.
+ *
+ * Melempar error berbahasa Indonesia bila izin ditolak.
+ */
+export async function watchLocation(onChange: (coords: LatLng) => void): Promise<LocationWatcher> {
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status !== Location.PermissionStatus.GRANTED) {
+    throw new Error(t.pickup.locationPermissionDenied);
+  }
+  return Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 25,
+      timeInterval: 15_000,
+    },
+    (position) => {
+      onChange({ lat: position.coords.latitude, lng: position.coords.longitude });
+    },
+  );
 }
 
 /**
@@ -14,9 +48,7 @@ export interface LocationResult {
 export async function getCurrentLocation(): Promise<LocationResult> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== Location.PermissionStatus.GRANTED) {
-    throw new Error(
-      'Izin lokasi ditolak. Aktifkan akses lokasi di pengaturan untuk menentukan titik pickup/laporan.',
-    );
+    throw new Error(t.pickup.locationPermissionDenied);
   }
   const pos = await Location.getCurrentPositionAsync({
     accuracy: Location.Accuracy.Balanced,

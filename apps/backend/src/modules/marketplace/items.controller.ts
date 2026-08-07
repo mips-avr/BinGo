@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateItemDto } from './dto/create-item.dto';
 import { ItemsService } from './items.service';
@@ -27,7 +27,7 @@ export class ItemsController {
    */
   @Post()
   @Roles('MSME')
-  @ApiOkResponse({ description: 'Menambahkan produk baru (MSME)' })
+  @ApiCreatedResponse({ description: 'Menambahkan produk baru (MSME)' })
   create(@Body() dto: CreateItemDto) {
     return this.items.create(dto);
   }

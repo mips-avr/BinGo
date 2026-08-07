@@ -1,15 +1,23 @@
 import { MaterialType } from '@bingo/shared-types';
-import { classifyByRecyclingCode, rgbToHsl, scoreMaterials, pickBest, computeFeatures } from '../heuristicClassifier';
-import type { ImageFeatures } from '../heuristicClassifier';
+import { classifyByRecyclingCode } from '../pipeline';
+import {
+  MIN_VISUAL_EVIDENCE,
+  VISUAL_CONFIDENCE_THRESHOLD,
+  computeFeatures,
+  pickBest,
+  rgbToHsl,
+  scoreMaterials,
+} from '../visualClassifier';
+import type { ImageFeatures } from '../visualClassifier';
 
-// ─── Recycling Code Tests (existing) ─────────────────────────
+// ─── Tahap 1: kode resin ─────────────────────────────────────
 
 describe('classifyByRecyclingCode', () => {
   it('memetakan kode 1 ke PET', () => {
     const result = classifyByRecyclingCode(1);
     expect(result.materialType).toBe(MaterialType.PET);
-    expect(result.confidence).toBeGreaterThan(0.9);
-    expect(result.disposalTip.length).toBeGreaterThan(10);
+    expect(result.confident).toBe(true);
+    expect(result.disposalTip?.length ?? 0).toBeGreaterThan(10);
     expect(result.pointsHint).toBeGreaterThan(0);
   });
 
@@ -17,16 +25,22 @@ describe('classifyByRecyclingCode', () => {
     expect(classifyByRecyclingCode(7).materialType).toBe(MaterialType.OTHER_PLASTIC);
   });
 
-  it('fallback campuran untuk kode tidak dikenal', () => {
-    expect(classifyByRecyclingCode(99).materialType).toBe(MaterialType.MIXED);
+  it('menolak menyimpulkan untuk kode tidak dikenal', () => {
+    const result = classifyByRecyclingCode(99);
+    expect(result.materialType).toBe(MaterialType.MIXED);
+    expect(result.confident).toBe(false);
+    expect(result.disposalTip).toBeNull();
   });
 
-  it('engine is enhanced-heuristic', () => {
-    expect(classifyByRecyclingCode(1).engine).toBe('enhanced-heuristic');
+  it('tidak pernah mengarang skor model untuk masukan pengguna', () => {
+    const result = classifyByRecyclingCode(1);
+    expect(result.source).toBe('resin-code');
+    expect(result.visualScore).toBeNull();
+    expect(result.resinCode).toBe(1);
   });
 });
 
-// ─── RGB to HSL ──────────────────────────────────────────────
+// ─── RGB ke HSL ──────────────────────────────────────────────
 
 describe('rgbToHsl', () => {
   it('converts pure red', () => {
@@ -59,17 +73,21 @@ describe('rgbToHsl', () => {
   });
 });
 
-// ─── Material Scoring ────────────────────────────────────────
+// ─── Tahap 2: penilaian visual ───────────────────────────────
 
 function makeFeatures(overrides: Partial<ImageFeatures>): ImageFeatures {
   return {
-    avgR: 128, avgG: 128, avgB: 128,
-    hue: 0, saturation: 0, lightness: 0.5,
-    lumMean: 128, lumStdDev: 20,
+    avgR: 128,
+    avgG: 128,
+    avgB: 128,
+    hue: 0,
+    saturation: 0,
+    lightness: 0.5,
+    lumStdDev: 20,
     edgeDensity: 0.1,
-    histogram: new Array(512).fill(1 / 512),
-    redRatio: 0.333, greenRatio: 0.333, blueRatio: 0.333,
-    warmth: 1.0,
+    redRatio: 1 / 3,
+    greenRatio: 1 / 3,
+    blueRatio: 1 / 3,
     ...overrides,
   };
 }
@@ -81,106 +99,131 @@ describe('scoreMaterials', () => {
   });
 
   it('favors PAPER for bright, low-saturation, warm images', () => {
-    const features = makeFeatures({
-      lightness: 0.85,
-      saturation: 0.08,
-      warmth: 1.1,
-      lumStdDev: 25,
-      edgeDensity: 0.1,
-      avgR: 220, avgG: 210, avgB: 190,
-    });
-    const scores = scoreMaterials(features);
-    const { materialType } = pickBest(scores);
-    expect(materialType).toBe(MaterialType.PAPER);
+    const scores = scoreMaterials(
+      makeFeatures({
+        lightness: 0.85,
+        saturation: 0.08,
+        lumStdDev: 25,
+        edgeDensity: 0.1,
+        avgR: 220,
+        avgG: 210,
+        avgB: 190,
+      }),
+    );
+    expect(pickBest(scores).materialType).toBe(MaterialType.PAPER);
   });
 
   it('favors METAL for grey, high-variance images', () => {
-    const features = makeFeatures({
-      lumStdDev: 65,
-      saturation: 0.05,
-      lightness: 0.55,
-      edgeDensity: 0.2,
-      avgR: 150, avgG: 150, avgB: 150,
-    });
-    const scores = scoreMaterials(features);
-    const { materialType } = pickBest(scores);
-    expect(materialType).toBe(MaterialType.METAL);
+    const scores = scoreMaterials(
+      makeFeatures({
+        lumStdDev: 65,
+        saturation: 0.05,
+        lightness: 0.55,
+        edgeDensity: 0.2,
+        avgR: 150,
+        avgG: 150,
+        avgB: 150,
+      }),
+    );
+    expect(pickBest(scores).materialType).toBe(MaterialType.METAL);
   });
 
   it('favors ORGANIC for green, saturated images', () => {
-    const features = makeFeatures({
-      greenRatio: 0.45,
-      saturation: 0.5,
-      hue: 120,
-      edgeDensity: 0.08,
-      warmth: 1.2,
-      lightness: 0.4,
-    });
-    const scores = scoreMaterials(features);
-    const { materialType } = pickBest(scores);
-    expect(materialType).toBe(MaterialType.ORGANIC);
+    const scores = scoreMaterials(
+      makeFeatures({
+        greenRatio: 0.45,
+        saturation: 0.5,
+        hue: 120,
+        edgeDensity: 0.08,
+        lightness: 0.4,
+      }),
+    );
+    expect(pickBest(scores).materialType).toBe(MaterialType.ORGANIC);
   });
 
   it('favors PS for extremely white, uniform, smooth images', () => {
-    const features = makeFeatures({
-      lightness: 0.9,
-      saturation: 0.03,
-      edgeDensity: 0.04,
-      lumStdDev: 10,
-      avgR: 240, avgG: 240, avgB: 240,
-    });
-    const scores = scoreMaterials(features);
-    const { materialType } = pickBest(scores);
-    expect(materialType).toBe(MaterialType.PS);
+    const scores = scoreMaterials(
+      makeFeatures({
+        lightness: 0.9,
+        saturation: 0.03,
+        edgeDensity: 0.04,
+        lumStdDev: 10,
+        avgR: 240,
+        avgG: 240,
+        avgB: 240,
+      }),
+    );
+    expect(pickBest(scores).materialType).toBe(MaterialType.PS);
   });
 });
 
-// ─── pickBest ────────────────────────────────────────────────
+// ─── pickBest: berani mengaku tidak tahu ─────────────────────
 
 describe('pickBest', () => {
-  it('returns confidence between 0.35 and 0.96', () => {
-    const scores = scoreMaterials(makeFeatures({}));
-    const { confidence } = pickBest(scores);
-    expect(confidence).toBeGreaterThanOrEqual(0.35);
-    expect(confidence).toBeLessThanOrEqual(0.96);
+  it('menolak menyimpulkan ketika dua kelas hampir seimbang', () => {
+    // Styrofoam dan plastik film memang sulit dibedakan dari warna saja: foto
+    // yang sangat terang, tanpa warna, dan rata memicu keduanya hampir sama
+    // kuat. Di situlah sistem harus mengaku ragu, bukan memilih salah satu.
+    const verdict = pickBest(
+      scoreMaterials(
+        makeFeatures({ lightness: 0.9, saturation: 0.03, edgeDensity: 0.04, lumStdDev: 10 }),
+      ),
+    );
+    expect(verdict.score).toBeLessThan(VISUAL_CONFIDENCE_THRESHOLD);
+    expect(verdict.confident).toBe(false);
   });
 
-  it('returns MIXED when all scores are zero', () => {
+  it('mengembalikan MIXED ketika bukti di bawah ambang minimum', () => {
     const scores = new Map<MaterialType, number>();
-    for (const m of Object.values(MaterialType)) {
-      scores.set(m as MaterialType, 0);
+    for (const material of Object.values(MaterialType)) {
+      scores.set(material as MaterialType, MIN_VISUAL_EVIDENCE - 1);
     }
-    const { materialType } = pickBest(scores);
-    // With all zeros, the first iterated material or MIXED should win
-    expect(materialType).toBeDefined();
+    const verdict = pickBest(scores);
+    expect(verdict.materialType).toBe(MaterialType.MIXED);
+    expect(verdict.confident).toBe(false);
   });
 });
 
-// ─── computeFeatures ─────────────────────────────────────────
+// ─── computeFeatures bekerja pada piksel sungguhan ───────────
 
 describe('computeFeatures', () => {
-  it('returns empty features for empty byte array', () => {
-    const features = computeFeatures(new Uint8Array(0));
-    expect(features.avgR).toBe(128);
-    expect(features.avgG).toBe(128);
+  it('menghitung rata-rata warna yang tepat untuk bidang warna solid', () => {
+    const width = 8;
+    const height = 8;
+    const rgba = new Uint8Array(width * height * 4);
+    for (let i = 0; i < width * height; i++) {
+      rgba[i * 4] = 10;
+      rgba[i * 4 + 1] = 200;
+      rgba[i * 4 + 2] = 60;
+      rgba[i * 4 + 3] = 255;
+    }
+    const features = computeFeatures(rgba, width, height);
+    expect(features.avgR).toBe(10);
+    expect(features.avgG).toBe(200);
+    expect(features.avgB).toBe(60);
+    // Bidang solid tidak punya tepi dan tidak punya sebaran luminansi.
     expect(features.edgeDensity).toBe(0);
+    expect(features.lumStdDev).toBeCloseTo(0, 3);
   });
 
-  it('computes non-empty features for a large byte buffer', () => {
-    // Create a large buffer with a repeating pattern
-    const size = 6000;
-    const buf = new Uint8Array(size);
-    for (let i = 0; i < size; i++) {
-      // Alternating bright and dark to ensure non-zero variance
-      buf[i] = i % 2 === 0 ? 200 : 50;
+  it('mengenali tepi pada papan catur hitam-putih', () => {
+    const width = 8;
+    const height = 8;
+    const rgba = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const value = (x + y) % 2 === 0 ? 255 : 0;
+        const i = (y * width + x) * 4;
+        rgba[i] = value;
+        rgba[i + 1] = value;
+        rgba[i + 2] = value;
+        rgba[i + 3] = 255;
+      }
     }
-
-    const features = computeFeatures(buf);
-    // Should process many pixels, not return empty defaults
-    expect(features.lumStdDev).toBeGreaterThan(0);
-    expect(features.edgeDensity).toBeGreaterThanOrEqual(0);
-    // Histogram should have some populated bins
-    const populatedBins = features.histogram.filter(v => v > 0).length;
-    expect(populatedBins).toBeGreaterThan(0);
+    const features = computeFeatures(rgba, width, height);
+    // Setiap piksel selain yang pertama berbeda tajam dari tetangganya.
+    expect(features.edgeDensity).toBe(1);
+    expect(features.lumStdDev).toBeGreaterThan(100);
+    expect(features.saturation).toBe(0);
   });
 });

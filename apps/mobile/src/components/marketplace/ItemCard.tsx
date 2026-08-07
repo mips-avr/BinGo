@@ -2,33 +2,31 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import type { MarketplaceItemDto } from '@bingo/shared-types';
 import { formatIDR } from '@bingo/shared-utils';
 import { Card } from '../ui/Card';
-import { colors } from '../../theme/screen';
+import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
 const FALLBACK = 'https://placehold.co/600x400/16A34A/FFFFFF?text=BinGo';
 
-export function ItemCard({
-  item,
-  onPress,
-}: {
-  item: MarketplaceItemDto;
-  onPress?: () => void;
-}) {
+export function ItemCard({ item, onPress }: { item: MarketplaceItemDto; onPress?: () => void }) {
   return (
-    <Card onPress={onPress} style={cardS.mb} padded={false}>
-      <Image
-        source={{ uri: item.imageUrl ?? FALLBACK }}
-        style={cardS.image}
-        resizeMode="cover"
-      />
+    <Card
+      onPress={onPress}
+      style={cardS.mb}
+      padded={false}
+      accessibilityLabel={`${item.itemName}, ${item.supplierName}, ${formatIDR(item.price)}`}
+      testID={`item-${item.id}`}
+    >
+      <Image source={{ uri: item.imageUrl ?? FALLBACK }} style={cardS.image} resizeMode="cover" />
       <View style={cardS.body}>
         <Text style={cardS.supplier}>{item.supplierName}</Text>
         <Text style={cardS.name} numberOfLines={2}>
           {item.itemName}
         </Text>
         <View style={cardS.priceRow}>
-          <Text style={cardS.price}>{formatIDR(item.price)}</Text>
-          <Text style={cardS.minOrder}>
+          <Text style={cardS.price} numberOfLines={1}>
+            {formatIDR(item.price)}
+          </Text>
+          <Text style={cardS.minOrder} numberOfLines={1}>
             {t.marketplace.minOrder}: {item.minOrderQty}
           </Text>
         </View>
@@ -38,42 +36,40 @@ export function ItemCard({
 }
 
 const cardS = StyleSheet.create({
-  mb: { marginBottom: 12 },
+  mb: { marginBottom: spacing.sm },
   image: {
     height: 144,
     width: '100%',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopLeftRadius: radius.md,
+    borderTopRightRadius: radius.md,
     backgroundColor: colors.neutral200,
   },
   body: {
-    padding: 16,
+    padding: spacing.md,
   },
-  supplier: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    color: colors.neutral600,
-    letterSpacing: 0.3,
-  },
+  supplier: typography.overline,
   name: {
     marginTop: 2,
     fontSize: 16,
     fontWeight: '600',
     color: colors.neutral900,
   },
+  // (jarak & radius mengikuti token di atas)
   priceRow: {
-    marginTop: 8,
+    marginTop: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   price: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.numeric,
+    flexShrink: 0,
     color: colors.bingo700,
   },
   minOrder: {
+    flexShrink: 1,
+    marginLeft: spacing.xs,
+    textAlign: 'right',
     fontSize: 12,
     color: colors.neutral600,
   },

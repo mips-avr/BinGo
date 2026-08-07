@@ -205,7 +205,8 @@ Buat akun **baru** per sesi uji (hindari bentrok data). Gunakan password yang sa
 | 2.4 | Login ulang | Tutup app → buka lagi | Masih login (token SecureStore) | ☐ | |
 | 2.5 | Logout Warga A | Profil → Keluar → konfirmasi | Kembali ke login | ☐ | |
 | 2.6 | Login lagi Warga A | Telepon + password | Masuk `/(tabs)` | ☐ | |
-| 2.7 | Validasi form | NIK/telepon tidak valid saat daftar | Pesan error Bahasa Indonesia | ☐ | |
+| 2.7 | Validasi form | Telepon/kata sandi tidak valid saat daftar | Pesan error Bahasa Indonesia | ☐ | |
+| 2.7b | Tidak ada NIK | Buka layar daftar untuk ketiga peran | Tidak ada field NIK sama sekali; muncul keterangan "BinGo tidak meminta NIK" | ☐ | Sesuai proposal |
 
 ### 2B. RBAC & routing
 
@@ -291,6 +292,25 @@ Buat akun **baru** per sesi uji (hindari bentrok data). Gunakan password yang sa
 | 5.6 | Laporan diverifikasi | Laporan | Buka feed | Hanya/mulai dari `DIVERIFIKASI` | ☐ | |
 | 5.7 | Resolve laporan | Laporan → Detail | Tandai selesai | Status selesai | ☐ | |
 | 5.8 | Profil pemulung | Profil | Buka | **Tanpa** badge poin TrashLink | ☐ | |
+
+### 5B. Verifikasi berjenjang pemulung
+
+Perlu database hasil `pnpm backend:prisma:seed`. Password semua akun: `demo12345678`.
+
+| # | Skenario | Akun | Langkah | Hasil yang diharapkan | ✅/❌ | Catatan |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5.9  | Lencana Tingkat 0 | `081234500041` Tono | Profil | Lencana "Tingkat 0 · Terdaftar" | ☐ | |
+| 5.10 | Papan harga tetap terbuka | `081234500041` | Tab Harga | Papan harga Beji tampil normal | ☐ | Inti rancangan: Tingkat 0 tetap dapat harga |
+| 5.11 | Radar tetap terbuka | `081234500041` | Tab Radar | Daftar permintaan tampil | ☐ | |
+| 5.12 | Tingkat 0 tidak bisa ambil | `081234500041` | Radar → Ambil | Muncul layar penjelasan "Perlu satu penjaminan mitra", bukan pesan galat | ☐ | Bukan `Alert` galat mentah |
+| 5.13 | Penegakan server | `081234500041` | `PATCH /api/v1/pickup-requests/:id/accept` via curl | HTTP 403 + pesan Indonesia | ☐ | Membuktikan penjaga bukan hanya di klien |
+| 5.14 | Lencana Tingkat 1 | `082222222222` Agus | Profil | Lencana "Tingkat 1 · Dijamin Mitra" | ☐ | |
+| 5.15 | Tingkat 1 bisa ambil | `082222222222` | Radar → Ambil (permintaan < 20 kg) | Sukses | ☐ | |
+| 5.16 | Pekerjaan bernilai tinggi | `082222222222` | Radar → Ambil (permintaan ≥ 20 kg, berlencana "Nilai tinggi") | Layar penjelasan Tingkat 2 | ☐ | |
+| 5.17 | Lencana Tingkat 2 | `081234500042` Hendra | Profil | Lencana "Tingkat 2 · Dijamin Ganda" | ☐ | |
+| 5.18 | Prioritas radar | `081234500042` | Tab Radar | Permintaan ≥ 20 kg muncul di urutan atas | ☐ | |
+| 5.19 | Jejak audit | `081234500041` | `GET /api/v1/agent-verifications/mine` | Penjaminan `DICABUT` memperlihatkan urutan DIAJUKAN → DISETUJUI → DICABUT | ☐ | |
+| 5.20 | Mitra memutuskan | `081234500031` Operator Melati | `GET …/inbox` lalu `PATCH …/:id/decide` `DISETUJUI` | Tono naik ke Tingkat 1 tanpa login ulang | ☐ | |
 
 ---
 

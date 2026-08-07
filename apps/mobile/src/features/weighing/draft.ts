@@ -1,4 +1,5 @@
 import type { CreateWeighingReceiptRequest, MaterialGrade } from '@bingo/shared-types';
+import { t } from '../../i18n';
 
 /**
  * Bentuk isian formulir sebelum dikirim ke API.
@@ -124,10 +125,10 @@ export function validateDraft(draft: DraftReceipt): DraftErrors {
   const errors: DraftErrors = { lines: {} };
 
   if (draft.partnerName.trim().length < 3) {
-    errors.partnerName = 'Nama titik penerima minimal 3 karakter';
+    errors.partnerName = t.weighing.errors.partnerNameMin;
   }
   if (draft.region.trim().length < 3) {
-    errors.region = 'Wilayah minimal 3 karakter';
+    errors.region = t.weighing.errors.regionMin;
   }
 
   for (const line of draft.lines) {
@@ -137,23 +138,23 @@ export function validateDraft(draft: DraftReceipt): DraftErrors {
     const deductionAmount = parseNumber(line.deductionAmount);
 
     if (!line.grade) {
-      errors.lines[line.key] = 'Pilih jenis material';
+      errors.lines[line.key] = t.weighing.errors.gradeRequired;
     } else if (Number.isNaN(weight) || weight <= 0) {
-      errors.lines[line.key] = 'Berat harus lebih dari 0';
+      errors.lines[line.key] = t.weighing.errors.weightPositive;
     } else if (Number.isNaN(price) || price < 0) {
-      errors.lines[line.key] = 'Harga per kg tidak valid';
+      errors.lines[line.key] = t.weighing.errors.priceInvalid;
     } else if (Number.isNaN(deductionKg) || deductionKg < 0) {
-      errors.lines[line.key] = 'Potongan berat tidak valid';
+      errors.lines[line.key] = t.weighing.errors.deductionKgInvalid;
     } else if (deductionKg > weight) {
-      errors.lines[line.key] = 'Potongan berat melebihi berat timbang';
+      errors.lines[line.key] = t.weighing.errors.deductionKgExceedsWeight;
     } else if (Number.isNaN(deductionAmount) || deductionAmount < 0) {
-      errors.lines[line.key] = 'Potongan rupiah tidak valid';
+      errors.lines[line.key] = t.weighing.errors.deductionAmountInvalid;
     } else if ((deductionKg > 0 || deductionAmount > 0) && line.deductionReason.trim() === '') {
-      errors.lines[line.key] = 'Potongan wajib diberi alasan';
+      errors.lines[line.key] = t.weighing.errors.deductionReasonRequired;
     } else {
       const { subtotal } = previewLine(line);
       if (subtotal < 0) {
-        errors.lines[line.key] = 'Potongan membuat pembayaran menjadi negatif';
+        errors.lines[line.key] = t.weighing.errors.negativeSubtotal;
       }
     }
   }
@@ -165,6 +166,14 @@ export function hasErrors(errors: DraftErrors): boolean {
   return Boolean(errors.partnerName || errors.region) || Object.keys(errors.lines).length > 0;
 }
 
+/**
+ * Menyusun payload API dari isian formulir.
+ *
+ * `walkIn` diturunkan, bukan diminta terpisah: server menolak bukti tanpa
+ * `pickupRequestId` yang tidak menyatakan `walkIn: true`, jadi menyimpan kedua
+ * nilai itu sebagai state terpisah hanya membuka peluang keduanya bertentangan.
+ * Satu-satunya sumber kebenaran adalah ada-tidaknya permintaan penjemputan.
+ */
 export function toCreateRequest(
   draft: DraftReceipt,
   sellerId: string,
@@ -172,7 +181,7 @@ export function toCreateRequest(
 ): CreateWeighingReceiptRequest {
   return {
     sellerId,
-    ...(pickupRequestId ? { pickupRequestId } : {}),
+    ...(pickupRequestId ? { pickupRequestId } : { walkIn: true }),
     partnerName: draft.partnerName.trim(),
     region: draft.region.trim(),
     ...(draft.scaleTeraNo.trim() ? { scaleTeraNo: draft.scaleTeraNo.trim() } : {}),

@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -54,10 +55,24 @@ export class CreateWeighingLineDto {
 }
 
 export class CreateWeighingReceiptDto {
-  @ApiProperty({ required: false, description: 'Permintaan penjemputan asal, bila ada' })
+  @ApiProperty({
+    required: false,
+    description:
+      'Permintaan penjemputan asal. Wajib diisi kecuali `walkIn` bernilai true. Permintaan harus milik penyetor dan dipegang oleh penerbit.',
+  })
   @IsOptional()
   @IsUUID('4', { message: 'ID permintaan penjemputan tidak valid' })
   pickupRequestId?: string;
+
+  @ApiProperty({
+    required: false,
+    default: false,
+    description:
+      'Tandai true untuk setoran langsung di titik penerima (tanpa penjemputan). Bukti walk-in dicatat penuh, tetapi tidak menyusun papan harga.',
+  })
+  @IsOptional()
+  @IsBoolean({ message: 'Penanda setoran langsung harus berupa true atau false' })
+  walkIn?: boolean;
 
   @ApiProperty({ description: 'ID pengguna yang menyerahkan material' })
   @IsUUID('4', { message: 'ID penyetor tidak valid' })

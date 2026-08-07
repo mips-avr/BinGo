@@ -31,7 +31,6 @@ export class AuthService {
       phone,
       passwordHash,
       role: dto.role,
-      nik: dto.nik?.trim() || null,
     });
 
     return this.buildAuthResponse(user.id, user.role as UserRole, this.users.toProfile(user));

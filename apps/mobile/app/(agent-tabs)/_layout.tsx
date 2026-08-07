@@ -1,6 +1,9 @@
 import { Tabs, Redirect } from 'expo-router';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../src/theme';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
+import { AgentLocationProvider } from '../../src/hooks/useAgentLocation';
 import { useAuthStore } from '../../src/store/authStore';
 import { t } from '../../src/i18n';
 
@@ -14,13 +17,27 @@ const ICONS = {
 } as const;
 
 function Icon({ name, focused }: { name: keyof typeof ICONS; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{ICONS[name]}</Text>
-  );
+  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{ICONS[name]}</Text>;
+}
+
+/**
+ * React Navigation menambahkan inset bawah secara otomatis ke tab bar, tetapi
+ * `tabBarStyle` yang menuliskan `height`/`paddingBottom` sendiri menimpanya —
+ * itulah sebabnya ikon dan label sempat duduk di bawah home indicator pada
+ * perangkat tanpa tombol fisik. Inset dihitung ulang di sini.
+ */
+function useTabBarStyle() {
+  const insets = useSafeAreaInsets();
+  return {
+    paddingTop: spacing.xxs,
+    paddingBottom: spacing.xxs + insets.bottom,
+    height: 64 + insets.bottom,
+  };
 }
 
 /** Tab navigator khusus pemulung (`WASTE_AGENT`). */
 export default function AgentTabsLayout() {
+  const tabBarStyle = useTabBarStyle();
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
 
@@ -32,60 +49,66 @@ export default function AgentTabsLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#15803D',
-        tabBarInactiveTintColor: '#737373',
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarStyle: { paddingTop: 4, paddingBottom: 4, height: 64 },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t.agent.tabs.home,
-          tabBarIcon: ({ focused }) => <Icon name="home" focused={focused} />,
+    // Satu langganan GPS untuk seluruh tab pemulung. Dashboard dan radar dulu
+    // masing-masing memanggil `useAgentLocation()` sendiri, sehingga dua
+    // langganan berjalan bersamaan dan dua entri cache terbentuk untuk data
+    // yang persis sama.
+    <AgentLocationProvider>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.bingo700,
+          tabBarInactiveTintColor: colors.neutral500,
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+          tabBarStyle,
         }}
-      />
-      <Tabs.Screen
-        name="nearby"
-        options={{
-          title: t.agent.tabs.nearby,
-          tabBarIcon: ({ focused }) => <Icon name="nearby" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="jobs"
-        options={{
-          title: t.agent.tabs.jobs,
-          tabBarIcon: ({ focused }) => <Icon name="jobs" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="prices"
-        options={{
-          title: t.weighing.tabTitle,
-          tabBarIcon: ({ focused }) => <Icon name="prices" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reports"
-        options={{
-          title: t.agent.tabs.reports,
-          tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
-        }}
-      />
-      {/* Stack bukti timbang tidak punya tombol tab sendiri — dibuka dari
-          detail pekerjaan dan dari dashboard. */}
-      <Tabs.Screen name="receipts" options={{ href: null }} />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: t.agent.tabs.profile,
-          tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: t.agent.tabs.home,
+            tabBarIcon: ({ focused }) => <Icon name="home" focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="nearby"
+          options={{
+            title: t.agent.tabs.nearby,
+            tabBarIcon: ({ focused }) => <Icon name="nearby" focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="jobs"
+          options={{
+            title: t.agent.tabs.jobs,
+            tabBarIcon: ({ focused }) => <Icon name="jobs" focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="prices"
+          options={{
+            title: t.weighing.tabTitle,
+            tabBarIcon: ({ focused }) => <Icon name="prices" focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
+          name="reports"
+          options={{
+            title: t.agent.tabs.reports,
+            tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
+          }}
+        />
+        {/* Stack bukti timbang tidak punya tombol tab sendiri — dibuka dari
+            detail pekerjaan dan dari dashboard. */}
+        <Tabs.Screen name="receipts" options={{ href: null }} />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: t.agent.tabs.profile,
+            tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
+          }}
+        />
+      </Tabs>
+    </AgentLocationProvider>
   );
 }

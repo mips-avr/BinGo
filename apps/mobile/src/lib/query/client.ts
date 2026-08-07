@@ -32,6 +32,20 @@ export const queryKeys = {
     assigned: ['pickups', 'assigned'] as const,
     nearby: (lat: number, lng: number, radiusKm: number) =>
       ['pickups', 'nearby', lat, lng, radiusKm] as const,
+    /**
+     * Koordinat WAJIB sudah dikuantisasi pemanggil (lihat `quantizeCoord`).
+     * GPS bergerak beberapa meter tiap detik walau ponselnya diam; memasukkan
+     * nilai mentah ke kunci membuat setiap pembaruan posisi melahirkan entri
+     * cache baru, sehingga radar berkedip kosong dan permintaan jaringan
+     * berlipat pada paket data yang mahal.
+     */
+    radar: (
+      lat: number,
+      lng: number,
+      radiusKm: number,
+      materialType: string | null,
+      minWeightKg: number | null,
+    ) => ['pickups', 'radar', lat, lng, radiusKm, materialType, minWeightKg] as const,
     detail: (id: string) => ['pickups', 'detail', id] as const,
   },
   reports: {
@@ -47,8 +61,9 @@ export const queryKeys = {
   weighing: {
     mine: ['weighing', 'mine'] as const,
     detail: (id: string) => ['weighing', 'detail', id] as const,
-    priceBoard: (region: string, windowDays: number) =>
-      ['weighing', 'price-board', region, windowDays] as const,
+    priceBoard: (region: string, windowDays: number, grade: string | null) =>
+      ['weighing', 'price-board', region, windowDays, grade] as const,
+    regions: ['weighing', 'regions'] as const,
   },
   me: ['auth', 'me'] as const,
 };

@@ -44,6 +44,36 @@ enum ReportStatus {
   SELESAI
 }
 
+/// Jenis lembaga yang boleh menjamin seorang pemulung.
+///
+/// Daftar ini bukan pilihan gaya. BinGo tidak mengumpulkan NIK karena akses
+/// data kependudukan diatur Permendagri 102/2019 dan tertutup bagi tim ini,
+/// sehingga NIK yang tersimpan tidak akan pernah dapat dicocokkan ke sumber
+/// resmi mana pun. Penggantinya adalah pihak yang benar-benar mengenal pemulung
+/// di lapangan: penerima material dan pengurus lingkungan.
+enum AttestorType {
+  BANK_SAMPAH
+  LAPAK
+  TPS3R
+  KSM_PERSAMPAHAN
+  RT_RW
+}
+
+enum AgentVerificationStatus {
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+  DICABUT
+}
+
+/// Satu langkah pada jejak audit penjaminan.
+enum AgentVerificationAction {
+  DIAJUKAN
+  DISETUJUI
+  DITOLAK
+  DICABUT
+}
+
 enum TransactionStatus {
   PENDING
   PAID
@@ -93,28 +123,142 @@ enum MaterialGrade {
 
 // ------------------------------- Models -------------------------------
 
+/// Pengguna BinGo.
+///
+/// Perhatikan yang TIDAK ada di sini: tidak ada kolom NIK, tanggal lahir,
+/// alamat KTP, atau unggahan dokumen kependudukan. Kolom `nik` pernah ada dan
+/// dihapus oleh migrasi 20260806143000_verifikasi_berjenjang_tanpa_nik.
+/// Alasannya hukum, bukan selera: pencocokan NIK ke sumber resmi memerlukan
+/// perjanjian kerja sama dengan Ditjen Dukcapil (Permendagri 102/2019) yang
+/// tidak dimiliki tim ini. NIK yang tersimpan tanpa pencocokan hanyalah data
+/// pribadi berisiko tinggi yang tidak memberi jaminan apa pun.
 model User {
   id            String   @id @default(uuid())
-  /// NIK 16 digit (opsional untuk MSME). Disimpan unik bila ada.
-  nik           String?  @unique @db.VarChar(16)
   name          String   @db.VarChar(120)
   /// Nomor telepon dalam format E.164 (+62…). Identitas login utama.
   phone         String   @unique @db.VarChar(20)
   role          UserRole
   passwordHash  String   @map("password_hash")
   pointsBalance Int      @default(0) @map("points_balance")
+
+  /// Tingkat verifikasi berjenjang pemulung: 0 Terdaftar, 1 Dijamin Mitra,
+  /// 2 Dijamin Ganda. Nilai TURUNAN — jangan disetel langsung; hanya
+  /// AgentVerificationsService.recomputeLevel() yang boleh menulisnya.
+  /// Disimpan (bukan dihitung setiap kali) karena setiap penerimaan pekerjaan
+  /// dan penerbitan bukti timbang membacanya.
+  verificationLevel Int @default(0) @map("verification_level")
+
+  /// Diisi bila akun ini milik operator mitra terdaftar (bank sampah, lapak,
+  /// TPS3R, KSM persampahan, atau RT/RW). Hanya akun seperti inilah yang boleh
+  /// menjawab pengajuan penjaminan. Tidak ada endpoint yang menyetel kedua
+  /// kolom ini: pendaftaran mitra dilakukan di luar aplikasi, supaya dua akun
+  /// Tingkat 0 tidak dapat saling menjamin untuk naik tingkat.
+  partnerType AttestorType? @map("partner_type")
+  partnerName String?       @map("partner_name") @db.VarChar(160)
+
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  pickupRequestsAsCitizen PickupRequest[]   @relation("CitizenPickups")
-  pickupRequestsAsAgent   PickupRequest[]   @relation("AgentPickups")
+  pickupRequestsAsCitizen PickupRequest[]      @relation("CitizenPickups")
+  pickupRequestsAsAgent   PickupRequest[]      @relation("AgentPickups")
   reports                 Report[]
   transactions            Transaction[]
-  receiptsAsSeller        WeighingReceipt[] @relation("SellerReceipts")
-  receiptsIssued          WeighingReceipt[] @relation("IssuedReceipts")
+  receiptsAsSeller        WeighingReceipt[]    @relation("SellerReceipts")
+  receiptsIssued          WeighingReceipt[]    @relation("IssuedReceipts")
+  reportVerifications     ReportVerification[]
+
+  verificationsAsAgent    AgentVerification[]      @relation("AgentAttestations")
+  verificationsAsAttestor AgentVerification[]      @relation("AttestorAttestations")
+  verificationEvents      AgentVerificationEvent[] @relation("VerificationEventActor")
+  endorsementsReceived    AgentEndorsement[]       @relation("EndorsementsReceived")
+  endorsementsGiven       AgentEndorsement[]       @relation("EndorsementsGiven")
 
   @@index([role])
   @@map("users")
+}
+
+/// Satu penjaminan seorang pemulung oleh satu mitra terdaftar.
+///
+/// Ini adalah pengganti verifikasi identitas berbasis NIK, dan isinya persis
+/// sebatas yang dijanjikan: identitas penjamin, tanggal, status verifikasi,
+/// serta jejak audit (`AgentVerificationEvent`). Tidak ada nomor kependudukan,
+/// tidak ada pindaian dokumen.
+model AgentVerification {
+  id       String @id @default(uuid())
+  agentId  String @map("agent_id")
+  /// Akun operator mitra yang dimintai penjaminan.
+  attestorId String @map("attestor_id")
+
+  /// Identitas lembaga penjamin, disalin saat pengajuan. Snapshot disengaja:
+  /// bila mitra berganti nama atau berhenti menjadi mitra, riwayat penjaminan
+  /// harus tetap menceritakan keadaan pada saat itu.
+  attestorType  AttestorType @map("attestor_type")
+  attestorName  String       @map("attestor_name") @db.VarChar(160)
+  attestorPhone String       @map("attestor_phone") @db.VarChar(20)
+  /// Bentuk ternormalisasi `attestorName` — inilah identitas lembaga yang
+  /// dipakai menghitung "penjaminan kedua dari lembaga BERBEDA".
+  attestorKey   String       @map("attestor_key") @db.VarChar(180)
+
+  status     AgentVerificationStatus @default(MENUNGGU)
+  requestedAt DateTime               @default(now()) @map("requested_at")
+  decidedAt   DateTime?              @map("decided_at")
+  note        String?                @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agent    User                     @relation("AgentAttestations", fields: [agentId], references: [id], onDelete: Cascade)
+  attestor User                     @relation("AttestorAttestations", fields: [attestorId], references: [id], onDelete: Cascade)
+  events   AgentVerificationEvent[]
+
+  /// Satu lembaga hanya boleh menjamin satu pemulung satu kali. Tanpa kunci
+  /// ini, syarat "dua lembaga berbeda" dapat dipenuhi dengan mengajukan
+  /// lembaga yang sama dua kali, dan Tingkat 2 kehilangan artinya.
+  @@unique([agentId, attestorKey])
+  @@index([agentId, status])
+  @@index([attestorId, status])
+  @@map("agent_verifications")
+}
+
+/// Jejak audit satu penjaminan: siapa melakukan apa, kapan, dengan catatan apa.
+///
+/// Status pada `AgentVerification` hanya menyimpan keadaan terakhir. Bila
+/// penjaminan dicabut, tanpa tabel ini tidak ada apa pun yang menunjukkan bahwa
+/// penjaminan itu pernah disetujui dan siapa yang mencabutnya.
+model AgentVerificationEvent {
+  id             String                  @id @default(uuid())
+  verificationId String                  @map("verification_id")
+  action         AgentVerificationAction
+  /// Pelaku langkah ini. Boleh kosong bila baris dibuat oleh sistem/seed.
+  actorId        String?                 @map("actor_id")
+  note           String?                 @db.Text
+  createdAt      DateTime                @default(now()) @map("created_at")
+
+  verification AgentVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+  actor        User?             @relation("VerificationEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([verificationId, createdAt])
+  @@map("agent_verification_events")
+}
+
+/// Rekomendasi seorang pemulung Tingkat 2 kepada pemulung lain.
+///
+/// Syarat ketiga Tingkat 2. Kunci unik `(agent_id, endorser_id)` memindahkan
+/// aturan "satu perekomendasi satu suara" ke basis data, sama seperti yang
+/// dilakukan `report_verifications` untuk verifikasi laporan.
+model AgentEndorsement {
+  id         String   @id @default(uuid())
+  agentId    String   @map("agent_id")
+  endorserId String   @map("endorser_id")
+  note       String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  agent    User @relation("EndorsementsReceived", fields: [agentId], references: [id], onDelete: Cascade)
+  endorser User @relation("EndorsementsGiven", fields: [endorserId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, endorserId])
+  @@index([endorserId])
+  @@map("agent_endorsements")
 }
 
 model PickupRequest {
@@ -164,9 +308,30 @@ model WeighingReceipt {
   /// Nomor tera timbangan mitra (UU No. 2 Tahun 1981 tentang Metrologi Legal).
   /// Bukti tanpa nomor tera tetap sah dicatat, tetapi tidak dihitung ke papan harga.
   scaleTeraNo     String? @map("scale_tera_no") @db.VarChar(64)
-  /// Wilayah tingkat kecamatan/kota. Papan harga selalu terikat wilayah.
+  /// Wilayah tingkat kecamatan/kota, persis seperti diketik penerbit.
+  /// Nilai ini yang ditampilkan kembali ke pengguna.
   region          String  @db.VarChar(120)
+  /// Bentuk ternormalisasi `region` (lihat `normalizeRegionKey` di
+  /// @bingo/shared-types). Papan harga mengelompokkan berdasarkan kolom ini,
+  /// bukan `region`, karena wilayah diketik manusia dan satu kecamatan yang
+  /// sama muncul dengan belasan ejaan berbeda.
+  regionKey       String  @map("region_key") @db.VarChar(140)
+  /// `true` bila material disetor langsung tanpa melalui permintaan
+  /// penjemputan. Bukti walk-in dicatat penuh tetapi tidak menyusun papan
+  /// harga — tidak ada permintaan penjemputan yang dapat membuktikan serah
+  /// terimanya, sehingga harganya tidak dapat diperiksa ulang.
+  walkIn          Boolean @default(false) @map("walk_in")
   notes           String? @db.Text
+
+  /// Kapan penyetor mempersoalkan bukti ini, bila pernah, beserta alasannya.
+  ///
+  /// Bukti timbang selalu digambarkan sebagai dokumen dua pihak yang boleh
+  /// diperiksa dan dipersoalkan penyetor — tetapi sebelum kolom ini ada, tidak
+  /// ada satu pun jalur untuk mempersoalkannya. Kolom ini juga yang membuat
+  /// syarat Tingkat 2 "10 transaksi nirsengketa" dapat dihitung; tanpanya
+  /// syarat itu hanya menghitung seluruh transaksi dan tidak berarti apa-apa.
+  disputedAt    DateTime? @map("disputed_at")
+  disputeReason String?   @map("dispute_reason") @db.VarChar(500)
 
   /// Total disimpan hasil hitung agar papan harga dan riwayat tidak perlu
   /// menjumlahkan ulang setiap kali dibaca. Nilai uang dalam Rupiah (integer).
@@ -188,6 +353,10 @@ model WeighingReceipt {
   @@index([issuedById])
   @@index([region])
   @@index([createdAt])
+  /// Indeks utama papan harga: satu wilayah, jendela waktu mundur dari
+  /// sekarang. Urutan menurun pada `createdAt` membuat jendela "7 hari
+  /// terakhir" terbaca dari ujung indeks tanpa memindai seluruh wilayah.
+  @@index([regionKey, createdAt(sort: Desc)])
   @@map("weighing_receipts")
 }
 
@@ -235,11 +404,33 @@ model Report {
   createdAt         DateTime                              @default(now()) @map("created_at")
   updatedAt         DateTime                              @updatedAt @map("updated_at")
 
-  citizen User @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+  citizen       User                 @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+  verifications ReportVerification[]
 
   @@index([status])
   @@index([citizenId])
   @@map("reports")
+}
+
+/// Satu verifikasi laporan oleh satu warga.
+///
+/// Tanpa tabel ini `verification_count` hanya berupa penghitung yang bisa
+/// dinaikkan berkali-kali oleh orang yang sama, sehingga satu akun dapat
+/// menaikkan laporan apa pun ke status DIVERIFIKASI dan mencetak poin. Kunci
+/// unik `(report_id, user_id)` memindahkan aturan "satu orang satu suara" ke
+/// basis data, tempat ia tidak bisa dilangkahi oleh permintaan berbarengan.
+model ReportVerification {
+  id        String   @id @default(uuid())
+  reportId  String   @map("report_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, userId])
+  @@index([userId])
+  @@map("report_verifications")
 }
 
 model MarketplaceItem {
@@ -258,6 +449,9 @@ model MarketplaceItem {
   transactions Transaction[]
 
   @@index([supplierName])
+  /// Pencarian WasteMart menelusuri nama produk lebih sering daripada nama
+  /// pemasok, jadi kolom ini juga perlu indeksnya sendiri.
+  @@index([itemName])
   @@map("marketplace_items")
 }
 

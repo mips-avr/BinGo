@@ -1,38 +1,58 @@
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReportStatus } from '@bingo/shared-types';
 import { useReportsFeed } from '../../../src/features/reports/hooks';
 import { ReportCard } from '../../../src/components/reports/ReportCard';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
+import { ErrorState } from '../../../src/components/ui/ErrorState';
+import { SkeletonList } from '../../../src/components/ui/Skeleton';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
-import { colors } from '../../../src/theme/screen';
+import { colors, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
 export default function AgentReportsList() {
   const router = useRouter();
   const query = useReportsFeed(ReportStatus.DIVERIFIKASI);
 
+  const header = (
+    <View style={s.header}>
+      <Text style={s.title} accessibilityRole="header">
+        {t.agent.reports.toResolveTitle}
+      </Text>
+      <Text style={s.subtitle}>{t.agent.reports.filterVerified}</Text>
+    </View>
+  );
+
   if (query.isLoading) {
     return (
-      <SafeAreaView style={s.center} edges={['top']}>
-        <ActivityIndicator color={colors.bingo700} />
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {header}
+        <View style={s.listContent}>
+          <SkeletonList count={3} lines={2} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {header}
+        <View style={s.listContent}>
+          <ErrorState
+            message={extractApiErrorMessage(query.error, t.common.errorMessage)}
+            onRetry={() => query.refetch()}
+            testID="agent-reports-error"
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <Text style={s.title}>{t.agent.reports.toResolveTitle}</Text>
-        <Text style={s.subtitle}>{t.agent.reports.filterVerified}</Text>
-      </View>
-
-      {query.isError ? (
-        <Text style={s.errorText}>
-          {extractApiErrorMessage(query.error, t.common.error)}
-        </Text>
-      ) : null}
+      {header}
 
       <FlatList
         data={query.data ?? []}
@@ -46,9 +66,9 @@ export default function AgentReportsList() {
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="✅"
-            title={t.common.empty}
-            message="Tidak ada laporan diverifikasi yang menunggu penanganan."
+            icon="check-circle"
+            title={t.agent.reports.emptyTitle}
+            message={t.agent.reports.emptyMessage}
           />
         }
         refreshControl={
@@ -65,10 +85,8 @@ export default function AgentReportsList() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
-  header: { paddingHorizontal: 20, paddingVertical: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
-  subtitle: { marginTop: 4, fontSize: 12, color: colors.neutral600 },
-  errorText: { marginHorizontal: 20, fontSize: 14, color: colors.red600 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  title: typography.headerTitle,
+  subtitle: { marginTop: spacing.xxs, ...typography.caption },
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
 });

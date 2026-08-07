@@ -1,6 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, shadow } from '../../theme/screen';
+import { Feather } from '@expo/vector-icons';
+import { colors, radius, spacing, shadow, touch, typography } from '../../theme';
+import { t } from '../../i18n';
 
 export interface ScreenHeaderProps {
   title: string;
@@ -15,17 +17,20 @@ export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: Sc
     <View style={headerStyles.container}>
       <View style={headerStyles.leading}>
         {canGoBack ? (
+          // Kontrol yang paling sering dipakai di aplikasi — 44×44 penuh,
+          // bukan 40×40 seperti sebelumnya.
           <Pressable
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Kembali"
-            style={headerStyles.backBtn}
+            accessibilityLabel={t.common.back}
+            testID="screen-header-back"
+            style={({ pressed }) => [headerStyles.backBtn, pressed ? headerStyles.pressed : null]}
           >
-            <Text style={headerStyles.backIcon}>‹</Text>
+            <Feather name="chevron-left" size={24} color={colors.bingo700} />
           </Pressable>
         ) : null}
         <View style={headerStyles.titleWrap}>
-          <Text style={headerStyles.title} numberOfLines={1}>
+          <Text style={headerStyles.title} numberOfLines={1} accessibilityRole="header">
             {title}
           </Text>
           {subtitle ? (
@@ -45,8 +50,8 @@ const headerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   leading: {
     flex: 1,
@@ -54,37 +59,27 @@ const headerStyles = StyleSheet.create({
     alignItems: 'center',
   },
   backBtn: {
-    marginRight: 12,
-    height: 40,
-    width: 40,
+    marginRight: spacing.sm,
+    height: touch.minTarget,
+    width: touch.minTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.neutral200,
     ...shadow(1),
   },
-  backIcon: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.bingo700,
-    marginTop: -2,
-  },
+  pressed: { opacity: 0.7 },
   titleWrap: {
     flex: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.neutral900,
-  },
+  title: typography.headerTitle,
   subtitle: {
-    fontSize: 14,
-    color: colors.neutral600,
+    ...typography.bodyMuted,
     marginTop: 2,
   },
   trailing: {
-    marginLeft: 12,
+    marginLeft: spacing.sm,
   },
 });

@@ -11,11 +11,13 @@ import type {
   MaterialGrade as MaterialGradeType,
   PriceBandDto,
   PriceBoardDto,
+  RegionSummaryDto,
   WeighingLineDto,
   WeighingReceiptDto,
 } from '@bingo/shared-types';
-import { MATERIAL_GRADES } from '@bingo/shared-types';
+import { MATERIAL_GRADES, REGION_KEY_MAX_LENGTH, normalizeRegionKey } from '@bingo/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AgentVerificationsService } from '../agent-verifications/agent-verifications.service';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import type {
   CreateWeighingLineDto,
@@ -46,6 +48,12 @@ interface PriceBandRow {
   last_reported_at: Date;
 }
 
+interface RegionRow {
+  region_key: string;
+  label: string;
+  receipt_count: number;
+}
+
 type ReceiptWithLines = Prisma.WeighingReceiptGetPayload<{ include: { lines: true } }>;
 
 /** Hasil perhitungan satu baris sebelum disimpan. */
@@ -64,15 +72,66 @@ interface ComputedLine {
 export class WeighingReceiptsService {
   private readonly logger = new Logger(WeighingReceiptsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly verifications: AgentVerificationsService,
+  ) {}
 
   // -------------------------------------------------------------------------
   // CREATE
   // -------------------------------------------------------------------------
+  /**
+   * Menerbitkan bukti timbang.
+   *
+   * Aturan keterlacakan (paling penting di berkas ini): bukti timbang harus
+   * dapat dihubungkan ke sebuah serah terima yang benar-benar terjadi. Tanpa
+   * aturan ini, seorang pemulung dapat menerbitkan bukti atas nama `sellerId`
+   * mana pun yang ia ketahui, dengan harga berapa pun, tanpa pernah menyentuh
+   * material — dan bukti itu ikut menyusun papan harga. Artinya papan harga,
+   * klaim terkuat produk ini, dapat digerakkan oleh satu akun dari rumah.
+   *
+   * Karena itu bukti hanya diterima dalam dua bentuk:
+   *   1. terikat `pickupRequestId` — permintaan itu harus milik penyetor dan
+   *      dipegang oleh penerbit, sehingga kedua pihak memang bertemu; atau
+   *   2. `walkIn: true` — setoran langsung di titik penerima. Bukti ini tetap
+   *      sah dan lengkap sebagai catatan dua pihak (penyetor dapat membukanya,
+   *      memeriksa potongan, dan mempersoalkannya), tetapi TIDAK dihitung ke
+   *      papan harga karena tidak ada apa pun yang dapat mengonfirmasi bahwa
+   *      serah terima itu terjadi.
+   *
+   * Menolak walk-in sama sekali bukan pilihan: sebagian besar setoran nyata di
+   * lapangan memang berbentuk datang langsung ke lapak. Yang benar adalah
+   * mencatatnya, menandainya, dan tidak memakainya sebagai rujukan harga.
+   *
+   * Aturan kedua, dipasang paling awal: penerbit harus sudah Tingkat 1. Bukti
+   * timbang adalah dokumen yang dipegang warga sebagai pegangan harga dan
+   * sekaligus bahan mentah papan harga; penerbit yang tidak dijamin siapa pun
+   * dapat mencetak keduanya sekaligus.
+   */
   async create(issuedById: string, dto: CreateWeighingReceiptDto): Promise<WeighingReceiptDto> {
+    await this.verifications.assertCanIssueReceipt(issuedById);
+
     if (dto.sellerId === issuedById) {
       throw new BadRequestException(
         'Penerbit bukti timbang tidak boleh sama dengan pihak yang menyetor',
+      );
+    }
+
+    // Status walk-in diturunkan dari ada/tidaknya kaitan penjemputan, bukan
+    // sekadar dipercaya dari penanda yang dikirim klien. Bila permintaan
+    // penjemputan ada dan lolos pemeriksaan di bawah, bukti ini menurut
+    // definisinya bukan setoran langsung.
+    const isWalkIn = !dto.pickupRequestId;
+    if (isWalkIn && dto.walkIn !== true) {
+      throw new BadRequestException(
+        'Bukti timbang harus terkait permintaan penjemputan, atau ditandai sebagai setoran langsung (walkIn)',
+      );
+    }
+
+    const regionKey = normalizeRegionKey(dto.region);
+    if (!regionKey) {
+      throw new BadRequestException(
+        'Nama wilayah tidak dikenali. Sertakan nama kecamatan atau kota, bukan hanya kata "Kecamatan" atau tanda baca',
       );
     }
 
@@ -94,6 +153,10 @@ export class WeighingReceiptsService {
           'Penyetor pada bukti timbang tidak cocok dengan pemilik permintaan penjemputan',
         );
       }
+      // Pemeriksaan awal ini hanya untuk pesan yang jelas. Penjaga sebenarnya
+      // adalah indeks unik pada `pickup_request_id`; bila dua permintaan
+      // berbarengan lolos pemeriksaan ini, basis data menolak yang kedua dan
+      // AllExceptionsFilter memetakan P2002 menjadi HTTP 409.
       const existing = await this.prisma.weighingReceipt.findUnique({
         where: { pickupRequestId: dto.pickupRequestId },
       });
@@ -105,11 +168,60 @@ export class WeighingReceiptsService {
     const lines = dto.lines.map((line, index) => this.computeLine(line, index));
     const totals = this.computeTotals(lines);
 
-    const created = await this.createWithUniqueReceiptNo(issuedById, dto, lines, totals);
+    const created = await this.createWithUniqueReceiptNo(issuedById, dto, {
+      regionKey: regionKey.slice(0, REGION_KEY_MAX_LENGTH),
+      walkIn: isWalkIn,
+      lines,
+      totals,
+    });
+    // Transaksi nirsengketa adalah salah satu syarat Tingkat 2, jadi bukti
+    // yang baru terbit dapat menaikkan tingkat penerbitnya. Dihitung ulang di
+    // sini supaya kenaikan terasa saat pekerjaan berikutnya, bukan menunggu
+    // kejadian lain yang kebetulan memicu perhitungan.
+    await this.verifications.recomputeLevel(issuedById);
+
     this.logger.log(
-      `Bukti timbang ${created.receiptNo} diterbitkan oleh ${issuedById} untuk ${dto.sellerId}`,
+      `Bukti timbang ${created.receiptNo} diterbitkan oleh ${issuedById} untuk ${dto.sellerId}` +
+        `${isWalkIn ? ' (setoran langsung, tidak masuk papan harga)' : ''}`,
     );
     return this.toDto(created);
+  }
+
+  // -------------------------------------------------------------------------
+  // SENGKETA
+  // -------------------------------------------------------------------------
+  /**
+   * Penyetor mempersoalkan bukti timbang yang diterbitkan atas namanya.
+   *
+   * Seluruh rancangan bukti timbang bertumpu pada janji bahwa penyetor dapat
+   * membukanya, memeriksa potongan, dan mempersoalkannya — tetapi sampai
+   * sekarang dua yang pertama ada dan yang ketiga tidak. Tanpa jalur ini,
+   * "10 transaksi nirsengketa" pada Tingkat 2 hanyalah "10 transaksi".
+   *
+   * Sengketa tidak menghapus bukti dan tidak mengubah angkanya: yang dicatat
+   * adalah bahwa salah satu pihak tidak menerimanya. Bukti yang disengketakan
+   * berhenti dihitung sebagai rekam jejak penerbitnya, sehingga tingkatnya
+   * dapat turun kembali.
+   */
+  async dispute(id: string, sellerId: string, reason: string): Promise<WeighingReceiptDto> {
+    const receipt = await this.prisma.weighingReceipt.findUnique({ where: { id } });
+    if (!receipt) throw new NotFoundException('Bukti timbang tidak ditemukan');
+    if (receipt.sellerId !== sellerId) {
+      throw new ForbiddenException('Hanya penyetor yang boleh mempersoalkan bukti timbang ini');
+    }
+    if (receipt.disputedAt) {
+      throw new BadRequestException('Bukti timbang ini sudah dipersoalkan sebelumnya');
+    }
+
+    const updated = await this.prisma.weighingReceipt.update({
+      where: { id },
+      data: { disputedAt: new Date(), disputeReason: reason },
+      include: { lines: true },
+    });
+
+    await this.verifications.recomputeLevel(receipt.issuedById);
+    this.logger.warn(`Bukti timbang ${receipt.receiptNo} dipersoalkan penyetor ${sellerId}`);
+    return this.toDto(updated);
   }
 
   /**
@@ -120,9 +232,14 @@ export class WeighingReceiptsService {
   private async createWithUniqueReceiptNo(
     issuedById: string,
     dto: CreateWeighingReceiptDto,
-    lines: ComputedLine[],
-    totals: ReturnType<WeighingReceiptsService['computeTotals']>,
+    computed: {
+      regionKey: string;
+      walkIn: boolean;
+      lines: ComputedLine[];
+      totals: ReturnType<WeighingReceiptsService['computeTotals']>;
+    },
   ): Promise<ReceiptWithLines> {
+    const { regionKey, walkIn, lines, totals } = computed;
     const MAX_ATTEMPTS = 5;
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       try {
@@ -135,6 +252,8 @@ export class WeighingReceiptsService {
             partnerName: dto.partnerName,
             scaleTeraNo: dto.scaleTeraNo ?? null,
             region: dto.region,
+            regionKey,
+            walkIn,
             notes: dto.notes ?? null,
             totalWeightKg: totals.totalWeightKg,
             totalDeductionKg: totals.totalDeductionKg,
@@ -146,15 +265,23 @@ export class WeighingReceiptsService {
           include: { lines: true },
         });
       } catch (error) {
-        const isDuplicateReceiptNo =
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2002' &&
-          String(error.meta?.target ?? '').includes('receipt_no');
-        if (!isDuplicateReceiptNo || attempt === MAX_ATTEMPTS) throw error;
+        // Hanya tabrakan nomor bukti yang layak diulang. Pelanggaran unik lain
+        // (mis. dua bukti untuk satu permintaan penjemputan) diteruskan apa
+        // adanya; AllExceptionsFilter memetakannya menjadi HTTP 409, bukan 500.
+        if (!this.isDuplicateOf(error, 'receipt_no') || attempt === MAX_ATTEMPTS) throw error;
       }
     }
     // Tidak tercapai: loop di atas selalu mengembalikan nilai atau melempar.
     throw new Error('Gagal membuat nomor bukti timbang yang unik');
+  }
+
+  /** `true` bila galat Prisma adalah pelanggaran unik pada kolom tertentu. */
+  private isDuplicateOf(error: unknown, column: string): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002' &&
+      String(error.meta?.target ?? '').includes(column)
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -192,13 +319,36 @@ export class WeighingReceiptsService {
    * Menghitung sebaran harga per grade dari bukti timbang yang benar-benar
    * tercatat di wilayah tertentu.
    *
-   * Hanya bukti dengan nomor tera timbangan yang dihitung. Bukti tanpa nomor
-   * tera tetap sah sebagai catatan transaksi antara dua pihak, tetapi tidak
-   * layak menjadi rujukan harga karena beratnya tidak dapat dipertanggungjawabkan.
+   * Tiga penyaringan menentukan bukti mana yang boleh menjadi rujukan harga:
+   *
+   *   1. `region_key` — bukan `region`. Wilayah diketik manusia; mencocokkan
+   *      teks mentah membuat "Kecamatan Beji, Depok" dan "kec. beji depok"
+   *      menjadi dua wilayah berbeda yang keduanya tidak pernah cukup data.
+   *   2. `scale_tera_no IS NOT NULL` — bukti tanpa nomor tera timbangan tetap
+   *      sah sebagai catatan dua pihak, tetapi beratnya tidak dapat
+   *      dipertanggungjawabkan, sehingga harganya tidak layak jadi rujukan.
+   *   3. `walk_in = false` — setoran langsung tidak dapat ditelusuri ke serah
+   *      terima mana pun, sehingga tidak boleh menggerakkan papan harga.
+   *
+   * `sample_count` menghitung bukti timbang berbeda (COUNT DISTINCT r.id),
+   * bukan baris. Menghitung baris berarti satu bukti yang memuat tiga baris
+   * grade yang sama sudah memenuhi ambang tiga sampel, sehingga satu transaksi
+   * tunggal dapat menyamar sebagai median pasar.
    */
   async getPriceBoard(query: PriceBoardQueryDto): Promise<PriceBoardDto> {
     const windowDays = query.windowDays ?? DEFAULT_PRICE_WINDOW_DAYS;
     const since = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+    const regionKey = normalizeRegionKey(query.region);
+
+    // Wilayah yang tidak menyisakan satu kata pun tidak mungkin cocok dengan
+    // bukti mana pun; kembalikan papan kosong tanpa menyentuh basis data.
+    if (!regionKey) {
+      return { region: query.region, regionKey, windowDays, bands: [], insufficient: [] };
+    }
+
+    const gradeFilter = query.grade
+      ? Prisma.sql`AND l.grade = CAST(${query.grade} AS "MaterialGrade")`
+      : Prisma.empty;
 
     const rows = await this.prisma.$queryRaw<PriceBandRow[]>(Prisma.sql`
       SELECT
@@ -206,14 +356,16 @@ export class WeighingReceiptsService {
         percentile_cont(0.25) WITHIN GROUP (ORDER BY l.price_per_kg) AS p25,
         percentile_cont(0.50) WITHIN GROUP (ORDER BY l.price_per_kg) AS median,
         percentile_cont(0.75) WITHIN GROUP (ORDER BY l.price_per_kg) AS p75,
-        COUNT(*)::int AS sample_count,
+        COUNT(DISTINCT r.id)::int AS sample_count,
         COUNT(DISTINCT r.partner_name)::int AS partner_count,
         MAX(r.created_at) AS last_reported_at
       FROM weighing_receipt_lines l
       JOIN weighing_receipts r ON r.id = l.receipt_id
-      WHERE r.region = ${query.region}
+      WHERE r.region_key = ${regionKey}
         AND r.scale_tera_no IS NOT NULL
+        AND r.walk_in = false
         AND r.created_at >= ${since}
+        ${gradeFilter}
       GROUP BY l.grade
       ORDER BY l.grade
     `);
@@ -232,6 +384,7 @@ export class WeighingReceiptsService {
         grade: row.grade,
         label: MATERIAL_GRADES[row.grade]?.label ?? row.grade,
         region: query.region,
+        regionKey,
         p25: Math.round(Number(row.p25 ?? 0)),
         median: Math.round(Number(row.median ?? 0)),
         p75: Math.round(Number(row.p75 ?? 0)),
@@ -241,7 +394,43 @@ export class WeighingReceiptsService {
       });
     }
 
-    return { region: query.region, windowDays, bands, insufficient };
+    return { region: query.region, regionKey, windowDays, bands, insufficient };
+  }
+
+  /**
+   * Daftar wilayah yang sudah memiliki bukti timbang.
+   *
+   * Papan harga hanya berguna bila pengguna memasukkan wilayah yang memang
+   * punya data. Tanpa daftar ini, pemulung mengetik buta dan hampir selalu
+   * mendapat papan kosong, lalu menyimpulkan fiturnya rusak. Label memakai
+   * ejaan dari bukti timbang TERBARU di wilayah tersebut, supaya yang
+   * ditawarkan adalah tulisan yang benar-benar dipakai orang di sana.
+   */
+  async listRegions(): Promise<RegionSummaryDto[]> {
+    const rows = await this.prisma.$queryRaw<RegionRow[]>(Prisma.sql`
+      SELECT
+        agg.region_key,
+        latest.region AS label,
+        agg.receipt_count
+      FROM (
+        SELECT region_key, COUNT(*)::int AS receipt_count
+        FROM weighing_receipts
+        GROUP BY region_key
+      ) agg
+      JOIN (
+        SELECT DISTINCT ON (region_key) region_key, region
+        FROM weighing_receipts
+        ORDER BY region_key, created_at DESC
+      ) latest ON latest.region_key = agg.region_key
+      ORDER BY agg.receipt_count DESC, latest.region ASC
+      LIMIT 100
+    `);
+
+    return rows.map((r) => ({
+      label: r.label,
+      regionKey: r.region_key,
+      receiptCount: Number(r.receipt_count),
+    }));
   }
 
   // -------------------------------------------------------------------------
@@ -351,6 +540,8 @@ export class WeighingReceiptsService {
       scaleTeraNo: r.scaleTeraNo,
       scaleVerified: r.scaleTeraNo !== null,
       region: r.region,
+      regionKey: r.regionKey,
+      walkIn: r.walkIn,
       lines,
       totalWeightKg,
       totalDeductionKg,
@@ -359,6 +550,8 @@ export class WeighingReceiptsService {
       totalDeductionAmount: r.totalDeductionAmount,
       totalNetAmount: r.totalNetAmount,
       notes: r.notes,
+      disputedAt: r.disputedAt?.toISOString() ?? null,
+      disputeReason: r.disputeReason ?? null,
       createdAt: r.createdAt.toISOString(),
     };
   }

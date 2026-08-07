@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsOptional,
   IsString,
   Length,
   MinLength,
@@ -11,7 +10,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import { isValidNIK, normalizePhoneID } from '@bingo/shared-utils';
+import { normalizePhoneID } from '@bingo/shared-utils';
 import { UserRole } from '@bingo/shared-types';
 
 @ValidatorConstraint({ name: 'IsIndonesianPhone', async: false })
@@ -24,17 +23,15 @@ class IsIndonesianPhoneConstraint implements ValidatorConstraintInterface {
   }
 }
 
-@ValidatorConstraint({ name: 'IsValidNIK', async: false })
-class IsValidNIKConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    if (value === undefined || value === null || value === '') return true;
-    return typeof value === 'string' && isValidNIK(value);
-  }
-  defaultMessage(_args: ValidationArguments): string {
-    return 'NIK harus 16 digit angka dan memuat tanggal lahir yang valid';
-  }
-}
-
+/**
+ * Pendaftaran BinGo.
+ *
+ * Sengaja tidak ada field NIK. Pendaftaran hanya memerlukan nama panggilan,
+ * nomor telepon, dan kata sandi — yaitu Tingkat 0 "Terdaftar" pada verifikasi
+ * berjenjang. Akuntabilitas pemulung dibangun setelahnya lewat penjaminan
+ * mitra (lihat modul agent-verifications), bukan lewat nomor kependudukan yang
+ * tidak dapat dicocokkan ke sumber resmi mana pun.
+ */
 export class RegisterDto {
   @ApiProperty({ example: 'Budi Santoso', minLength: 2, maxLength: 120 })
   @IsString({ message: 'Nama harus berupa teks' })
@@ -57,10 +54,4 @@ export class RegisterDto {
   @ApiProperty({ enum: ['CITIZEN', 'WASTE_AGENT', 'MSME'] })
   @IsEnum(UserRole, { message: 'Peran tidak dikenali' })
   role!: UserRole;
-
-  @ApiProperty({ example: '3174010101900001', required: false })
-  @IsOptional()
-  @IsString({ message: 'NIK harus berupa teks' })
-  @Validate(IsValidNIKConstraint)
-  nik?: string;
 }

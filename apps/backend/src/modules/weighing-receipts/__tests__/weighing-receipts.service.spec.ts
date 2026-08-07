@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { Prisma } from '@prisma/client';
 import { WeighingReceiptsService } from '../weighing-receipts.service';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { AgentVerificationsService } from '../../agent-verifications/agent-verifications.service';
 import type { CreateWeighingReceiptDto } from '../dto/create-weighing-receipt.dto';
 
 const AGENT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -14,6 +15,11 @@ function baseDto(overrides: Partial<CreateWeighingReceiptDto> = {}): CreateWeigh
     partnerName: 'Bank Sampah Melati',
     region: 'Kecamatan Beji, Depok',
     scaleTeraNo: 'DKI-2025-004821',
+    // Bukti tanpa `pickupRequestId` wajib mengaku sebagai setoran langsung;
+    // lihat aturan keterlacakan di WeighingReceiptsService.create(). Bila
+    // `pickupRequestId` diisi pada test tertentu, penanda ini diabaikan karena
+    // service menurunkan status walk-in dari ada/tidaknya kaitan penjemputan.
+    walkIn: true,
     lines: [{ grade: 'PET_BOTOL_BENING', weightKg: 10, pricePerKg: 2500 }],
     ...overrides,
   } as CreateWeighingReceiptDto;
@@ -32,6 +38,12 @@ describe('WeighingReceiptsService', () => {
     weighingReceipt: { create: jest.Mock; findUnique: jest.Mock; findMany: jest.Mock };
     $queryRaw: jest.Mock;
   };
+  /**
+   * Penjenjangan verifikasi diuji di modulnya sendiri; di sini penjaga
+   * dipalsukan sebagai lolos agar berkas ini tetap menguji perhitungan bukti
+   * timbang.
+   */
+  let verifications: { assertCanIssueReceipt: jest.Mock; recomputeLevel: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -55,9 +67,17 @@ describe('WeighingReceiptsService', () => {
       },
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
+    verifications = {
+      assertCanIssueReceipt: jest.fn().mockResolvedValue(undefined),
+      recomputeLevel: jest.fn().mockResolvedValue(undefined),
+    };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [WeighingReceiptsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        WeighingReceiptsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AgentVerificationsService, useValue: verifications },
+      ],
     }).compile();
 
     service = moduleRef.get(WeighingReceiptsService);

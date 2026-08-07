@@ -245,8 +245,27 @@ export interface WeighingReceiptDto {
    */
   scaleTeraNo: string | null;
   scaleVerified: boolean;
-  /** Wilayah tingkat kecamatan atau kota. Papan harga selalu terikat wilayah. */
+  /**
+   * Wilayah tingkat kecamatan atau kota, persis seperti diketik penerbit.
+   * Nilai inilah yang ditampilkan ke pengguna.
+   */
   region: string;
+  /**
+   * Bentuk ternormalisasi `region` (lihat `normalizeRegionKey`). Papan harga
+   * mengelompokkan berdasarkan nilai ini, bukan berdasarkan `region`, supaya
+   * "Kecamatan Beji, Depok" dan "kec. beji depok" jatuh ke wilayah yang sama.
+   */
+  regionKey: string;
+  /**
+   * `true` bila material disetor langsung ke titik penerima tanpa melalui
+   * permintaan penjemputan di aplikasi.
+   *
+   * Bukti walk-in tetap sah sebagai catatan dua pihak, tetapi tidak dihitung
+   * ke papan harga: tidak ada permintaan penjemputan yang bisa membuktikan
+   * bahwa serah terima itu benar terjadi, sehingga harganya tidak dapat
+   * diperiksa ulang.
+   */
+  walkIn: boolean;
   lines: WeighingLineDto[];
   totalWeightKg: number;
   totalDeductionKg: number;
@@ -256,7 +275,23 @@ export interface WeighingReceiptDto {
   /** Jumlah yang benar-benar dibayarkan. */
   totalNetAmount: number;
   notes: string | null;
+  /**
+   * Kapan penyetor mempersoalkan bukti ini, bila pernah.
+   *
+   * Bukti timbang selalu digambarkan sebagai dokumen dua pihak yang boleh
+   * diperiksa dan dipersoalkan penyetor — tetapi sebelum kolom ini ada, tidak
+   * ada satu pun jalur untuk mempersoalkannya. Sengketa juga yang membuat
+   * syarat "10 transaksi nirsengketa" pada Tingkat 2 punya arti; tanpanya
+   * syarat itu hanya menghitung seluruh transaksi.
+   */
+  disputedAt: string | null;
+  disputeReason: string | null;
   createdAt: string;
+}
+
+/** Alasan penyetor mempersoalkan satu bukti timbang. */
+export interface DisputeWeighingReceiptRequest {
+  reason: string;
 }
 
 export interface CreateWeighingLineRequest {
@@ -269,7 +304,16 @@ export interface CreateWeighingLineRequest {
 }
 
 export interface CreateWeighingReceiptRequest {
+  /**
+   * Permintaan penjemputan asal. Wajib diisi kecuali `walkIn` bernilai `true`;
+   * permintaan tersebut harus milik `sellerId` dan dipegang oleh penerbit.
+   */
   pickupRequestId?: string;
+  /**
+   * Tandai `true` untuk setoran langsung di titik penerima (tanpa penjemputan).
+   * Bukti walk-in dicatat penuh, tetapi tidak ikut menyusun papan harga.
+   */
+  walkIn?: boolean;
   sellerId: string;
   partnerName: string;
   region: string;
@@ -293,12 +337,20 @@ export interface CreateWeighingReceiptRequest {
 export interface PriceBandDto {
   grade: MaterialGrade;
   label: string;
+  /** Ejaan wilayah seperti diminta pemanggil. */
   region: string;
+  /** Kunci agregasi wilayah (lihat `normalizeRegionKey`). */
+  regionKey: string;
   /** Persentil 25, median, dan persentil 75 dalam Rupiah per kilogram. */
   p25: number;
   median: number;
   p75: number;
-  /** Banyaknya baris bukti timbang yang menyusun sebaran ini. */
+  /**
+   * Banyaknya BUKTI TIMBANG berbeda yang menyusun sebaran ini — bukan
+   * banyaknya baris. Satu bukti dengan tiga baris grade yang sama tetap
+   * dihitung satu, supaya seorang penerbit tidak bisa memenuhi ambang minimum
+   * hanya dengan memecah satu transaksi menjadi beberapa baris.
+   */
   sampleCount: number;
   /** Banyaknya mitra berbeda yang menyumbang data. */
   partnerCount: number;
@@ -313,9 +365,22 @@ export interface PriceBandDto {
  * laporan tunggal sebagai median.
  */
 export interface PriceBoardDto {
+  /** Wilayah seperti diketik pemanggil, dikembalikan apa adanya untuk judul layar. */
   region: string;
+  /** Kunci agregasi yang benar-benar dipakai untuk mencocokkan bukti timbang. */
+  regionKey: string;
   /** Jendela kesegaran data dalam hari. */
   windowDays: number;
   bands: PriceBandDto[];
   insufficient: MaterialGrade[];
+}
+
+/** Parameter kueri papan harga. */
+export interface PriceBoardQuery {
+  /** Boleh ejaan bebas; backend menormalkannya dengan `normalizeRegionKey`. */
+  region: string;
+  /** Jendela kesegaran dalam hari (1–90, default 7). */
+  windowDays?: number;
+  /** Bila diisi, papan hanya memuat satu grade tersebut. */
+  grade?: MaterialGrade;
 }

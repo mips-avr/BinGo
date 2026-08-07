@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { isValidPhoneID } from '@bingo/shared-utils';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
+import { spacing } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
@@ -27,10 +28,10 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   function validate(): FormErrors {
     const next: FormErrors = {};
     if (!isValidPhoneID(phone)) {
-      next.phone = 'Nomor telepon tidak valid (contoh: 08123456789)';
+      next.phone = t.auth.errors.phoneInvalidExample;
     }
     if (password.length < 8) {
-      next.password = 'Kata sandi minimal 8 karakter';
+      next.password = t.auth.errors.passwordMin;
     }
     return next;
   }
@@ -44,7 +45,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await login({ phone, password });
       onSuccess?.();
     } catch (err) {
-      Alert.alert(t.common.error, extractApiErrorMessage(err, 'Gagal masuk'));
+      Alert.alert(t.common.error, extractApiErrorMessage(err, t.auth.loginFailed));
     }
   }
 
@@ -75,7 +76,12 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onPress={handleSubmit}
         loading={status === 'loading'}
         testID="login-submit"
+        style={formS.submit}
       />
     </View>
   );
 }
+
+const formS = StyleSheet.create({
+  submit: { marginTop: spacing.xs },
+});

@@ -1,9 +1,17 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { PickupStatus, ReportStatus, TransactionStatus } from '@bingo/shared-types';
-import { colors } from '../../theme/screen';
+import { colors, radius, spacing } from '../../theme';
 import { t } from '../../i18n';
 
 type AnyStatus = PickupStatus | ReportStatus | TransactionStatus;
+
+/**
+ * Beberapa nilai status dipakai oleh lebih dari satu domain (`PENDING` ada di
+ * penjemputan maupun transaksi) dengan arti berbeda, jadi pemanggil menyebutkan
+ * domainnya. Tanpa ini status transaksi jatuh ke label penjemputan atau, lebih
+ * buruk, bocor sebagai teks enum mentah seperti "SHIPPED".
+ */
+export type StatusDomain = 'pickup' | 'report' | 'transaction';
 
 interface ToneConfig {
   bg: string;
@@ -28,19 +36,47 @@ const TONE: Record<string, ToneConfig> = {
 
 const DEFAULT_TONE: ToneConfig = { bg: colors.neutral100, text: colors.neutral700 };
 
-function labelFor(status: AnyStatus): string {
-  const pickup = (t.pickup.status as Record<string, string>)[status];
-  if (pickup) return pickup;
-  const report = (t.report.status as Record<string, string>)[status];
-  if (report) return report;
-  return status;
+function lookup(dict: Record<string, string>, status: string): string | undefined {
+  return dict[status];
 }
 
-export function StatusBadge({ status }: { status: AnyStatus }) {
-  const tone = TONE[status] ?? DEFAULT_TONE;
+function labelFor(status: AnyStatus, domain?: StatusDomain): string {
+  if (domain === 'transaction') {
+    return lookup(t.transaction.status, status) ?? status;
+  }
+  if (domain === 'report') {
+    return lookup(t.report.status, status) ?? status;
+  }
+  if (domain === 'pickup') {
+    return lookup(t.pickup.status, status) ?? status;
+  }
   return (
-    <View style={[badgeStyles.container, { backgroundColor: tone.bg }]}>
-      <Text style={[badgeStyles.label, { color: tone.text }]}>{labelFor(status)}</Text>
+    lookup(t.pickup.status, status) ??
+    lookup(t.report.status, status) ??
+    lookup(t.transaction.status, status) ??
+    status
+  );
+}
+
+export function StatusBadge({
+  status,
+  domain,
+  testID,
+}: {
+  status: AnyStatus;
+  domain?: StatusDomain;
+  testID?: string;
+}) {
+  const tone = TONE[status] ?? DEFAULT_TONE;
+  const label = labelFor(status, domain);
+  return (
+    <View
+      style={[badgeStyles.container, { backgroundColor: tone.bg }]}
+      accessibilityRole="text"
+      accessibilityLabel={label}
+      testID={testID}
+    >
+      <Text style={[badgeStyles.label, { color: tone.text }]}>{label}</Text>
     </View>
   );
 }
@@ -48,9 +84,9 @@ export function StatusBadge({ status }: { status: AnyStatus }) {
 const badgeStyles = StyleSheet.create({
   container: {
     alignSelf: 'flex-start',
-    borderRadius: 12,
+    borderRadius: radius.sm,
     paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingVertical: spacing.xxs - 1,
   },
   label: {
     fontSize: 12,

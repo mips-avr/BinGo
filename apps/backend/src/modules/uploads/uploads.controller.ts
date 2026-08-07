@@ -11,14 +11,36 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
 import { diskStorage } from 'multer';
-import { extname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Request } from 'express';
 import { UPLOADS_DIR } from './uploads.constants';
 
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+/**
+ * Daftar putih jenis berkas beserta ekstensi yang dipakai server.
+ *
+ * Ekstensi berkas TIDAK PERNAH diambil dari `file.originalname`. Nama berkas
+ * itu sepenuhnya ditentukan klien, sementara berkas yang tersimpan disajikan
+ * kembali sebagai berkas statis di `/uploads/`. Mengambil ekstensinya dari
+ * klien berarti siapa pun yang boleh mengunggah dapat menyimpan `jahat.html`
+ * pada domain backend, lalu mengirimkan tautannya: berkas itu akan disajikan
+ * sebagai HTML dan skrip di dalamnya berjalan pada origin backend — stored XSS
+ * yang sekaligus menjangkau token siapa pun yang membuka tautan tersebut.
+ *
+ * Memvalidasi `mimetype` saja tidak cukup, karena `mimetype` juga dikirim
+ * klien: `evil.html` cukup diberi mimetype `image/png` untuk lolos. Kuncinya
+ * adalah ekstensi yang tersimpan ditentukan server dari daftar ini, sehingga
+ * berkas apa pun yang berhasil masuk akan tersimpan dan tersaji sebagai gambar.
+ */
+const MIME_TO_EXTENSION: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+};
+
+const ALLOWED_MIME = Object.keys(MIME_TO_EXTENSION);
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 @ApiTags('Uploads')
@@ -37,13 +59,21 @@ export class UploadsController {
       required: ['file'],
     },
   })
-  @ApiOkResponse({ description: 'Mengunggah foto (jpeg/png/webp/heic, maks 5MB)' })
+  @ApiCreatedResponse({ description: 'Mengunggah foto (jpeg/png/webp/heic, maks 5MB)' })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
         destination: UPLOADS_DIR,
         filename: (_req, file, cb) => {
-          const ext = extname(file.originalname || '').toLowerCase() || '.jpg';
+          // Nama berkas sepenuhnya ditentukan server: waktu, UUID acak, dan
+          // ekstensi dari daftar putih. `file.originalname` diabaikan
+          // seluruhnya — termasuk ekstensinya dan kemungkinan `../` di
+          // dalamnya.
+          const ext = MIME_TO_EXTENSION[file.mimetype];
+          if (!ext) {
+            cb(new BadRequestException('Hanya gambar (jpeg/png/webp/heic) yang diizinkan'), '');
+            return;
+          }
           cb(null, `${Date.now()}-${randomUUID()}${ext}`);
         },
       }),

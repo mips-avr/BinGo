@@ -13,6 +13,8 @@ const receipt: WeighingReceiptDto = {
   scaleTeraNo: 'DKI-2025-004821',
   scaleVerified: true,
   region: 'Kecamatan Beji, Depok',
+  regionKey: 'beji depok',
+  walkIn: false,
   lines: [
     {
       id: 'l1',
@@ -34,6 +36,8 @@ const receipt: WeighingReceiptDto = {
   totalDeductionAmount: 2000,
   totalNetAmount: 19250,
   notes: null,
+  disputedAt: null,
+  disputeReason: null,
   createdAt: new Date('2026-08-03T10:00:00Z').toISOString(),
 };
 
@@ -79,6 +83,7 @@ const band: PriceBandDto = {
   grade: 'PET_BOTOL_BENING',
   label: 'Botol plastik bening',
   region: 'Kecamatan Beji, Depok',
+  regionKey: 'beji depok',
   p25: 2300,
   median: 2500,
   p75: 2700,

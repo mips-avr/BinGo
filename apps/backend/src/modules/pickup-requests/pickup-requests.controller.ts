@@ -11,12 +11,13 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { CreatePickupDto } from './dto/create-pickup.dto';
 import { NearbyQueryDto } from './dto/nearby-query.dto';
+import { RadarQueryDto } from './dto/radar-query.dto';
 import { PickupRequestsService } from './pickup-requests.service';
 
 @ApiTags('Pickup Requests')
@@ -29,7 +30,7 @@ export class PickupRequestsController {
 
   @Post()
   @Roles('CITIZEN')
-  @ApiOkResponse({ description: 'Membuat permintaan penjemputan baru (warga)' })
+  @ApiCreatedResponse({ description: 'Membuat permintaan penjemputan baru (warga)' })
   async create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreatePickupDto) {
     return this.service.createForCitizen(user.id, dto);
   }
@@ -48,6 +49,23 @@ export class PickupRequestsController {
   @ApiOkResponse({ description: 'Permintaan PENDING dalam radius tertentu (pemulung)' })
   async nearby(@Query() query: NearbyQueryDto) {
     return this.service.findNearby(query);
+  }
+
+  /**
+   * Radar sengaja terbuka untuk seluruh tingkat verifikasi, termasuk Tingkat 0
+   * yang belum boleh menerima pekerjaan. Menyembunyikan peta permintaan dari
+   * pemulung yang belum dijamin akan membalik urutan yang dirancang: orang
+   * mendaftar karena ingin melihat pekerjaan dan harga, lalu mencari
+   * penjaminan supaya bisa mengambilnya.
+   */
+  @Get('radar')
+  @Roles('WASTE_AGENT')
+  @ApiOkResponse({
+    description:
+      'Permintaan PENDING dengan jarak, arah kompas, nama warga, dan umur permintaan. Dapat disaring menurut jenis material dan berat minimum. Pemulung Tingkat 2 melihat permintaan bernilai tinggi lebih dahulu.',
+  })
+  async radar(@CurrentUser() user: AuthenticatedUser, @Query() query: RadarQueryDto) {
+    return this.service.findRadar(query, user.id);
   }
 
   @Get('assigned')
@@ -73,11 +91,39 @@ export class PickupRequestsController {
   @Patch(':id/accept')
   @Roles('WASTE_AGENT')
   @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ description: 'Pemulung mengambil permintaan PENDING' })
   async accept(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
     return this.service.accept(id, user.id);
+  }
+
+  @Post(':id/start')
+  @Roles('WASTE_AGENT')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Pemulung berangkat menuju lokasi: ACCEPTED → IN_PROGRESS',
+  })
+  async start(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.start(id, user.id);
+  }
+
+  @Patch(':id/release')
+  @Roles('WASTE_AGENT')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description:
+      'Pemulung mengembalikan pekerjaan ke antrean: ACCEPTED/IN_PROGRESS → PENDING dan agentId dikosongkan',
+  })
+  async release(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    return this.service.release(id, user.id);
   }
 
   @Patch(':id/complete')

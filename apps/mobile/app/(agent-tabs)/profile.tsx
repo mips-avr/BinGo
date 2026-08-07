@@ -1,22 +1,55 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { ProfileView } from '../../src/components/profile/ProfileView';
-import { colors } from '../../src/theme/screen';
+import { Card } from '../../src/components/ui/Card';
+import { colors, spacing, typography } from '../../src/theme';
 import { t } from '../../src/i18n';
 
 export default function AgentProfileScreen() {
+  const router = useRouter();
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.title}>{t.profile.title}</Text>
+        <Text style={s.title} accessibilityRole="header">
+          {t.profile.title}
+        </Text>
       </View>
-      <ProfileView />
+      {/* Daftar bukti timbang pemulung sebelumnya tidak punya satu pun pintu
+          masuk: satu-satunya jalan ke sana adalah tepat setelah menerbitkan
+          bukti baru, jadi bukti lama tidak pernah bisa dibuka lagi. */}
+      <ProfileView
+        footer={
+          <Card
+            onPress={() => router.push('/(agent-tabs)/receipts')}
+            accessibilityLabel={t.weighing.receiptListTitle}
+            testID="agent-profile-receipts-link"
+          >
+            <View style={s.linkRow}>
+              <Text style={s.linkIcon}>🧾</Text>
+              <View style={s.linkTextWrap}>
+                <Text style={s.linkTitle}>{t.weighing.receiptListTitle}</Text>
+                <Text style={s.linkSubtitle} numberOfLines={2}>
+                  {t.weighing.emptyMessage}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={colors.neutral400} />
+            </View>
+          </Card>
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
-  header: { paddingHorizontal: 20, paddingVertical: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  title: typography.headerTitle,
+  linkRow: { flexDirection: 'row', alignItems: 'center' },
+  linkIcon: { fontSize: 22, marginRight: spacing.sm },
+  linkTextWrap: { flex: 1, marginRight: spacing.xs },
+  linkTitle: typography.cardTitle,
+  linkSubtitle: { marginTop: 2, ...typography.caption },
 });

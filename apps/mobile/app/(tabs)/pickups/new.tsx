@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialType, type LatLng } from '@bingo/shared-types';
 import { Button } from '../../../src/components/ui/Button';
+import { KeyboardAvoider } from '../../../src/components/ui/KeyboardAvoider';
+import { useBottomInset } from '../../../src/hooks/useBottomInset';
 import { Input } from '../../../src/components/ui/Input';
 import { MaterialPicker } from '../../../src/components/pickups/MaterialPicker';
 import { LocationPicker } from '../../../src/components/pickups/LocationPicker';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useCreatePickup } from '../../../src/features/pickups/hooks';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
-import { colors } from '../../../src/theme/screen';
+import { colors, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
 interface FormErrors {
@@ -24,6 +26,7 @@ const MATERIAL_VALUES = Object.values(MaterialType) as MaterialType[];
 
 export default function NewPickupScreen() {
   const router = useRouter();
+  const bottomInset = useBottomInset();
   const params = useLocalSearchParams<{ materialType?: string }>();
   const create = useCreatePickup();
 
@@ -42,12 +45,12 @@ export default function NewPickupScreen() {
 
   function validate(): FormErrors {
     const e: FormErrors = {};
-    if (!location) e.location = 'Tentukan titik penjemputan terlebih dahulu';
-    if (address.trim().length < 3) e.address = 'Alamat minimal 3 karakter';
-    if (!material) e.material = 'Pilih jenis material';
+    if (!location) e.location = t.pickup.errors.locationRequired;
+    if (address.trim().length < 3) e.address = t.pickup.errors.addressMin;
+    if (!material) e.material = t.pickup.errors.materialRequired;
     const w = Number(weight.replace(',', '.'));
-    if (!Number.isFinite(w) || w <= 0) e.weight = 'Estimasi berat harus lebih dari 0';
-    else if (w > 9999.99) e.weight = 'Estimasi berat maksimal 9999.99 kg';
+    if (!Number.isFinite(w) || w <= 0) e.weight = t.pickup.errors.weightPositive;
+    else if (w > 9999.99) e.weight = t.pickup.errors.weightMax;
     return e;
   }
 
@@ -65,7 +68,7 @@ export default function NewPickupScreen() {
         notes: notes.trim() || undefined,
       });
       Alert.alert(t.common.success, t.pickup.createSuccess, [
-        { text: 'OK', onPress: () => router.back() },
+        { text: t.common.ok, onPress: () => router.back() },
       ]);
     } catch (err) {
       setSubmitError(extractApiErrorMessage(err, t.common.error));
@@ -75,62 +78,68 @@ export default function NewPickupScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.pickup.create} />
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={s.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <LocationPicker
-          value={location}
-          onChange={(coords, autoAddress) => {
-            setLocation(coords);
-            if (autoAddress && !address) setAddress(autoAddress);
-          }}
-          error={errors.location}
-        />
+      {/* Formulir ini dulu sama sekali tidak menghindari papan ketik: kolom
+          catatan berada di bawah dan tertutup keyboard saat diisi. */}
+      <KeyboardAvoider>
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <LocationPicker
+            value={location}
+            onChange={(coords, autoAddress) => {
+              setLocation(coords);
+              if (autoAddress && !address) setAddress(autoAddress);
+            }}
+            error={errors.location}
+          />
 
-        <Input
-          label={t.pickup.address}
-          value={address}
-          onChangeText={setAddress}
-          placeholder={t.pickup.addressPlaceholder}
-          error={errors.address}
-        />
+          <Input
+            label={t.pickup.address}
+            value={address}
+            onChangeText={setAddress}
+            placeholder={t.pickup.addressPlaceholder}
+            error={errors.address}
+          />
 
-        <MaterialPicker value={material} onChange={setMaterial} error={errors.material} />
+          <MaterialPicker value={material} onChange={setMaterial} error={errors.material} />
 
-        <Input
-          label={t.pickup.weight}
-          value={weight}
-          onChangeText={setWeight}
-          placeholder={t.pickup.weightPlaceholder}
-          keyboardType="decimal-pad"
-          error={errors.weight}
-        />
+          <Input
+            label={t.pickup.weight}
+            value={weight}
+            onChangeText={setWeight}
+            placeholder={t.pickup.weightPlaceholder}
+            keyboardType="decimal-pad"
+            error={errors.weight}
+          />
 
-        <Input
-          label={t.pickup.notes}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder={t.pickup.notesPlaceholder}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
+          <Input
+            label={t.pickup.notes}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder={t.pickup.notesPlaceholder}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
 
-        {submitError ? (
-          <Text style={s.errorText}>{submitError}</Text>
-        ) : null}
+          {submitError ? (
+            <Text style={s.errorText} accessibilityLiveRegion="polite">
+              {submitError}
+            </Text>
+          ) : null}
 
-        <View style={s.btnWrap}>
           <Button
             label={t.pickup.create}
             onPress={onSubmit}
             loading={create.isPending}
             testID="submit-pickup"
+            style={s.submitBtn}
           />
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
@@ -138,7 +147,7 @@ export default function NewPickupScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
-  errorText: { marginBottom: 12, fontSize: 14, color: colors.red600 },
-  btnWrap: { marginTop: 8 },
+  scrollContent: { paddingHorizontal: spacing.lg },
+  errorText: { marginBottom: spacing.sm, ...typography.body, color: colors.red600 },
+  submitBtn: { marginTop: spacing.xs },
 });

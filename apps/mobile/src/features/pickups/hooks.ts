@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { CreatePickupRequest } from '@bingo/shared-types';
+import type { CreatePickupRequest, MaterialType } from '@bingo/shared-types';
 import { queryKeys } from '../../lib/query/client';
 import {
   acceptPickup,
@@ -10,6 +10,9 @@ import {
   listAssignedPickups,
   listMyPickups,
   listNearbyPickups,
+  listRadarPickups,
+  releasePickup,
+  startPickup,
 } from './api';
 
 export function useMyPickups() {
@@ -23,11 +26,7 @@ export function useAssignedPickups() {
   });
 }
 
-export function useNearbyPickups(
-  lat: number | undefined,
-  lng: number | undefined,
-  radiusKm = 5,
-) {
+export function useNearbyPickups(lat: number | undefined, lng: number | undefined, radiusKm = 5) {
   return useQuery({
     queryKey:
       lat != null && lng != null
@@ -35,6 +34,42 @@ export function useNearbyPickups(
         : ['pickups', 'nearby', 'disabled'],
     queryFn: () => listNearbyPickups({ lat: lat as number, lng: lng as number, radiusKm }),
     enabled: lat != null && lng != null,
+    refetchInterval: 30_000,
+  });
+}
+
+export interface RadarFilters {
+  radiusKm?: number;
+  materialType?: MaterialType | null;
+  minWeightKg?: number | null;
+}
+
+/**
+ * Radar permintaan.
+ *
+ * `lat`/`lng` diharapkan sudah dikuantisasi oleh `useAgentLocation`, sehingga
+ * pergeseran GPS beberapa meter tidak memecah cache. Pemulung yang benar-benar
+ * berpindah tetap mendapat kunci baru — yang dihilangkan hanyalah derau.
+ */
+export function useRadarPickups(
+  lat: number | undefined,
+  lng: number | undefined,
+  { radiusKm = 5, materialType = null, minWeightKg = null }: RadarFilters = {},
+) {
+  const enabled = lat != null && lng != null;
+  return useQuery({
+    queryKey: enabled
+      ? queryKeys.pickups.radar(lat, lng, radiusKm, materialType, minWeightKg)
+      : ['pickups', 'radar', 'disabled'],
+    queryFn: () =>
+      listRadarPickups({
+        lat: lat as number,
+        lng: lng as number,
+        radiusKm,
+        materialType: materialType ?? undefined,
+        minWeightKg: minWeightKg ?? undefined,
+      }),
+    enabled,
     refetchInterval: 30_000,
   });
 }
@@ -74,8 +109,35 @@ export function useAcceptPickup() {
     mutationFn: (id: string) => acceptPickup(id),
     onSuccess: (pickup) => {
       qc.invalidateQueries({ queryKey: ['pickups', 'nearby'] });
+      qc.invalidateQueries({ queryKey: ['pickups', 'radar'] });
       qc.invalidateQueries({ queryKey: queryKeys.pickups.assigned });
       qc.invalidateQueries({ queryKey: queryKeys.pickups.detail(pickup.id) });
+    },
+  });
+}
+
+/** ACCEPTED → IN_PROGRESS. */
+export function useStartPickup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => startPickup(id),
+    onSuccess: (pickup) => {
+      qc.invalidateQueries({ queryKey: queryKeys.pickups.assigned });
+      qc.invalidateQueries({ queryKey: queryKeys.pickups.detail(pickup.id) });
+    },
+  });
+}
+
+/** ACCEPTED|IN_PROGRESS → PENDING. Permintaan kembali muncul di radar semua orang. */
+export function useReleasePickup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => releasePickup(id),
+    onSuccess: (pickup) => {
+      qc.invalidateQueries({ queryKey: queryKeys.pickups.assigned });
+      qc.invalidateQueries({ queryKey: queryKeys.pickups.detail(pickup.id) });
+      qc.invalidateQueries({ queryKey: ['pickups', 'nearby'] });
+      qc.invalidateQueries({ queryKey: ['pickups', 'radar'] });
     },
   });
 }
@@ -87,6 +149,9 @@ export function useCompletePickup() {
     onSuccess: (pickup) => {
       qc.invalidateQueries({ queryKey: queryKeys.pickups.assigned });
       qc.invalidateQueries({ queryKey: queryKeys.pickups.detail(pickup.id) });
+      // Poin warga bertambah di sisi server. `useMe` mendengarkan kunci ini,
+      // sehingga saldo di beranda ikut berubah tanpa memulai ulang aplikasi —
+      // dulu invalidasi ini tidak punya satu pun pelanggan.
       qc.invalidateQueries({ queryKey: queryKeys.me });
     },
   });

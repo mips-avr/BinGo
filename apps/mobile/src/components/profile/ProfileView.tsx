@@ -1,24 +1,42 @@
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { PointsBadge } from '../ui/PointsBadge';
-import { colors, shadow } from '../../theme/screen';
+import { VerificationBadge, verificationLevelSummary } from '../agent/VerificationBadge';
+import { colors, radius, spacing, shadow, typography } from '../../theme';
 import { t } from '../../i18n';
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <View style={profileS.row}>
+    <View style={profileS.row} accessibilityRole="text" accessibilityLabel={`${label}: ${value}`}>
       <Text style={profileS.rowLabel}>{label}</Text>
-      <Text style={profileS.rowValue}>{value}</Text>
+      <Text style={profileS.rowValue} numberOfLines={2}>
+        {value}
+      </Text>
     </View>
   );
 }
 
+export interface ProfileViewProps {
+  /**
+   * Konten tambahan khusus peran (mis. pintasan bukti timbang milik warga),
+   * dirender di dalam ScrollView yang sama.
+   *
+   * Sebelumnya layar profil warga membungkus komponen ini dengan ScrollView
+   * kedua supaya bisa menambah kartu — dan karena `flex: 1` di dalam wadah
+   * gulir tak terbatas menghasilkan tinggi 0, seluruh isi profil warga tidak
+   * pernah tampil.
+   */
+  footer?: React.ReactNode;
+}
+
 /** Layar profil bersama untuk warga, pemulung, dan UMKM. */
-export function ProfileView() {
+export function ProfileView({ footer }: ProfileViewProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const insets = useSafeAreaInsets();
 
   if (!user) return null;
 
@@ -32,51 +50,72 @@ export function ProfileView() {
   return (
     <ScrollView
       style={profileS.scroll}
-      contentContainerStyle={profileS.scrollContent}
+      contentContainerStyle={[
+        profileS.scrollContent,
+        { paddingBottom: spacing.xxl + insets.bottom },
+      ]}
+      showsVerticalScrollIndicator={false}
     >
       <View style={profileS.avatarSection}>
         <View style={profileS.avatar}>
-          <Text style={profileS.avatarLetter}>
-            {user.name.charAt(0).toUpperCase()}
-          </Text>
+          <Text style={profileS.avatarLetter}>{user.name.charAt(0).toUpperCase()}</Text>
         </View>
-        <Text style={profileS.userName}>{user.name}</Text>
+        <Text style={profileS.userName} numberOfLines={2}>
+          {user.name}
+        </Text>
         <Text style={profileS.userRole}>{t.auth.role[user.role]}</Text>
         {user.role === 'CITIZEN' ? (
           <View style={profileS.pointsWrap}>
             <PointsBadge points={user.pointsBalance} />
           </View>
         ) : null}
+        {user.role === 'WASTE_AGENT' ? (
+          <View style={profileS.pointsWrap}>
+            <VerificationBadge level={user.verificationLevel} />
+          </View>
+        ) : null}
       </View>
 
       <Card>
-        <Text style={profileS.sectionLabel}>
-          {t.profile.accountInfo}
-        </Text>
+        <Text style={profileS.sectionLabel}>{t.profile.accountInfo}</Text>
         <View style={profileS.rowsWrap}>
           <Row label={t.auth.name} value={user.name} />
           <Row label={t.auth.phone} value={user.phone} />
-          {user.nik ? <Row label={t.auth.nik} value={user.nik} /> : null}
         </View>
+        {/* Tidak ada baris NIK, dan itu dinyatakan, bukan sekadar dihilangkan
+            diam-diam: pengguna berhak tahu data apa yang tidak dipegang. */}
+        <Text style={profileS.privacyNote}>{t.auth.noIdNumberNotice}</Text>
       </Card>
 
-      <View style={profileS.logoutWrap}>
-        <Button
-          label={t.auth.logout}
-          variant="secondary"
-          onPress={confirmLogout}
-          testID="logout-button"
-        />
-      </View>
+      {user.role === 'WASTE_AGENT' ? (
+        <Card style={profileS.verificationCard}>
+          <Text style={profileS.sectionLabel}>{t.agent.verification.sectionTitle}</Text>
+          <VerificationBadge level={user.verificationLevel} style={profileS.verificationBadge} />
+          <Text style={profileS.verificationSummary}>
+            {verificationLevelSummary(user.verificationLevel)}
+          </Text>
+          <Text style={profileS.privacyNote}>{t.agent.verification.noIdNumber}</Text>
+        </Card>
+      ) : null}
+
+      {footer ? <View style={profileS.footer}>{footer}</View> : null}
+
+      <Button
+        label={t.auth.logout}
+        variant="secondary"
+        onPress={confirmLogout}
+        testID="logout-button"
+        style={profileS.logout}
+      />
     </ScrollView>
   );
 }
 
 const profileS = StyleSheet.create({
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  scrollContent: { paddingHorizontal: spacing.lg },
   avatarSection: {
-    marginVertical: 20,
+    marginVertical: spacing.lg,
     alignItems: 'center',
   },
   avatar: {
@@ -96,28 +135,23 @@ const profileS = StyleSheet.create({
     color: colors.bingo700,
   },
   userName: {
-    marginTop: 12,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.neutral900,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    ...typography.headerTitle,
   },
   userRole: {
-    fontSize: 14,
-    color: colors.neutral600,
+    ...typography.bodyMuted,
     marginTop: 2,
   },
   pointsWrap: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   sectionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    color: colors.neutral600,
+    ...typography.overline,
     letterSpacing: 0.5,
   },
   rowsWrap: {
-    marginTop: 8,
+    marginTop: spacing.xs,
   },
   row: {
     flexDirection: 'row',
@@ -125,18 +159,38 @@ const profileS = StyleSheet.create({
     justifyContent: 'space-between',
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral100,
-    paddingVertical: 12,
+    paddingVertical: spacing.sm,
   },
   rowLabel: {
-    fontSize: 14,
-    color: colors.neutral600,
+    ...typography.bodyMuted,
+    marginRight: spacing.sm,
   },
   rowValue: {
+    flexShrink: 1,
+    textAlign: 'right',
     fontSize: 14,
     fontWeight: '600',
     color: colors.neutral900,
   },
-  logoutWrap: {
-    marginTop: 24,
+  privacyNote: {
+    marginTop: spacing.sm,
+    ...typography.caption,
+  },
+  verificationCard: {
+    marginTop: spacing.sm,
+  },
+  verificationBadge: {
+    marginTop: spacing.xs,
+  },
+  verificationSummary: {
+    marginTop: spacing.xs,
+    ...typography.body,
+  },
+  footer: {
+    marginTop: spacing.sm,
+  },
+  logout: {
+    marginTop: spacing.xl,
+    borderRadius: radius.sm,
   },
 });

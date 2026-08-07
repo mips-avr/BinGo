@@ -1,9 +1,10 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { ProfileView } from '../../src/components/profile/ProfileView';
 import { Card } from '../../src/components/ui/Card';
-import { colors } from '../../src/theme/screen';
+import { colors, spacing, typography } from '../../src/theme';
 import { t } from '../../src/i18n';
 
 export default function ProfileScreen() {
@@ -11,35 +12,48 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <Text style={s.title}>{t.profile.title}</Text>
+        <Text style={s.title} accessibilityRole="header">
+          {t.profile.title}
+        </Text>
       </View>
-      <ScrollView contentContainerStyle={s.content}>
-        <ProfileView />
-        <Card style={s.linkCard} onPress={() => router.push('/(tabs)/receipts')}>
-          <View style={s.linkRow}>
-            <Text style={s.linkIcon}>🧾</Text>
-            <View style={s.linkTextWrap}>
-              <Text style={s.linkTitle}>{t.weighing.receiptListTitle}</Text>
-              <Text style={s.linkSubtitle}>{t.weighing.emptyMessage}</Text>
+      {/*
+        `ProfileView` sudah berupa ScrollView dengan `flex: 1`. Membungkusnya
+        lagi dengan ScrollView lain (seperti sebelumnya) membuat tingginya
+        mengecil menjadi nol, sehingga seluruh isi profil warga — termasuk
+        satu-satunya pintu masuk ke daftar bukti timbang — tidak pernah tampil.
+        Kartu tambahan sekarang dititipkan lewat prop `footer`.
+      */}
+      <ProfileView
+        footer={
+          <Card
+            onPress={() => router.push('/(tabs)/receipts')}
+            accessibilityLabel={t.weighing.receiptListTitle}
+            testID="profile-receipts-link"
+          >
+            <View style={s.linkRow}>
+              <Text style={s.linkIcon}>🧾</Text>
+              <View style={s.linkTextWrap}>
+                <Text style={s.linkTitle}>{t.weighing.receiptListTitle}</Text>
+                <Text style={s.linkSubtitle} numberOfLines={2}>
+                  {t.weighing.emptyMessage}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={colors.neutral400} />
             </View>
-            <Text style={s.chevron}>›</Text>
-          </View>
-        </Card>
-      </ScrollView>
+          </Card>
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
-  header: { paddingHorizontal: 20, paddingVertical: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
-  content: { paddingBottom: 32 },
-  linkCard: { marginHorizontal: 20, marginTop: 12 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  title: typography.headerTitle,
   linkRow: { flexDirection: 'row', alignItems: 'center' },
-  linkIcon: { fontSize: 22, marginRight: 12 },
-  linkTextWrap: { flex: 1 },
-  linkTitle: { fontSize: 15, fontWeight: '700', color: colors.neutral900 },
-  linkSubtitle: { marginTop: 2, fontSize: 12, color: colors.neutral600 },
-  chevron: { fontSize: 24, color: colors.neutral400, marginLeft: 8 },
+  linkIcon: { fontSize: 22, marginRight: spacing.sm },
+  linkTextWrap: { flex: 1, marginRight: spacing.xs },
+  linkTitle: typography.cardTitle,
+  linkSubtitle: { marginTop: 2, ...typography.caption },
 });

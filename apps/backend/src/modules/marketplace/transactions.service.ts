@@ -1,6 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Transaction } from '@prisma/client';
-import type { TransactionDto, TransactionStatus as TxStatus } from '@bingo/shared-types';
+import type { MarketplaceItem, Transaction } from '@prisma/client';
+import type {
+  MarketplaceItemDto,
+  TransactionDto,
+  TransactionStatus as TxStatus,
+} from '@bingo/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CartItemDto, CheckoutDto } from './dto/checkout.dto';
 
@@ -71,13 +75,23 @@ export class TransactionsService {
     });
   }
 
+  /**
+   * Riwayat pesanan UMKM.
+   *
+   * Produk ikut disertakan. Tanpa itu, layar pesanan hanya memegang `itemId`
+   * dan harus memanggil `GET /marketplace/items/:id` sekali untuk setiap baris
+   * riwayat — seratus baris berarti seratus permintaan tambahan lewat jaringan
+   * seluler, yang paling terasa justru pada perangkat dan koneksi yang paling
+   * lemah. Satu JOIN di sini menghapus semuanya.
+   */
   async listMine(buyerId: string): Promise<TransactionDto[]> {
     const rows = await this.prisma.transaction.findMany({
       where: { buyerId },
+      include: { item: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
-    return rows.map((r) => this.toDto(r));
+    return rows.map((r) => this.toDto(r, r.item));
   }
 
   // Menggabungkan duplikasi itemId di keranjang.
@@ -89,7 +103,7 @@ export class TransactionsService {
     return Array.from(map.entries()).map(([itemId, qty]) => ({ itemId, qty }));
   }
 
-  private toDto(t: Transaction): TransactionDto {
+  private toDto(t: Transaction, item?: MarketplaceItem): TransactionDto {
     return {
       id: t.id,
       buyerId: t.buyerId,
@@ -98,6 +112,21 @@ export class TransactionsService {
       totalPrice: t.totalPrice,
       status: t.status as TxStatus,
       createdAt: t.createdAt.toISOString(),
+      ...(item ? { item: this.toItemDto(item) } : {}),
+    };
+  }
+
+  private toItemDto(i: MarketplaceItem): MarketplaceItemDto {
+    return {
+      id: i.id,
+      supplierName: i.supplierName,
+      itemName: i.itemName,
+      description: i.description,
+      price: i.price,
+      minOrderQty: i.minOrderQty,
+      stock: i.stock,
+      imageUrl: i.imageUrl,
+      createdAt: i.createdAt.toISOString(),
     };
   }
 }

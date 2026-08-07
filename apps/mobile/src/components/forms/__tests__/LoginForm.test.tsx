@@ -31,11 +31,11 @@ describe('<LoginForm />', () => {
     (loginApi as jest.Mock).mockResolvedValue({
       user: {
         id: 'u1',
-        nik: null,
         name: 'Budi',
         phone: '+628123456789',
         role: 'CITIZEN',
         pointsBalance: 0,
+        verificationLevel: 0,
         createdAt: new Date().toISOString(),
       },
       token: { accessToken: 'jwt', expiresIn: 3600 },

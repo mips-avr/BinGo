@@ -1,23 +1,8 @@
-import { isValidNIK, isValidPhoneID, normalizePhoneID } from '../validators';
+import { isValidPhoneID, normalizePhoneID } from '../validators';
 import { formatIDR } from '../currency';
 
-describe('isValidNIK', () => {
-  it('menerima NIK 16 digit yang masuk akal', () => {
-    // 31 = DKI Jakarta, kecamatan 7401, tgl lahir 010190
-    expect(isValidNIK('3174010101900001')).toBe(true);
-  });
-
-  it('menolak NIK bukan 16 digit', () => {
-    expect(isValidNIK('123')).toBe(false);
-    expect(isValidNIK('31740101019000010')).toBe(false);
-  });
-
-  it('menolak NIK dengan tanggal lahir tidak valid', () => {
-    // Format NIK: PPKKCC DD MM YY NNNN (pos 6-7 = hari, pos 8-9 = bulan)
-    expect(isValidNIK('3174013201900001')).toBe(false); // hari 32 (bukan perempuan offset 40)
-    expect(isValidNIK('3174010113900001')).toBe(false); // bulan 13
-  });
-});
+// Berkas ini pernah menguji `isValidNIK`. Fungsinya dihapus bersama seluruh
+// jalur pengumpulan NIK; lihat catatan di src/validators.ts.
 
 describe('normalizePhoneID', () => {
   it('menormalkan format umum ke +62…', () => {

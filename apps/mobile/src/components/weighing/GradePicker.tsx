@@ -1,6 +1,7 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MATERIAL_GRADES, type MaterialGrade } from '@bingo/shared-types';
-import { colors } from '../../theme/screen';
+import { Chip } from '../ui/Chip';
+import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
 export interface GradePickerProps {
@@ -44,34 +45,29 @@ export function GradePicker({ value, onChange, error, testID }: GradePickerProps
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={gpS.scrollContent}
+        accessibilityRole="radiogroup"
       >
         {GRADE_ORDER.map((grade) => {
           const info = MATERIAL_GRADES[grade];
-          const selected = value === grade;
           return (
-            <Pressable
+            <Chip
               key={grade}
+              label={info.label}
+              caption={info.sellable ? undefined : t.weighing.gradeNotSellable}
+              selected={value === grade}
               onPress={() => onChange(grade)}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={info.label}
+              accessibilityLabel={
+                info.sellable ? info.label : `${info.label} — ${t.weighing.gradeNotSellable}`
+              }
               testID={`grade-${grade}`}
-              style={[gpS.chip, selected ? gpS.chipSelected : gpS.chipDefault]}
-            >
-              <Text
-                style={[gpS.chipText, selected ? gpS.chipTextSelected : gpS.chipTextDefault]}
-              >
-                {info.label}
-              </Text>
-              {!info.sellable ? <Text style={gpS.notSellable}>tidak dibeli</Text> : null}
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
 
       {value && MATERIAL_GRADES[value].conditions.length > 0 ? (
         <View style={gpS.conditions}>
-          <Text style={gpS.conditionsTitle}>Syarat agar diterima pada grade ini</Text>
+          <Text style={gpS.conditionsTitle}>{t.weighing.gradeConditionsTitle}</Text>
           {MATERIAL_GRADES[value].conditions.map((c) => (
             <Text key={c} style={gpS.conditionItem}>
               • {c}
@@ -80,42 +76,36 @@ export function GradePicker({ value, onChange, error, testID }: GradePickerProps
         </View>
       ) : null}
 
-      {error ? <Text style={gpS.error}>{error}</Text> : null}
+      {error ? (
+        <Text style={gpS.error} accessibilityLiveRegion="polite">
+          {error}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const gpS = StyleSheet.create({
-  wrap: { marginBottom: 12 },
-  label: { marginBottom: 6, fontSize: 14, fontWeight: '600', color: colors.neutral700 },
-  scrollContent: { paddingVertical: 4 },
-  chip: {
-    marginRight: 8,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    minHeight: 44,
-    justifyContent: 'center',
+  wrap: { marginBottom: spacing.sm },
+  label: {
+    marginBottom: spacing.xxs + 2,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral700,
   },
-  chipSelected: { borderColor: colors.bingo600, backgroundColor: colors.bingo600 },
-  chipDefault: { borderColor: colors.neutral300, backgroundColor: colors.white },
-  chipText: { fontSize: 14 },
-  chipTextSelected: { fontWeight: '700', color: colors.white },
-  chipTextDefault: { fontWeight: '500', color: colors.neutral800 },
-  notSellable: { marginTop: 2, fontSize: 10, color: colors.amber700 },
+  scrollContent: { paddingVertical: spacing.xxs },
   conditions: {
     marginTop: 10,
-    borderRadius: 12,
+    borderRadius: radius.sm,
     backgroundColor: colors.bingo100,
-    padding: 12,
+    padding: spacing.sm,
   },
   conditionsTitle: {
-    marginBottom: 4,
+    marginBottom: spacing.xxs,
     fontSize: 12,
     fontWeight: '700',
     color: colors.bingo800,
   },
   conditionItem: { fontSize: 13, color: colors.neutral800, lineHeight: 19 },
-  error: { marginTop: 4, fontSize: 12, color: colors.red600 },
+  error: { marginTop: spacing.xxs, ...typography.error },
 });

@@ -1,5 +1,6 @@
 import { Controller, Get, VERSION_NEUTRAL } from '@nestjs/common';
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/public.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -15,6 +16,11 @@ interface HealthResponse {
 
 @ApiTags('Health')
 @Public()
+// Health check tidak boleh kena batas laju. Probe liveness/readiness datang
+// dari alamat yang sama terus-menerus; bila suatu saat ia ditolak 429, sistem
+// orkestrasi akan menyimpulkan aplikasi mati dan mematikan proses yang justru
+// sedang sehat.
+@SkipThrottle()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

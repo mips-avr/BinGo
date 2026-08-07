@@ -37,6 +37,15 @@ export interface TransactionDto {
   totalPrice: number;
   status: TransactionStatus;
   createdAt: string;
+  /**
+   * Produk yang dibeli, disertakan agar layar pesanan tidak perlu memanggil
+   * `GET /marketplace/items/:id` satu per satu untuk setiap baris riwayat.
+   *
+   * Selalu terisi pada `GET /marketplace/transactions/mine`. Tidak terisi pada
+   * respons `POST /marketplace/checkout`, karena di sana pemanggil sudah
+   * memegang data produk dari keranjangnya sendiri.
+   */
+  item?: MarketplaceItemDto;
 }
 
 export interface CheckoutResult {

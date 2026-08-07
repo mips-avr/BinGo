@@ -15,9 +15,15 @@ export const ENDPOINTS = {
     root: '/api/v1/pickup-requests',
     mine: '/api/v1/pickup-requests/mine',
     nearby: '/api/v1/pickup-requests/nearby',
+    /** Radar pemulung: jarak + arah + umur permintaan. */
+    radar: '/api/v1/pickup-requests/radar',
     assigned: '/api/v1/pickup-requests/assigned',
     byId: (id: string) => `/api/v1/pickup-requests/${id}`,
     accept: (id: string) => `/api/v1/pickup-requests/${id}/accept`,
+    /** ACCEPTED → IN_PROGRESS. */
+    start: (id: string) => `/api/v1/pickup-requests/${id}/start`,
+    /** ACCEPTED|IN_PROGRESS → PENDING, agen dilepas. */
+    release: (id: string) => `/api/v1/pickup-requests/${id}/release`,
     complete: (id: string) => `/api/v1/pickup-requests/${id}/complete`,
     cancel: (id: string) => `/api/v1/pickup-requests/${id}/cancel`,
   },
@@ -38,6 +44,8 @@ export const ENDPOINTS = {
     root: '/api/v1/weighing-receipts',
     mine: '/api/v1/weighing-receipts/mine',
     priceBoard: '/api/v1/weighing-receipts/price-board',
+    /** Publik — dipakai autocomplete wilayah pada papan harga. */
+    regions: '/api/v1/weighing-receipts/regions',
     byId: (id: string) => `/api/v1/weighing-receipts/${id}`,
   },
   uploads: {
