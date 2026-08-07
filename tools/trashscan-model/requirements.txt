@@ -1,0 +1,5 @@
+# CPU sudah cukup untuk 2.527 citra dengan transfer learning.
+tensorflow-cpu==2.20.0
+scikit-learn>=1.4
+pillow>=10.0
+numpy>=1.26

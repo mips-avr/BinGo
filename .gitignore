@@ -66,3 +66,7 @@ Thumbs.db
 # Keluaran perkakas QC tangkapan layar
 apps/mobile/.qc-web/
 tools/qc-screenshots/shots/
+
+# Artefak pelatihan model TrashScan
+tools/trashscan-model/artifacts/
+tools/trashscan-model/data/
