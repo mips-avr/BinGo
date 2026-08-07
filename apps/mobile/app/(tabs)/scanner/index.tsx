@@ -111,7 +111,7 @@ export default function TrashScanScreen() {
   return (
     <SafeAreaView style={s.camSafe} edges={['top']}>
       <View style={s.camOverlay}>
-        <ScreenHeader title={t.scanner.title} canGoBack={false} />
+        <ScreenHeader title={t.scanner.title} canGoBack={false} tone="onDark" />
         <Text style={s.instructionText}>{t.scanner.instruction}</Text>
       </View>
 

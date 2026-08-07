@@ -62,3 +62,7 @@ apps/backend/uploads/
 *.tgz
 .DS_Store?
 Thumbs.db
+
+# Keluaran perkakas QC tangkapan layar
+apps/mobile/.qc-web/
+tools/qc-screenshots/shots/

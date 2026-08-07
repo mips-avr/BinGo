@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/theme';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
+import { AppSplash } from '../../src/components/ui/AppSplash';
 import { useAuthStore } from '../../src/store/authStore';
 import { t } from '../../src/i18n';
 
@@ -44,6 +45,9 @@ export default function TabsLayout() {
   const tabBarStyle = useTabBarStyle();
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
+  if (status === 'idle' || status === 'loading') {
+    return <AppSplash />;
+  }
   if (status === 'unauthenticated' || !user) {
     return <Redirect href="/(auth)/login" />;
   }

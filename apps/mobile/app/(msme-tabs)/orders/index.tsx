@@ -1,6 +1,6 @@
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { formatIDR } from '@bingo/shared-utils';
+import { formatIDR, formatWaktuID } from '@bingo/shared-utils';
 import { Card } from '../../../src/components/ui/Card';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
@@ -40,7 +40,7 @@ export default function MsmeOrdersScreen() {
           contentContainerStyle={s.listContent}
           renderItem={({ item }) => (
             <Card style={s.mb12}>
-              <Text style={s.dateText}>{new Date(item.createdAt).toLocaleString('id-ID')}</Text>
+              <Text style={s.dateText}>{formatWaktuID(item.createdAt)}</Text>
               <Text style={s.orderLine}>
                 {item.qty} {t.common.unit} · {formatIDR(item.totalPrice)}
               </Text>

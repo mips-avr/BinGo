@@ -11,10 +11,8 @@ module.exports = function (api) {
   }
 
   return {
-    presets: [
-      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
-      'nativewind/babel',
-    ],
-    // react-native-reanimated/plugin sudah disertakan oleh nativewind/babel
+    presets: ['babel-preset-expo'],
+    // Wajib berada di posisi terakhir.
+    plugins: ['react-native-reanimated/plugin'],
   };
 };

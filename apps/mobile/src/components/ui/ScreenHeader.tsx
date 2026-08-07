@@ -9,12 +9,25 @@ export interface ScreenHeaderProps {
   subtitle?: string;
   canGoBack?: boolean;
   trailing?: React.ReactNode;
+  /**
+   * `onDark` dipakai bila header berdiri di atas pratinjau kamera. Warna teks
+   * gelap default tidak terbaca di sana, dan kecerahan gambar kamera berubah
+   * terus sehingga tidak bisa diandalkan sebagai latar.
+   */
+  tone?: 'default' | 'onDark';
 }
 
-export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: ScreenHeaderProps) {
+export function ScreenHeader({
+  title,
+  subtitle,
+  canGoBack = true,
+  trailing,
+  tone = 'default',
+}: ScreenHeaderProps) {
+  const onDark = tone === 'onDark';
   const router = useRouter();
   return (
-    <View style={headerStyles.container}>
+    <View style={[headerStyles.container, onDark ? headerStyles.containerOnDark : null]}>
       <View style={headerStyles.leading}>
         {canGoBack ? (
           // Kontrol yang paling sering dipakai di aplikasi — 44×44 penuh,
@@ -26,15 +39,22 @@ export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: Sc
             testID="screen-header-back"
             style={({ pressed }) => [headerStyles.backBtn, pressed ? headerStyles.pressed : null]}
           >
-            <Feather name="chevron-left" size={24} color={colors.bingo700} />
+            <Feather name="chevron-left" size={24} color={onDark ? colors.white : colors.bingo700} />
           </Pressable>
         ) : null}
         <View style={headerStyles.titleWrap}>
-          <Text style={headerStyles.title} numberOfLines={1} accessibilityRole="header">
+          <Text
+            style={[headerStyles.title, onDark ? headerStyles.titleOnDark : null]}
+            numberOfLines={1}
+            accessibilityRole="header"
+          >
             {title}
           </Text>
           {subtitle ? (
-            <Text style={headerStyles.subtitle} numberOfLines={1}>
+            <Text
+              style={[headerStyles.subtitle, onDark ? headerStyles.subtitleOnDark : null]}
+              numberOfLines={1}
+            >
               {subtitle}
             </Text>
           ) : null}
@@ -46,6 +66,9 @@ export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: Sc
 }
 
 const headerStyles = StyleSheet.create({
+  containerOnDark: { backgroundColor: colors.overlayDark },
+  titleOnDark: { color: colors.white },
+  subtitleOnDark: { color: colors.whiteAlpha85 },
   container: {
     flexDirection: 'row',
     alignItems: 'center',

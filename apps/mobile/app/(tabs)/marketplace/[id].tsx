@@ -7,12 +7,12 @@ import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useMarketplaceItem } from '../../../src/features/marketplace/hooks';
 import { useAuthStore } from '../../../src/store/authStore';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
+import { ItemImage } from '../../../src/components/marketplace/ItemImage';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { useBottomInset } from '../../../src/hooks/useBottomInset';
 import { colors, radius, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
-const FALLBACK = 'https://placehold.co/800x500/16A34A/FFFFFF?text=BinGo';
 
 export default function MarketplaceItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -51,7 +51,7 @@ export default function MarketplaceItemDetail() {
         style={s.scroll}
         contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}
       >
-        <Image source={{ uri: item.imageUrl ?? FALLBACK }} style={s.image} resizeMode="cover" />
+        <ItemImage uri={item.imageUrl} label={item.itemName} height={200} style={s.image} />
 
         <Card style={s.mt12}>
           <Text style={s.supplierText}>{item.supplierName}</Text>
@@ -100,7 +100,6 @@ const s = StyleSheet.create({
     height: 224,
     width: '100%',
     borderRadius: radius.md,
-    backgroundColor: colors.neutral200,
   },
   mt12: { marginTop: spacing.sm },
   supplierText: typography.overline,

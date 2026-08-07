@@ -66,13 +66,13 @@ export function ReceiptView({ receipt, sellerName, issuerName }: ReceiptViewProp
           <View style={s.partyCol}>
             <Text style={s.partyLabel}>{t.weighing.seller}</Text>
             <Text style={s.partyValue} numberOfLines={2}>
-              {sellerName ?? receipt.sellerId}
+              {sellerName ?? t.weighing.counterpartyUnknown}
             </Text>
           </View>
           <View style={s.partyCol}>
             <Text style={s.partyLabel}>{t.weighing.issuedBy}</Text>
             <Text style={s.partyValue} numberOfLines={2}>
-              {issuerName ?? receipt.issuedById}
+              {issuerName ?? t.weighing.issuerUnknown}
             </Text>
           </View>
         </View>

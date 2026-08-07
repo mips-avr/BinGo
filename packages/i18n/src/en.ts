@@ -446,6 +446,8 @@ export const en: TranslationDict = {
     totalNet: 'Total paid',
     issue: 'Issue receipt',
     issueSuccess: 'Weighing receipt issued.',
+    issuerUnknown: 'Partner staff',
+    counterpartyUnknown: 'Not recorded',
     seller: 'Seller',
     issuedBy: 'Issued by',
     issuedAt: 'Issued at',

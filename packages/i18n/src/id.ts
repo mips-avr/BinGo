@@ -449,6 +449,8 @@ export interface TranslationDict {
     totalNet: string;
     issue: string;
     issueSuccess: string;
+    issuerUnknown: string;
+    counterpartyUnknown: string;
     seller: string;
     issuedBy: string;
     issuedAt: string;
@@ -731,7 +733,7 @@ export const id: TranslationDict = {
   },
   agent: {
     tabs: {
-      home: 'Dashboard',
+      home: 'Beranda',
       nearby: 'Terdekat',
       jobs: 'Pekerjaan',
       reports: 'Laporan',
@@ -968,6 +970,8 @@ export const id: TranslationDict = {
     totalNet: 'Total dibayar',
     issue: 'Terbitkan bukti',
     issueSuccess: 'Bukti timbang berhasil diterbitkan.',
+    issuerUnknown: 'Petugas mitra',
+    counterpartyUnknown: 'Tidak tercatat',
     seller: 'Penyetor',
     issuedBy: 'Diterbitkan oleh',
     issuedAt: 'Waktu terbit',

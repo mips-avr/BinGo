@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../src/theme';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
 import { AgentLocationProvider } from '../../src/hooks/useAgentLocation';
+import { AppSplash } from '../../src/components/ui/AppSplash';
 import { useAuthStore } from '../../src/store/authStore';
 import { t } from '../../src/i18n';
 
@@ -41,6 +42,9 @@ export default function AgentTabsLayout() {
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
 
+  if (status === 'idle' || status === 'loading') {
+    return <AppSplash />;
+  }
   if (status === 'unauthenticated' || !user) {
     return <Redirect href="/(auth)/login" />;
   }
@@ -91,13 +95,9 @@ export default function AgentTabsLayout() {
             tabBarIcon: ({ focused }) => <Icon name="prices" focused={focused} />,
           }}
         />
-        <Tabs.Screen
-          name="reports"
-          options={{
-            title: t.agent.tabs.reports,
-            tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
-          }}
-        />
+        {/* Lima tab adalah batas nyaman untuk satu ibu jari; antrean laporan
+            dibuka dari kartu ringkasan di Dashboard. */}
+        <Tabs.Screen name="reports" options={{ href: null }} />
         {/* Stack bukti timbang tidak punya tombol tab sendiri — dibuka dari
             detail pekerjaan dan dari dashboard. */}
         <Tabs.Screen name="receipts" options={{ href: null }} />

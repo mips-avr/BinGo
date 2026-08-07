@@ -14,6 +14,7 @@ interface CartState {
   clear: () => void;
   totalAmount: () => number;
   itemCount: () => number;
+  unitCount: () => number;
   toCheckoutItems: () => { itemId: string; qty: number }[];
 }
 
@@ -63,7 +64,18 @@ export const useCartStore = create<CartState>((set, get) => ({
     return Object.values(get().lines).reduce((sum, l) => sum + l.item.price * l.qty, 0);
   },
 
+  /**
+   * Jumlah produk berbeda di keranjang, bukan jumlah unit.
+   *
+   * Sebelumnya ini menjumlahkan `qty`, sehingga satu produk pada kuantitas
+   * minimum 500 membuat lencana tab berbunyi "99+" seolah ada ratusan barang.
+   */
   itemCount() {
+    return Object.keys(get().lines).length;
+  },
+
+  /** Total unit lintas produk — dipakai ringkasan, bukan lencana. */
+  unitCount() {
     return Object.values(get().lines).reduce((sum, l) => sum + l.qty, 0);
   },
 

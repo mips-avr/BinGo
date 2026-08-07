@@ -7,6 +7,7 @@ import { Button } from '../../../src/components/ui/Button';
 import { Card } from '../../../src/components/ui/Card';
 import { Input } from '../../../src/components/ui/Input';
 import { KeyboardAvoider } from '../../../src/components/ui/KeyboardAvoider';
+import { ItemImage } from '../../../src/components/marketplace/ItemImage';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useBottomInset } from '../../../src/hooks/useBottomInset';
@@ -16,7 +17,6 @@ import { extractApiErrorMessage } from '../../../src/lib/api/client';
 import { colors, radius, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
-const FALLBACK = 'https://placehold.co/800x500/16A34A/FFFFFF?text=BinGo';
 
 export default function MsmeMarketplaceItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -83,7 +83,7 @@ export default function MsmeMarketplaceItemDetail() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <Image source={{ uri: item.imageUrl ?? FALLBACK }} style={s.image} resizeMode="cover" />
+          <ItemImage uri={item.imageUrl} label={item.itemName} height={200} style={s.image} />
 
           <Card style={s.mt12}>
             <Text style={s.priceText} numberOfLines={1}>
@@ -136,7 +136,6 @@ const s = StyleSheet.create({
     height: 224,
     width: '100%',
     borderRadius: radius.md,
-    backgroundColor: colors.neutral200,
   },
   mt12: { marginTop: spacing.sm },
   priceText: { ...typography.numeric, fontSize: 24, color: colors.bingo700 },

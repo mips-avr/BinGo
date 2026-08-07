@@ -1,11 +1,10 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { MarketplaceItemDto } from '@bingo/shared-types';
 import { formatIDR } from '@bingo/shared-utils';
 import { Card } from '../ui/Card';
+import { ItemImage } from './ItemImage';
 import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
-
-const FALLBACK = 'https://placehold.co/600x400/16A34A/FFFFFF?text=BinGo';
 
 export function ItemCard({ item, onPress }: { item: MarketplaceItemDto; onPress?: () => void }) {
   return (
@@ -16,7 +15,7 @@ export function ItemCard({ item, onPress }: { item: MarketplaceItemDto; onPress?
       accessibilityLabel={`${item.itemName}, ${item.supplierName}, ${formatIDR(item.price)}`}
       testID={`item-${item.id}`}
     >
-      <Image source={{ uri: item.imageUrl ?? FALLBACK }} style={cardS.image} resizeMode="cover" />
+      <ItemImage uri={item.imageUrl} label={item.itemName} height={144} />
       <View style={cardS.body}>
         <Text style={cardS.supplier}>{item.supplierName}</Text>
         <Text style={cardS.name} numberOfLines={2}>
