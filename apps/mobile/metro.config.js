@@ -3,16 +3,17 @@ const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
 const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, '../..');
 
+/**
+ * Tidak ada `watchFolders`, `nodeModulesPaths`, `unstable_enableSymlinks`, atau
+ * `disableHierarchicalLookup` di sini, dan itu disengaja.
+ *
+ * Sejak SDK 52 `expo/metro-config` mengenali monorepo sendiri dan menyetel
+ * ketiganya dengan benar. Menyetelnya manual justru menabrak resolusi pnpm yang
+ * memakai symlink: `disableHierarchicalLookup` melarang Metro menelusuri ke
+ * direktori induk, sehingga paket yang di-symlink dari `.pnpm` tidak ketemu.
+ */
 const config = getDefaultConfig(projectRoot);
-
-config.watchFolders = [monorepoRoot];
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(monorepoRoot, 'node_modules'),
-];
-config.resolver.unstable_enableSymlinks = true;
 
 /**
  * Bundling web hanya dipakai oleh perkakas QC tangkapan layar

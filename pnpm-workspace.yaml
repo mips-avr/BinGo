@@ -4,9 +4,11 @@ packages:
 
 # Sejak pnpm 10, setelan berikut tidak lagi dibaca dari field "pnpm" di
 # package.json dan harus berada di berkas ini. Lihat https://pnpm.io/settings
-
-overrides:
-  metro: 0.80.12
+#
+# Dulu ada `overrides: metro: 0.80.12` di sini untuk SDK 51. Override itu DIHAPUS:
+# Expo SDK 54 memakai `@expo/metro` yang menuntut Metro 0.83.x, dan memaksa 0.80.12
+# membuat bundler gagal dengan "Cannot find module 'metro/private/lib/isResolvedDependency'".
+# Jangan pin Metro secara manual — biarkan versi Expo yang menentukan.
 
 # Paket yang boleh menjalankan skrip build native. Tanpa daftar ini pnpm 10
 # memblokir skrip build, sehingga bcrypt dan Prisma engine tidak terpasang dan
