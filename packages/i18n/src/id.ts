@@ -41,6 +41,7 @@ export interface TranslationDict {
     register: string;
     logout: string;
     phone: string;
+    phoneViaCard: string;
     password: string;
     name: string;
     /**
@@ -525,6 +526,96 @@ export interface TranslationDict {
       negativeSubtotal: string;
     };
   };
+  /** Langkah lanjutan setelah TrashScan mengenali material. */
+  scanNext: {
+    ingubTitle: string;
+    ingubSource: string;
+    priceTitle: string;
+    priceNeedsLocation: string;
+    priceNeedsLocationDenied: string;
+    priceRegionNote: string;
+    priceInsufficient: string;
+    priceSample: string;
+    priceDisclaimer: string;
+    priceGradeWarning: string;
+    dropNeedsLocation: string;
+  };
+  /** Kartu Mitra — identitas fisik bagi penyetor yang tidak punya ponsel. */
+  card: {
+    title: string;
+    subtitle: string;
+    issueTitle: string;
+    issueCta: string;
+    holderName: string;
+    holderNamePlaceholder: string;
+    holderPhone: string;
+    holderPhoneOptional: string;
+    holderPhoneHelp: string;
+    region: string;
+    note: string;
+    tapToRead: string;
+    tapPrompt: string;
+    tapCancel: string;
+    reading: string;
+    readOk: string;
+    uidLabel: string;
+    uidPending: string;
+    manualEntry: string;
+    manualEntryHint: string;
+    cardNumber: string;
+    cardNumberPlaceholder: string;
+    lookupCta: string;
+    lookupTitle: string;
+    holder: string;
+    issuedBy: string;
+    issuedAt: string;
+    lastUsed: string;
+    neverUsed: string;
+    receiptCount: string;
+    totalWeight: string;
+    totalNet: string;
+    statusActive: string;
+    statusSuspended: string;
+    statusLost: string;
+    markLost: string;
+    reactivate: string;
+    claimed: string;
+    unclaimed: string;
+    unclaimedHelp: string;
+    listTitle: string;
+    listEmpty: string;
+    listEmptyHint: string;
+    useForReceipt: string;
+    nfcUnavailable: string;
+    nfcUnavailableHelp: string;
+    nfcDisabled: string;
+    printHint: string;
+    whyNoKtp: string;
+  };
+  /** Titik setor — direktori terkurasi, termasuk operator selain BinGo. */
+  dropPoint: {
+    title: string;
+    nearbyTitle: string;
+    empty: string;
+    emptyHint: string;
+    distanceKm: string;
+    distanceM: string;
+    accepts: string;
+    minWeight: string;
+    noMinWeight: string;
+    rewardCash: string;
+    rewardPoints: string;
+    rewardNone: string;
+    openExternal: string;
+    externalWarning: string;
+    verifiedAt: string;
+    source: string;
+    disclaimer: string;
+    operatorNotice: string;
+    loadError: string;
+    useLocation: string;
+    locating: string;
+  };
 }
 
 export const id: TranslationDict = {
@@ -563,6 +654,7 @@ export const id: TranslationDict = {
     register: 'Daftar',
     logout: 'Keluar',
     phone: 'Nomor Telepon',
+    phoneViaCard: 'Belum ada — akun lewat Kartu Mitra',
     password: 'Kata Sandi',
     name: 'Nama Lengkap',
     noIdNumberNotice:
@@ -1052,5 +1144,105 @@ export const id: TranslationDict = {
       deductionReasonRequired: 'Potongan wajib diberi alasan',
       negativeSubtotal: 'Potongan membuat pembayaran menjadi negatif',
     },
+  },
+  scanNext: {
+    ingubTitle: 'Kategori pilah wajib',
+    ingubSource:
+      'Instruksi Gubernur DKI Jakarta No. 5 Tahun 2026 — warga Jakarta wajib memilah empat kategori sejak 10 Mei 2026.',
+    priceTitle: 'Perkiraan harga',
+    priceNeedsLocation: 'Harga berbeda antarwilayah. Izinkan lokasi untuk melihat harga di sekitarmu.',
+    priceNeedsLocationDenied:
+      'Lokasi tidak diizinkan. Harga tetap bisa dilihat di tab Harga dengan mengetik nama wilayah.',
+    priceRegionNote: 'Dari bukti timbang di {region}, 7 hari terakhir.',
+    priceInsufficient:
+      'Belum cukup bukti timbang di {region} untuk material ini. Angka hanya ditampilkan setelah ada cukup data dari beberapa mitra berbeda.',
+    priceSample: '{samples} bukti · {partners} mitra',
+    priceDisclaimer:
+      'Rentang dari transaksi nyata, bukan tarif yang ditetapkan BinGo. Harga akhir tetap kesepakatanmu dengan penerima.',
+    priceGradeWarning:
+      'Satu jenis bisa masuk beberapa grade dengan harga jauh berbeda — bening dan berwarna misalnya. Kondisi barang menentukan grade akhirnya.',
+    dropNeedsLocation: 'Izinkan lokasi untuk melihat titik setor terdekat.',
+  },
+  card: {
+    title: 'Kartu Mitra',
+    subtitle:
+      'Untuk penyetor yang belum punya ponsel. Kartu ini adalah akunnya — riwayat timbang dan tingkat verifikasinya sama seperti pengguna beraplikasi.',
+    issueTitle: 'Terbitkan kartu baru',
+    issueCta: 'Terbitkan kartu',
+    holderName: 'Nama pemegang',
+    holderNamePlaceholder: 'Nama panggilan sehari-hari sudah cukup',
+    holderPhone: 'Nomor telepon',
+    holderPhoneOptional: 'Nomor telepon (boleh dikosongkan)',
+    holderPhoneHelp:
+      'Kosongkan bila belum punya. Nomor bisa ditambahkan kapan saja, dan riwayatnya tetap ikut.',
+    region: 'Wilayah',
+    note: 'Catatan',
+    tapToRead: 'Tempelkan kartu',
+    tapPrompt: 'Dekatkan kartu ke bagian belakang ponsel',
+    tapCancel: 'Batal membaca',
+    reading: 'Membaca kartu…',
+    readOk: 'Kartu terbaca',
+    uidLabel: 'Chip',
+    uidPending: 'Belum dipasangkan',
+    manualEntry: 'Ketik nomor kartu',
+    manualEntryHint:
+      'Dipakai bila chip tidak terbaca atau ponsel tidak mendukung NFC. Nomornya tercetak di kartu.',
+    cardNumber: 'Nomor kartu',
+    cardNumberPlaceholder: 'BG-XXXX-XXXX',
+    lookupCta: 'Cari pemegang',
+    lookupTitle: 'Pemegang kartu',
+    holder: 'Pemegang',
+    issuedBy: 'Diterbitkan oleh',
+    issuedAt: 'Tanggal terbit',
+    lastUsed: 'Terakhir dipakai',
+    neverUsed: 'Belum pernah dipakai',
+    receiptCount: 'Bukti timbang',
+    totalWeight: 'Total berat',
+    totalNet: 'Total diterima',
+    statusActive: 'Aktif',
+    statusSuspended: 'Dibekukan',
+    statusLost: 'Dilaporkan hilang',
+    markLost: 'Laporkan hilang',
+    reactivate: 'Aktifkan kembali',
+    claimed: 'Sudah diklaim pemegang',
+    unclaimed: 'Belum diklaim',
+    unclaimedHelp:
+      'Pemegang belum masuk lewat ponsel sendiri. Kartu tetap berlaku; akun yang sama bisa diklaim kapan pun.',
+    listTitle: 'Kartu yang Anda terbitkan',
+    listEmpty: 'Belum ada kartu diterbitkan',
+    listEmptyHint:
+      'Terbitkan kartu untuk penyetor yang rutin datang tetapi tidak punya ponsel, supaya setorannya tercatat atas namanya sendiri.',
+    useForReceipt: 'Pakai untuk bukti timbang',
+    nfcUnavailable: 'Ponsel ini tidak mendukung NFC',
+    nfcUnavailableHelp:
+      'Nomor kartu tetap bisa diketik manual, dan hasilnya sama persis. Tidak ada fitur yang hilang.',
+    nfcDisabled: 'NFC sedang mati. Nyalakan lewat pengaturan ponsel.',
+    printHint: 'Nomor ini harus ikut tercetak di kartu.',
+    whyNoKtp:
+      'KTP tidak diminta. Banyak pemulung bekerja jauh dari alamat KTP-nya, dan mensyaratkannya justru menolak orang yang paling membutuhkan kartu ini. Penjaminnya adalah Anda, mitra penerbit.',
+  },
+  dropPoint: {
+    title: 'Titik setor',
+    nearbyTitle: 'Titik setor terdekat',
+    empty: 'Belum ada titik setor terdata di sekitar sini',
+    emptyHint: 'Coba perluas radius, atau cari berdasarkan wilayah.',
+    distanceKm: '{value} km',
+    distanceM: '{value} m',
+    accepts: 'Menerima',
+    minWeight: 'Minimum {value} kg',
+    noMinWeight: 'Tanpa berat minimum',
+    rewardCash: 'Dibayar tunai',
+    rewardPoints: 'Poin platform',
+    rewardNone: 'Tanpa imbalan',
+    openExternal: 'Buka layanan',
+    externalWarning: 'Membuka layanan pihak ketiga di luar BinGo.',
+    verifiedAt: 'Diperiksa {date}',
+    source: 'Sumber',
+    disclaimer:
+      'Disusun dari sumber publik. BinGo tidak berafiliasi dengan operator titik ini dan tidak menjamin ketersediaannya saat Anda datang.',
+    operatorNotice: 'Dioperasikan {operator}',
+    loadError: 'Gagal memuat titik setor',
+    useLocation: 'Pakai lokasi saya',
+    locating: 'Mencari lokasi…',
   },
 };

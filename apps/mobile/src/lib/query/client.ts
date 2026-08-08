@@ -65,5 +65,15 @@ export const queryKeys = {
       ['weighing', 'price-board', region, windowDays, grade] as const,
     regions: ['weighing', 'regions'] as const,
   },
+  dropPoints: {
+    /** Koordinat WAJIB sudah dikuantisasi pemanggil, sama seperti radar. */
+    nearby: (lat: number, lng: number, radiusKm: number, material: string | null) =>
+      ['drop-points', 'nearby', lat, lng, radiusKm, material] as const,
+    byRegion: (region: string, material: string | null) =>
+      ['drop-points', 'region', region, material] as const,
+  },
+  memberCards: {
+    issued: ['member-cards', 'issued'] as const,
+  },
   me: ['auth', 'me'] as const,
 };

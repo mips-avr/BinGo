@@ -136,9 +136,17 @@ model User {
   id            String   @id @default(uuid())
   name          String   @db.VarChar(120)
   /// Nomor telepon dalam format E.164 (+62…). Identitas login utama.
-  phone         String   @unique @db.VarChar(20)
+  ///
+  /// NULLABLE sejak migrasi kartu mitra. Akun yang diterbitkan lewat Kartu
+  /// Mitra memang belum punya nomor: itulah justru alasan kartunya ada.
+  /// Postgres mengizinkan banyak NULL pada kolom unique, jadi keunikan nomor
+  /// tetap terjaga untuk akun yang memilikinya.
+  phone         String?  @unique @db.VarChar(20)
   role          UserRole
-  passwordHash  String   @map("password_hash")
+  /// NULL berarti akun ini belum bisa masuk dengan kata sandi — ia hanya
+  /// bertransaksi lewat kartu yang ditempel di konter mitra. Begitu pemegangnya
+  /// punya ponsel, ia mengklaim akun yang sama beserta seluruh riwayatnya.
+  passwordHash  String?  @map("password_hash")
   pointsBalance Int      @default(0) @map("points_balance")
 
   /// Tingkat verifikasi berjenjang pemulung: 0 Terdaftar, 1 Dijamin Mitra,
@@ -172,6 +180,9 @@ model User {
   verificationEvents      AgentVerificationEvent[] @relation("VerificationEventActor")
   endorsementsReceived    AgentEndorsement[]       @relation("EndorsementsReceived")
   endorsementsGiven       AgentEndorsement[]       @relation("EndorsementsGiven")
+
+  memberCard              MemberCard?              @relation("CardHolder")
+  memberCardsIssued       MemberCard[]             @relation("CardIssuer")
 
   @@index([role])
   @@map("users")
@@ -472,4 +483,116 @@ model Transaction {
   @@index([itemId])
   @@index([status])
   @@map("transactions")
+}
+
+// ---------------------- Titik setor & Kartu Mitra ----------------------
+
+/// Siapa yang mengoperasikan sebuah titik setor.
+///
+/// Enum ini menyatakan OPERATOR, bukan mitra. BinGo tidak punya perjanjian
+/// dengan Rekosistem, Plasticpay, maupun DLH DKI; entri milik mereka disusun
+/// dari sumber publik dan wajib membawa `source_url` serta `verified_at`.
+enum DropPointOperator {
+  BINGO_MITRA
+  BANK_SAMPAH_DKI
+  REKOSISTEM
+  PLASTICPAY
+  DLH_DKI_EWASTE
+  LAINNYA
+}
+
+/// Apa yang diterima penyetor. Selisih antara tunai dan poin sangat berarti
+/// bagi pemulung, jadi dibedakan dan ditampilkan apa adanya.
+enum DropPointReward {
+  TUNAI
+  POIN
+  TIDAK_ADA
+}
+
+enum MemberCardStatus {
+  AKTIF
+  DIBEKUKAN
+  HILANG
+}
+
+/// Titik setor sampah, milik mitra BinGo maupun operator lain.
+///
+/// Direktori seperti ini sudah ada di tempat lain (Peta Minim Sampah,
+/// e-Bank Sampah Jakarta, BPS-RW), jadi keberadaannya bukan kebaruan dan tidak
+/// boleh diklaim begitu. Yang membedakan tabel ini hanya dua kolom terakhir:
+/// setiap entri menyebutkan sumbernya dan tanggal terakhir diperiksa manusia,
+/// dan keduanya ditampilkan ke pengguna — termasuk ketika sudah lama.
+model DropPoint {
+  id                String                                @id @default(uuid())
+  name              String                                @db.VarChar(160)
+  operator          DropPointOperator
+  /// Nama operator sebagaimana ditulis sumbernya, bila berbeda dari label enum.
+  operatorName      String?                               @map("operator_name") @db.VarChar(160)
+  address           String                                @db.VarChar(255)
+  lat               Float
+  lng               Float
+  /// Kolom PostGIS — diisi lewat raw SQL, seperti PickupRequest dan Report.
+  location          Unsupported("geometry(Point, 4326)")?
+  /// Material yang diterima. Array enum, bukan tabel pivot: daftarnya pendek,
+  /// jarang berubah, dan selalu dibaca utuh.
+  acceptedMaterials MaterialType[]                        @map("accepted_materials")
+  reward            DropPointReward
+  /// Berat minimum agar setoran diterima. Ambang inilah yang menyingkirkan
+  /// setoran harian pemulung yang kecil dan campur — dan itulah sebabnya kolom
+  /// ini ada dan ditampilkan, bukan disembunyikan.
+  minWeightKg       Decimal?                              @map("min_weight_kg") @db.Decimal(6, 2)
+  openingNote       String?                               @map("opening_note") @db.VarChar(255)
+  externalUrl       String?                               @map("external_url") @db.VarChar(500)
+  sourceUrl         String                                @map("source_url") @db.VarChar(500)
+  verifiedAt        DateTime                              @map("verified_at")
+  note              String?                               @db.VarChar(500)
+  region            String                                @db.VarChar(120)
+  regionKey         String                                @map("region_key") @db.VarChar(140)
+  active            Boolean                               @default(true)
+  createdAt         DateTime                              @default(now()) @map("created_at")
+  updatedAt         DateTime                              @updatedAt @map("updated_at")
+
+  @@index([regionKey])
+  @@index([operator])
+  @@index([active])
+  @@map("drop_points")
+}
+
+/// Kartu Mitra — identitas fisik bagi penyetor yang tidak punya ponsel.
+///
+/// Kartu ini BUKAN akun bayangan. `holderId` menunjuk `User` sungguhan dengan
+/// riwayat bukti timbang dan tingkat verifikasi yang sama seperti pengguna
+/// beraplikasi; yang berbeda hanya cara mengaksesnya. Ketika pemegangnya kelak
+/// punya ponsel, ia mengklaim akun yang sama dan seluruh riwayatnya ikut.
+///
+/// Penerbitan sengaja TIDAK mensyaratkan KTP. Kajian Fair Circularity
+/// Initiative 2025 mendokumentasikan pemulung tersingkir dari jaminan sosial
+/// justru karena KTP tidak ada atau alamatnya tidak cocok akibat mobilitas
+/// kerja. Penjaminnya adalah bank sampah penerbit, lewat AgentVerification yang
+/// sudah ada — bukan dokumen negara.
+model MemberCard {
+  id         String           @id @default(uuid())
+  /// Nomor tercetak di kartu, format BG-XXXX-XXXX. Jalur cadangan ketika NFC
+  /// gagal dibaca — dan itu akan sering terjadi di konter yang sibuk.
+  cardNumber String           @unique @map("card_number") @db.VarChar(16)
+  /// UID chip NFC, heksadesimal tanpa pemisah. Nullable karena kartu boleh
+  /// diterbitkan lebih dulu lalu dipasangkan ke chip belakangan.
+  cardUid    String?          @unique @map("card_uid") @db.VarChar(32)
+  holderId   String           @unique @map("holder_id")
+  issuedById String           @map("issued_by_id")
+  status     MemberCardStatus @default(AKTIF)
+  region     String           @db.VarChar(120)
+  regionKey  String           @map("region_key") @db.VarChar(140)
+  note       String?          @db.VarChar(500)
+  issuedAt   DateTime         @default(now()) @map("issued_at")
+  lastUsedAt DateTime?        @map("last_used_at")
+  updatedAt  DateTime         @updatedAt @map("updated_at")
+
+  holder   User @relation("CardHolder", fields: [holderId], references: [id], onDelete: Cascade)
+  issuedBy User @relation("CardIssuer", fields: [issuedById], references: [id], onDelete: Cascade)
+
+  @@index([regionKey])
+  @@index([issuedById])
+  @@index([status])
+  @@map("member_cards")
 }

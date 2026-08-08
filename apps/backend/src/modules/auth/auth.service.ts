@@ -48,6 +48,18 @@ export class AuthService {
       throw new UnauthorizedException('Nomor telepon atau kata sandi salah');
     }
 
+    // Akun terbitan Kartu Mitra belum punya kata sandi. Pesannya dibedakan di
+    // sini — dan hanya di sini — karena nomornya sudah terbukti milik seseorang
+    // yang memang terdaftar, jadi tidak ada keberadaan akun yang dibocorkan;
+    // yang dicegah justru orang terjebak mengira sandinya yang salah padahal ia
+    // belum pernah punya sandi sama sekali.
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'Akun ini dibuat lewat Kartu Mitra dan belum punya kata sandi. ' +
+          'Minta mitra penerbit kartu untuk membantu mengaktifkannya.',
+      );
+    }
+
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('Nomor telepon atau kata sandi salah');

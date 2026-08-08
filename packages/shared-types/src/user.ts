@@ -43,7 +43,12 @@ export type VerificationLevel = (typeof VerificationLevel)[keyof typeof Verifica
 export interface UserProfile {
   id: string;
   name: string;
-  phone: string;
+  /**
+   * `null` untuk akun yang diterbitkan lewat Kartu Mitra. Akun seperti itu
+   * memang belum punya nomor — justru itulah alasan kartunya ada. Nomor terisi
+   * ketika pemegangnya mengklaim akunnya dari ponsel sendiri.
+   */
+  phone: string | null;
   role: UserRole;
   pointsBalance: number;
   /**

@@ -17,6 +17,8 @@
  * Idempoten — aman dijalankan ulang (cek by phone/itemName/imageUrl/nomor bukti).
  */
 import { config as loadDotEnv } from 'dotenv';
+
+import { seedDropPoints } from './seed-drop-points';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
@@ -999,6 +1001,8 @@ const round6 = (value: number): number => Math.round(value * 1e6) / 1e6;
 async function main(): Promise<void> {
   log('🌱 Memulai seeding BinGo MVP demo...\n');
 
+  await seedDropPoints(prisma, log);
+
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, BCRYPT_ROUNDS);
 
   // --- Users ---
@@ -1371,7 +1375,7 @@ async function seedAgentVerifications(userId: (phone: string) => string): Promis
         attestorId: attestor.id,
         attestorType: attestor.partnerType,
         attestorName: attestor.partnerName,
-        attestorPhone: attestor.phone,
+        attestorPhone: attestor.phone ?? '-',
         attestorKey,
         status: a.status,
         requestedAt,

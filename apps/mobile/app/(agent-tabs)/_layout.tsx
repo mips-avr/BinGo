@@ -98,6 +98,9 @@ export default function AgentTabsLayout() {
         {/* Lima tab adalah batas nyaman untuk satu ibu jari; antrean laporan
             dibuka dari kartu ringkasan di Dashboard. */}
         <Tabs.Screen name="reports" options={{ href: null }} />
+        {/* Konter Kartu Mitra. Bukan tab: batas lima tab terlihat sudah penuh,
+            dan hanya operator mitra yang memakainya. Dibuka dari Beranda. */}
+        <Tabs.Screen name="cards" options={{ href: null }} />
         {/* Stack bukti timbang tidak punya tombol tab sendiri — dibuka dari
             detail pekerjaan dan dari dashboard. */}
         <Tabs.Screen name="receipts" options={{ href: null }} />

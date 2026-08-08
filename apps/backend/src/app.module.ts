@@ -15,6 +15,8 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
 import { WeighingReceiptsModule } from './modules/weighing-receipts/weighing-receipts.module';
+import { DropPointsModule } from './modules/drop-points/drop-points.module';
+import { MemberCardsModule } from './modules/member-cards/member-cards.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -51,6 +53,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     MarketplaceModule,
     UploadsModule,
     WeighingReceiptsModule,
+    DropPointsModule,
+    MemberCardsModule,
   ],
   providers: [
     // ThrottlerGuard didaftarkan PALING AWAL supaya permintaan yang melewati

@@ -7,6 +7,7 @@ import { MaterialType } from '@bingo/shared-types';
 import type { ScanResult, ScanSource } from '../../../src/features/scanner';
 import { selectMaterialManually } from '../../../src/features/scanner';
 import { MaterialPicker } from '../../../src/components/pickups/MaterialPicker';
+import { ScanNextSteps } from '../../../src/components/scanner/ScanNextSteps';
 import { Button } from '../../../src/components/ui/Button';
 import { Card } from '../../../src/components/ui/Card';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
@@ -140,6 +141,16 @@ export default function ScanResultScreen() {
             <Text style={s.heldText}>{t.scanner.disposalHeld}</Text>
           </Card>
         )}
+
+        {/*
+          ── Berapa nilainya, dan ke mana dibawa ──
+
+          Hanya muncul ketika hasilnya meyakinkan. Menampilkan harga di bawah
+          tebakan yang belum pasti akan membuat angkanya terbaca sebagai janji,
+          dan orang berangkat membawa barangnya berdasarkan dugaan yang salah.
+          Ini aturan yang sama seperti penahanan tip pembuangan di atas.
+        */}
+        {result.confident ? <ScanNextSteps materialType={result.materialType} /> : null}
 
         {/* ── Koreksi manual ── */}
         {picking ? (

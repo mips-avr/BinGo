@@ -48,6 +48,18 @@ export const ENDPOINTS = {
     regions: '/api/v1/weighing-receipts/regions',
     byId: (id: string) => `/api/v1/weighing-receipts/${id}`,
   },
+  dropPoints: {
+    /** Publik — alasannya sama seperti papan harga: paling dibutuhkan justru
+     *  oleh orang yang baru memindai dan belum punya akun. */
+    nearby: '/api/v1/drop-points/nearby',
+    byRegion: '/api/v1/drop-points',
+  },
+  memberCards: {
+    root: '/api/v1/member-cards',
+    lookup: '/api/v1/member-cards/lookup',
+    status: (id: string) => `/api/v1/member-cards/${id}/status`,
+    uid: (id: string) => `/api/v1/member-cards/${id}/uid`,
+  },
   uploads: {
     image: '/api/v1/uploads/image',
   },

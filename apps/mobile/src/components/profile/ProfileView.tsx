@@ -80,7 +80,7 @@ export function ProfileView({ footer }: ProfileViewProps) {
         <Text style={profileS.sectionLabel}>{t.profile.accountInfo}</Text>
         <View style={profileS.rowsWrap}>
           <Row label={t.auth.name} value={user.name} />
-          <Row label={t.auth.phone} value={user.phone} />
+          <Row label={t.auth.phone} value={user.phone ?? t.auth.phoneViaCard} />
         </View>
         {/* Tidak ada baris NIK, dan itu dinyatakan, bukan sekadar dihilangkan
             diam-diam: pengguna berhak tahu data apa yang tidak dipegang. */}

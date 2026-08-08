@@ -6,4 +6,6 @@ export * from './report';
 export * from './marketplace';
 export * from './weighing';
 export * from './region';
+export * from './drop-point';
+export * from './member-card';
 export * from './common';

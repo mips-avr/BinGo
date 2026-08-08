@@ -175,7 +175,7 @@ export class AgentVerificationsService {
         attestorId: attestor.id,
         attestorType: attestor.partnerType,
         attestorName: attestor.partnerName,
-        attestorPhone: attestor.phone,
+        attestorPhone,
         attestorKey,
         status: AgentVerificationStatus.MENUNGGU,
         note: dto.note ?? null,
