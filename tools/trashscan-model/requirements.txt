@@ -1,5 +1,12 @@
-# CPU sudah cukup untuk 2.527 citra dengan transfer learning.
+# CPU cukup untuk ~17 ribu citra dengan transfer learning, meski GPU jauh lebih cepat.
+# Di Colab, tensorflow sudah terpasang — cukup pasang sisanya.
 tensorflow-cpu==2.20.0
 scikit-learn>=1.4
 pillow>=10.0
 numpy>=1.26
+matplotlib>=3.8
+
+# Pengunduhan dataset
+kaggle>=1.6            # Drinking Waste Classification
+huggingface_hub>=0.23  # TrashNet
+requests>=2.31         # RealWaste (UCI)

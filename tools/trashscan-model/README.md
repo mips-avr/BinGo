@@ -1,91 +1,104 @@
 # Model klasifikasi TrashScan
 
-Pipeline untuk melatih pengklasifikasi kemasan on-device dan melaporkan angkanya
-dengan cara yang tahan ditanyai juri.
+Pipeline untuk melatih pengklasifikasi kemasan on-device dari **dataset publik
+berlisensi jelas**, lalu melaporkan angkanya dengan cara yang tahan ditanyai
+juri.
 
 ## Baca ini dulu
 
-Model dari dataset publik mengeluarkan **6 kelas generik** — cardboard, glass,
-metal, paper, plastic, trash. Papan harga BinGo bekerja pada **18 grade**, dan
-harga PP gelas bening berbeda dari PP gelas warna. Artinya model ini membantu
-tahap identifikasi kasar, **bukan** penentuan grade yang menentukan harga.
+Taksonomi di sini dua lapis, dan pemisahan itu yang paling penting dipahami:
 
-Konsekuensinya untuk cara bicara: kode resin tetap jalur utama karena ia fakta,
-bukan tebakan. Model adalah tahap dua ketika kode tidak terlihat. Jangan
-menyebut modelnya sebagai penentu harga — ia bukan, dan juri akan menemukan itu
-dalam satu pertanyaan.
+- **Lapis material — 8 kelas.** Bisa dicapai dari dataset publik. Inilah yang
+  dilatih.
+- **Lapis grade — 18 kelas.** Menentukan harga di papan harga BinGo. Dari 18,
+  hanya **3** yang bisa diturunkan dari data publik tanpa menebak
+  (`LOGAM_KALENG`, `KERTAS_KARDUS`, `KACA_BELING`).
 
-Kalau nanti mau mengangkat kebaruan lewat model, yang bernilai bukan
-arsitekturnya melainkan **datasetnya**: foto material per-grade sebagaimana
-dipakai lapak Indonesia belum ada di publik mana pun. 30–50 foto per grade sudah
-cukup untuk mulai, dan pengumpulannya bisa digabung dengan wawancara pemulung
-yang memang diminta juri.
+Selisih harga terbesar justru ada pada pembedaan yang tidak dilabeli dataset
+mana pun: PET bening versus berwarna, koran versus arsip versus duplex, tembaga
+versus besi. Artinya model ini **asisten identifikasi kasar, bukan penentu
+harga**. Kode resin tetap jalur utama karena ia fakta, bukan tebakan; model
+adalah tahap dua ketika kode tidak terlihat.
 
-## Menyiapkan dataset
+Rincian lengkap pemilihan dataset, lisensi, dan pemetaan label: **[`DATASETS.md`](DATASETS.md)**.
+
+## Cara menjalankan
+
+### Colab — jalur yang disarankan
+
+Buka `train_trashscan.ipynb` di Google Colab, pilih runtime GPU, lalu Run all.
+Notebook mengambil `label_map.py` dan `prepare_dataset.py` sendiri dari
+repositori, jadi tidak perlu menyalin apa pun.
+
+Sel pertama punya saklar `SMOKE`. `SMOKE = True` menjalankan seluruh notebook di
+atas citra sintetis dalam beberapa menit tanpa mengunduh apa pun — dipakai untuk
+memastikan notebooknya jalan sebelum menunggu unduhan 17 ribu citra. Angka yang
+keluar dalam mode ini acak dan tidak boleh dikutip.
+
+### Lokal
 
 ```bash
 pip install -r requirements.txt
-
-# TrashNet — 2.527 citra, 6 kelas (Thung & Yang, CS229 Stanford 2016)
-pip install huggingface_hub
-python -c "
-from huggingface_hub import snapshot_download
-snapshot_download('garythung/trashnet', repo_type='dataset', local_dir='data/trashnet')
-"
+python prepare_dataset.py --out data/unified                     # ketiga sumber
+python prepare_dataset.py --out data/unified --dry-run           # lihat rencana saja
+python prepare_dataset.py --out data/unified --sources trashnet realwaste
 ```
 
-Susun jadi satu folder per kelas:
+`prepare_dataset.py` mengunduh, menyatukan label, membuang duplikat lintas-sumber
+dengan difference hash, lalu menulis `manifest.csv`, `summary.json`, dan
+`ATTRIBUTION.md`. **Jangan hapus berkas atribusi** — RealWaste berlisensi CC BY
+4.0 yang mensyaratkan penyebutan sumber.
 
-```
-data/trashnet/
-  cardboard/  glass/  metal/  paper/  plastic/  trash/
-```
+Satu dari tiga sumber (Drinking Waste) perlu akun Kaggle gratis. Token diambil
+dari kaggle.com → Settings → API → Create New Token, disimpan sebagai
+`~/.kaggle/kaggle.json`.
 
-TACO (`github.com/pedropro/TACO`, 1.500 citra beranotasi) berformat COCO dengan
-kotak pembatas, jadi perlu dipotong per objek dulu bila mau digabung. Mulai dari
-TrashNet saja lebih dulu; menggabungkan dua dataset dengan definisi kelas berbeda
-menambah sumber galat yang sulit dijelaskan.
+`train.py` adalah versi CLI yang lebih tua dan bekerja pada satu folder dataset
+saja; notebook adalah jalur utama sekarang.
 
-## Menjalankan
+## Keluaran
 
-```bash
-python train.py --data data/trashnet --out artifacts
-python train.py --smoke            # uji jalan 40 detik dengan citra sintetis
-```
-
-Keluaran di `artifacts/`: `metrics.json`, `report.md`, `confusion_matrix.csv`,
-`model_int8.tflite`, `labels.txt`.
-
-Butuh internet untuk mengunduh bobot ImageNet. Tanpa bobot itu (`--weights none`)
-akurasinya jatuh drastis — persis alasan CNN Thung & Yang hanya mencapai 27% pada
-poster aslinya.
+`artifacts/`: `metrics.json`, `report.md`, `model_int8.tflite`, `labels.txt`.
 
 ## Yang dilaporkan, dan mengapa
 
-**Split per klaster near-duplicate, bukan per foto.** Skrip menghitung difference
-hash tiap citra, mengelompokkan yang berjarak Hamming ≤ 5, lalu membagi per
-klaster. Tanpa ini, dua foto objek fisik yang sama bisa jatuh di train dan test
-sekaligus dan akurasinya naik semu. Rasio 70/13/17 sengaja mengikuti Thung & Yang
-supaya angkamu bisa disandingkan langsung dengan angka mereka.
+**Tiga dataset, bukan satu.** TrashNet difoto dengan objek di atas posterboard
+putih. Model yang hanya belajar dari situ belajar "objek di atas latar bersih"
+lalu ambruk begitu bertemu foto ponsel di gerobak atau di lantai lapak.
+RealWaste difoto di titik penerimaan TPA sungguhan — ia penawar racun itu.
 
-**Macro-F1, bukan akurasi saja.** TrashNet timpang — 594 kertas versus 137 trash.
-Akurasi tunggal menyembunyikan kelas yang gagal total. Tabel per kelas
-menunjukkan mana yang benar-benar bekerja.
+**Uji lintas-dataset.** Latih di satu sumber, uji di sumber lain. Selisihnya
+adalah perkiraan paling jujur tentang seberapa jauh model bertahan di lapangan,
+dan justru karena tidak memihak, ia angka yang paling meyakinkan dibawa ke
+sidang. Angka dalam-sumber yang tinggi tanpa angka lintas-sumber adalah klaim
+yang belum diuji.
+
+**Split per klaster near-duplicate, bukan per foto.** Difference hash tiap citra,
+klaster berjarak Hamming ≤ 5 digabung, lalu klasternya yang dibagi. Tanpa ini
+dua foto objek fisik yang sama bisa jatuh di train dan test sekaligus dan
+akurasinya naik semu. Rasio 70/13/17 mengikuti Thung & Yang supaya angkamu bisa
+disandingkan langsung dengan 75% yang mereka laporkan.
+
+**Macro-F1, bukan akurasi saja.** Datanya timpang. Akurasi tunggal menyembunyikan
+kelas yang gagal total; tabel per kelas menunjukkan mana yang benar-benar bekerja.
 
 **Kalibrasi.** ECE mengukur apakah "yakin 80%" benar-benar berarti benar 80%
 kali. Temperature scaling dipas di validation, bukan di test. Ini yang membuat
 ambang abstain di aplikasi punya arti.
 
-**Kurva abstain.** Tabel cakupan versus macro-F1 pada berbagai ambang. Dari
-sinilah ambang di aplikasi ditetapkan — bukan dari tebakan.
+**Kurva abstain.** Cakupan versus macro-F1 pada berbagai ambang. Dari sinilah
+ambang di aplikasi ditetapkan — bukan dari tebakan.
 
-**Dua baseline.** Kelas mayoritas sebagai batas bawah, dan fitur warna klasik +
-regresi logistik yang kira-kira sekuat heuristik yang sekarang berjalan. Kalau
-model tidak mengalahkan keduanya dengan selisih yang jelas, ia belum layak
-dipasang.
-
-**Ukuran dan latensi.** Model dikuantisasi int8. Latensi diukur di CPU desktop —
+**Ukuran dan latensi.** Model dikuantisasi int8. Latensi diukur di CPU notebook —
 **ukur ulang di perangkat Android target** sebelum angkanya dikutip.
+
+## Temuan yang perlu ditindaklanjuti di produk
+
+Enum `MaterialGrade` di `packages/shared-types` **tidak punya grade HDPE**,
+padahal botol HDPE (galon, botol susu, botol sampo) rutin diperdagangkan lapak
+dan punya kelas sendiri di dataset publik. Sekarang ia terpaksa jatuh ke
+`PLASTIK_CAMPUR` yang harganya jauh lebih rendah. Pertimbangkan menambah
+`HDPE_RIGID`.
 
 ## Memasang ke aplikasi
 
@@ -108,4 +121,6 @@ terlatih.
 
 - Bukan "akurasi 97%" dari makalah orang lain. Kutip angkamu sendiri.
 - Bukan "AI menentukan harga". Harga datang dari bukti timbang, bukan dari model.
-- Bukan angka latensi desktop sebagai angka perangkat.
+- Bukan angka latensi notebook sebagai angka perangkat.
+- Bukan grade apa pun di luar tiga yang benar-benar tercapai.
+- Bukan angka dari mode `SMOKE`. Itu citra acak.
