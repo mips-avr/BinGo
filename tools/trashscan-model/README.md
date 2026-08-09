@@ -70,7 +70,28 @@ angkanya dikutip.
 
 ## Cara menjalankan
 
-### Colab — jalur yang disarankan
+### Kaggle — jalur yang disarankan
+
+`train_trashscan_kaggle.ipynb`. **Tidak butuh `kaggle.json` sama sekali** —
+dataset dilampirkan lewat panel Input, bukan diunduh.
+
+1. kaggle.com/code → **New Notebook** → **File → Import Notebook** → unggah
+   `train_trashscan_kaggle.ipynb`
+2. Panel kanan → **+ Add Input** → lampirkan: `drinking waste classification`,
+   `trashnet`, `realwaste`
+3. Panel kanan → **Accelerator: GPU T4 x2**, **Internet: On**
+4. **Run All**. Sekitar 40–70 menit dengan ketiga dataset.
+5. Tab **Output** → unduh `artifacts/`
+
+Notebook mengenali sendiri dataset mana yang terpasang dengan membaca nama
+folder kelasnya, jadi mirror mana pun boleh. Kalau ada yang belum dilampirkan,
+ia tetap jalan dan menyebutkan konsekuensinya di layar dan di `report.md` —
+bukan diam-diam menghasilkan angka yang lebih rendah.
+
+Internet harus **On** hanya untuk mengunduh bobot ImageNet MobileNetV3 (~4 MB)
+sekali. Datasetnya sendiri tidak pernah diunduh.
+
+### Colab — alternatif
 
 Buka `train_trashscan.ipynb` di Google Colab, pilih runtime GPU, lalu Run all.
 Notebook mengambil `label_map.py` dan `prepare_dataset.py` sendiri dari
