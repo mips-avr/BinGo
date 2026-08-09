@@ -537,6 +537,8 @@ export const en: TranslationDict = {
     priceNeedsLocation: 'Prices differ by area. Allow location to see prices near you.',
     priceNeedsLocationDenied:
       'Location not allowed. You can still check prices in the Prices tab by typing a region name.',
+    priceRegionUnknown:
+      'Location found, but the area name could not be read. Type your area to see prices.',
     priceRegionNote: 'From weighing receipts in {region}, last 7 days.',
     priceInsufficient:
       'Not enough weighing receipts in {region} for this material yet. Figures appear only once several different partners have reported.',

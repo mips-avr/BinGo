@@ -533,6 +533,7 @@ export interface TranslationDict {
     priceTitle: string;
     priceNeedsLocation: string;
     priceNeedsLocationDenied: string;
+    priceRegionUnknown: string;
     priceRegionNote: string;
     priceInsufficient: string;
     priceSample: string;
@@ -1153,6 +1154,8 @@ export const id: TranslationDict = {
     priceNeedsLocation: 'Harga berbeda antarwilayah. Izinkan lokasi untuk melihat harga di sekitarmu.',
     priceNeedsLocationDenied:
       'Lokasi tidak diizinkan. Harga tetap bisa dilihat di tab Harga dengan mengetik nama wilayah.',
+    priceRegionUnknown:
+      'Lokasi didapat, tetapi nama wilayahnya tidak terbaca. Ketik wilayahmu untuk melihat harga.',
     priceRegionNote: 'Dari bukti timbang di {region}, 7 hari terakhir.',
     priceInsufficient:
       'Belum cukup bukti timbang di {region} untuk material ini. Angka hanya ditampilkan setelah ada cukup data dari beberapa mitra berbeda.',

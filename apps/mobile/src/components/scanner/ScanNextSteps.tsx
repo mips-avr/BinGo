@@ -18,6 +18,7 @@ import { colors, radius, spacing, typography } from '../../theme';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { DropPointCard } from '../drop-points/DropPointCard';
+import { RegionAutocomplete } from '../weighing/RegionAutocomplete';
 
 function rupiah(value: number): string {
   return `Rp${value.toLocaleString('id-ID')}`;
@@ -108,16 +109,38 @@ export function ScanNextSteps({ materialType }: ScanNextStepsProps) {
 
         {!region ? (
           <>
+            {/*
+              Tiga keadaan berbeda, dan membedakannya penting.
+
+              Lokasi belum diminta, lokasi ditolak, dan lokasi DIDAPAT tetapi
+              nama wilayahnya tidak terbaca — yang terakhir ini sering terjadi
+              karena geocoding terbalik butuh jaringan dan kerap gagal. Dulu
+              ketiganya sama-sama menampilkan "izinkan lokasi", sehingga
+              pengguna yang sudah mengizinkan lokasi diminta mengizinkannya
+              lagi dan tidak pernah bisa keluar dari keadaan itu. Ketika
+              koordinatnya sudah ada, yang kurang tinggal nama wilayahnya —
+              jadi yang ditawarkan adalah mengetiknya, bukan mengulang izin.
+            */}
             <Text style={s.body}>
-              {locationDenied ? t.scanNext.priceNeedsLocationDenied : t.scanNext.priceNeedsLocation}
+              {coords
+                ? t.scanNext.priceRegionUnknown
+                : locationDenied
+                  ? t.scanNext.priceNeedsLocationDenied
+                  : t.scanNext.priceNeedsLocation}
             </Text>
-            <Button
-              label={locating ? t.dropPoint.locating : t.dropPoint.useLocation}
-              variant="secondary"
-              onPress={() => void askLocation()}
-              loading={locating}
-              style={s.mt8}
-            />
+            {coords ? (
+              <View style={s.mt8}>
+                <RegionAutocomplete value={region} onChange={setRegion} allowLocation={false} />
+              </View>
+            ) : (
+              <Button
+                label={locating ? t.dropPoint.locating : t.dropPoint.useLocation}
+                variant="secondary"
+                onPress={() => void askLocation()}
+                loading={locating}
+                style={s.mt8}
+              />
+            )}
           </>
         ) : priceQuery.isLoading ? (
           <ActivityIndicator color={colors.bingo600} style={s.mt8} />

@@ -254,4 +254,135 @@ const VERIFICATION = {
   ],
 };
 
-module.exports = { CITIZEN, AGENT, MSME, PICKUPS, RADAR, RECEIPTS, RECEIPT_FULL, PRICE_BOARD, REGIONS, REPORTS, ITEMS, TRANSACTIONS, VERIFICATION };
+// ---------------------------------------------------------------------------
+// Titik setor
+//
+// Isinya mengikuti data kurasi sungguhan di prisma/seed-drop-points.ts, TERMASUK
+// entri milik operator lain dan dropbox e-waste yang `acceptedMaterials`-nya
+// kosong. Fixture yang hanya memuat titik mitra sendiri akan membuat harness
+// melewatkan justru kasus yang paling mungkin salah tampil: kartu titik pihak
+// ketiga dengan peringatan "membuka layanan pihak ketiga", dan kartu tanpa
+// daftar material sama sekali.
+// ---------------------------------------------------------------------------
+const DROP_POINTS = [
+  {
+    id: 'dp-001',
+    name: 'Rekosistem Waste Station — MRT Blok M',
+    operator: 'REKOSISTEM',
+    operatorName: 'Rekosistem (PT Khazanah Hijau Indonesia)',
+    address: 'Taman Literasi Martha Christina Tiahahu, dekat tangga masuk Stasiun MRT Blok M BCA, Jakarta Selatan',
+    lat: -6.2441, lng: 106.7983,
+    distanceMeters: 820,
+    acceptedMaterials: ['PET', 'HDPE', 'OTHER_PLASTIC', 'PAPER', 'METAL', 'GLASS'],
+    reward: 'POIN',
+    minWeightKg: null,
+    openingNote: 'Senin, Selasa, Kamis–Minggu (tutup Rabu). Kapasitas 120–150 kg/hari.',
+    externalUrl: 'https://play.google.com/store/apps/details?id=com.rekosistem.mobile',
+    sourceUrl: 'https://www.antaranews.com/berita/5541184/waste-station-hadir-di-mrt-blok-m-ajak-warga-pilah-sampah-di-ruang-publik',
+    verifiedAt: iso(60 * 24),
+    note: 'Imbalan berupa poin, bukan tunai: 1 poin = Rp1, kisaran 100–6.000 poin per setoran tergantung material. Tekstil belum diterima.',
+    region: 'Kebayoran Baru, Jakarta Selatan',
+    regionKey: 'kebayoran baru jakarta selatan',
+  },
+  {
+    id: 'dp-002',
+    name: 'Bank Sampah Melati',
+    operator: 'BINGO_MITRA',
+    operatorName: null,
+    address: 'Jl. Kemang Raya No. 14, Jakarta Selatan',
+    lat: -6.2601, lng: 106.8134,
+    distanceMeters: 1940,
+    acceptedMaterials: ['PET', 'HDPE', 'PP', 'PAPER', 'METAL', 'GLASS'],
+    reward: 'TUNAI',
+    minWeightKg: 1,
+    openingNote: 'Setiap hari 07.00–15.00.',
+    externalUrl: null,
+    sourceUrl: 'https://banksampah.jakarta.go.id/',
+    verifiedAt: iso(60 * 24 * 3),
+    note: null,
+    region: 'Mampang Prapatan, Jakarta Selatan',
+    regionKey: 'mampang prapatan jakarta selatan',
+  },
+  {
+    id: 'dp-003',
+    name: 'Reverse Vending Machine Plasticpay — ADHI Tower',
+    operator: 'PLASTICPAY',
+    operatorName: 'Plasticpay (PT Plasticpay Teknologi Daurulang)',
+    address: 'ADHI Tower, Jl. Raya Pasar Minggu KM 18, Jakarta Selatan',
+    lat: -6.2645, lng: 106.8449,
+    distanceMeters: 3120,
+    acceptedMaterials: ['PET'],
+    reward: 'POIN',
+    minWeightKg: null,
+    openingNote: 'Mengikuti jam operasional gedung.',
+    externalUrl: 'https://maps.plasticpay.net',
+    sourceUrl: 'https://adhi.co.id/adhi-hadirkan-rvm-plasticpay-kelola-sampah-plastik-untuk-keberlanjutan-lingkungan-di-adhi-tower/',
+    verifiedAt: iso(60 * 24),
+    note: 'Hanya menerima botol plastik kosong — cakupan tersempit di antara operator yang terdata.',
+    region: 'Pasar Minggu, Jakarta Selatan',
+    regionKey: 'pasar minggu jakarta selatan',
+  },
+  {
+    id: 'dp-004',
+    name: 'Dropbox e-waste — Halte Transjakarta Blok M',
+    operator: 'DLH_DKI_EWASTE',
+    operatorName: 'Dinas Lingkungan Hidup Provinsi DKI Jakarta',
+    address: 'Halte Blok M, Jl. Sultan Hasanuddin, Jakarta Selatan',
+    lat: -6.2444, lng: 106.7991,
+    distanceMeters: 910,
+    acceptedMaterials: [],
+    reward: 'TIDAK_ADA',
+    minWeightKg: null,
+    openingNote: 'Mengikuti jam operasional halte.',
+    externalUrl: 'https://ewaste.dinaslhdki.id/',
+    sourceUrl: 'https://news.detik.com/berita/d-7929039/cara-buang-sampah-elektronik-di-jakarta-hingga-lokasi-dropbox-e-waste',
+    verifiedAt: iso(60 * 24),
+    note: 'Hanya limbah elektronik. Bukaan dropbox 20 × 5 cm, jadi hanya muat barang kecil; untuk ≥5 kg tersedia jemput gratis bagi pemohon ber-KTP Jakarta. Tanpa imbalan.',
+    region: 'Kebayoran Baru, Jakarta Selatan',
+    regionKey: 'kebayoran baru jakarta selatan',
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Kartu Mitra
+//
+// `claimed: false` pada kartu pertama disengaja: itulah keadaan bawaan seorang
+// pemegang yang belum punya ponsel, dan lencana "Belum diklaim" beserta
+// penjelasannya justru bagian yang paling perlu diperiksa pikselnya.
+// ---------------------------------------------------------------------------
+const CARDS = [
+  {
+    id: 'mc-001', cardNumber: 'BG-7K2M-9XQ4', cardUidMasked: '••••••••D5E680',
+    holderName: 'Pak Slamet', holderPhone: null, holderUserId: 'u-card-001',
+    verificationLevel: 1, status: 'AKTIF', issuedByName: 'Bank Sampah Melati',
+    issuedAt: iso(60 * 24 * 12), lastUsedAt: iso(60 * 5),
+    region: 'Mampang Prapatan, Jakarta Selatan', regionKey: 'mampang prapatan jakarta selatan',
+    claimed: false, note: null,
+  },
+  {
+    id: 'mc-002', cardNumber: 'BG-3TX8-P0RJ', cardUidMasked: null,
+    holderName: 'Bu Yanti', holderPhone: '+6281234500099', holderUserId: 'u-card-002',
+    verificationLevel: 1, status: 'AKTIF', issuedByName: 'Bank Sampah Melati',
+    issuedAt: iso(60 * 24 * 4), lastUsedAt: null,
+    region: 'Mampang Prapatan, Jakarta Selatan', regionKey: 'mampang prapatan jakarta selatan',
+    claimed: true, note: 'Kartu dicetak, chip menyusul.',
+  },
+  {
+    id: 'mc-003', cardNumber: 'BG-9WQ2-4HND', cardUidMasked: '••••••••A11C07',
+    holderName: 'Pak Dedi', holderPhone: null, holderUserId: 'u-card-003',
+    verificationLevel: 1, status: 'HILANG', issuedByName: 'Bank Sampah Melati',
+    issuedAt: iso(60 * 24 * 40), lastUsedAt: iso(60 * 24 * 9),
+    region: 'Mampang Prapatan, Jakarta Selatan', regionKey: 'mampang prapatan jakarta selatan',
+    claimed: false, note: 'Dilaporkan jatuh di pasar.',
+  },
+];
+
+const CARD_TAP = {
+  card: CARDS[0],
+  receiptCount: 23,
+  totalWeightKg: 412.6,
+  totalNetAmount: 1284000,
+  lastReceiptAt: iso(60 * 5),
+};
+
+module.exports = { CITIZEN, AGENT, MSME, PICKUPS, RADAR, RECEIPTS, RECEIPT_FULL, PRICE_BOARD, REGIONS, REPORTS, ITEMS, TRANSACTIONS, VERIFICATION, DROP_POINTS, CARDS, CARD_TAP };

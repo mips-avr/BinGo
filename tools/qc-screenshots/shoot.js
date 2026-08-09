@@ -17,10 +17,45 @@ function serve() {
     let file = path.join(ROOT, url);
     if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(ROOT, 'index.html');
     const ext = path.extname(file);
+
+    if (ext === '.html') {
+      /*
+       * Expo SDK 54 memancarkan bundel web yang memakai `import.meta`, tetapi
+       * tag skrip yang ditulisnya adalah skrip klasik `<script defer>`. Di
+       * peramban, kombinasi itu gagal seketika dengan "Cannot use 'import.meta'
+       * outside a module" dan SETIAP halaman menjadi putih — termasuk halaman
+       * yang sebenarnya baik-baik saja.
+       *
+       * Diperbaiki di sini, bukan dengan menyunting berkas hasil ekspor, supaya
+       * `expo export` tetap boleh dijalankan ulang kapan saja tanpa kehilangan
+       * tambalan ini.
+       */
+      let html = fs.readFileSync(file, 'utf8');
+      html = html.replace(/<script src=/g, '<script type="module" src=');
+      res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store' });
+      res.end(html);
+      return;
+    }
+
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-store' });
     fs.createReadStream(file).pipe(res);
   }).listen(PORT);
 }
+
+/*
+ * `body { overflow: hidden }` adalah bagian dari reset react-native-web, jadi
+ * `window.scrollTo` tidak menggerakkan apa pun. Yang benar-benar menggulir
+ * adalah div dalam milik <ScrollView>. Cari yang paling tinggi isinya.
+ */
+const SCROLL_TO_BOTTOM = () => {
+  const nodes = Array.from(document.querySelectorAll('div'));
+  let best = null;
+  for (const n of nodes) {
+    if (n.scrollHeight > n.clientHeight + 40 && (!best || n.scrollHeight > best.scrollHeight)) best = n;
+  }
+  if (best) best.scrollTop = best.scrollHeight;
+  return best ? best.scrollHeight : 0;
+};
 
 const json = (route, body, status = 200) =>
   route.fulfill({ status, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(body) });
@@ -69,6 +104,10 @@ async function installApi(page, user) {
 
     if (p.includes('/agent-verifications')) return json(route, F.VERIFICATION);
 
+    if (p.endsWith('/drop-points/nearby') || p.endsWith('/drop-points')) return json(route, F.DROP_POINTS);
+    if (p.endsWith('/member-cards/lookup')) return json(route, F.CARD_TAP);
+    if (p.endsWith('/member-cards')) return json(route, F.CARDS);
+
     return json(route, {});
   });
 }
@@ -84,6 +123,10 @@ const SCREENS = {
     ['11-trashscan', '/(tabs)/scanner'],
     ['12-hasil-pindai-yakin', '/(tabs)/scanner/result?materialType=PET&source=resin-code&confident=1&resinCode=1&disposalTip=Bilas%20botol%2C%20lepas%20tutup%20dan%20label%2C%20lalu%20pipihkan%20agar%20tidak%20memakan%20tempat.&pointsHint=25'],
     ['13-hasil-pindai-abstain', '/(tabs)/scanner/result?materialType=MIXED&source=visual-estimate&confident=0&visualScore=0.18&disposalTip=&pointsHint=0'],
+    // Bagian bawah layar hasil: kategori pilah wajib, harga, dan titik setor.
+    // Butuh gulir karena tiga kartu itu ada di bawah lipatan.
+    ['12b-hasil-pindai-kategori-dan-harga', '/(tabs)/scanner/result?materialType=PET&source=resin-code&confident=1&resinCode=1&disposalTip=Bilas%20botol%2C%20lepas%20tutup%20dan%20label%2C%20lalu%20pipihkan%20agar%20tidak%20memakan%20tempat.&pointsHint=25#at=Perkiraan%20harga'],
+    ['12c-hasil-pindai-titik-setor', '/(tabs)/scanner/result?materialType=PET&source=resin-code&confident=1&resinCode=1&disposalTip=Bilas%20botol%2C%20lepas%20tutup%20dan%20label%2C%20lalu%20pipihkan%20agar%20tidak%20memakan%20tempat.&pointsHint=25#at=Titik%20setor%20terdekat'],
     ['14-permintaan-saya', '/(tabs)/pickups'],
     ['15-permintaan-baru', '/(tabs)/pickups/new'],
     ['16-detail-permintaan', '/(tabs)/pickups/p-001'],
@@ -110,6 +153,9 @@ const SCREENS = {
     ['38-antrean-laporan', '/(agent-tabs)/reports'],
     ['39-detail-laporan-pemulung', '/(agent-tabs)/reports/rp-002'],
     ['40-profil-pemulung', '/(agent-tabs)/profile'],
+    ['41-kartu-mitra-konter', '/(agent-tabs)/cards'],
+    ['42-kartu-mitra-terbitkan', '/(agent-tabs)/cards#terbitkan'],
+    ['43-kartu-mitra-hasil-tap', '/(agent-tabs)/cards#tap'],
   ],
   msme: [
     ['50-katalog-umkm', '/(msme-tabs)/marketplace'],
@@ -176,8 +222,44 @@ const USERS = { auth: F.CITIZEN, citizen: F.CITIZEN, agent: F.AGENT, msme: F.MSM
           await page.close();
           continue;
         }
-        await page.goto(`http://127.0.0.1:${PORT}${route}`, { waitUntil: 'load', timeout: 30000 });
+        await page.goto(`http://127.0.0.1:${PORT}${route.replace(/#.*$/, '')}`, { waitUntil: 'load', timeout: 30000 });
         await page.waitForTimeout(2600);
+
+        // Layar yang isinya di bawah lipatan, atau yang perlu satu interaksi
+        // sebelum bagian barunya terlihat. Tanpa ini harness memotret keadaan
+        // kosong dan melaporkannya sebagai lolos.
+        /*
+         * `#at=<teks>` menggulir sampai kartu yang judulnya cocok berada di
+         * layar. Menggulir ke dasar halaman saja tidak cukup: kartu yang ingin
+         * diperiksa justru berada di tengah, dan dasar halaman hanya
+         * memperlihatkan tombol aksi yang sudah lama ada.
+         */
+        const at = route.match(/#at=(.+)$/);
+        if (at) {
+          const target = decodeURIComponent(at[1]);
+          const el = page.getByText(target, { exact: false }).first();
+          if (await el.count()) {
+            await el.scrollIntoViewIfNeeded({ timeout: 6000 }).catch(() => {});
+            await page.waitForTimeout(2200);
+            await el.scrollIntoViewIfNeeded({ timeout: 6000 }).catch(() => {});
+          }
+          await page.waitForTimeout(1500);
+        }
+        if (route.endsWith('#terbitkan')) {
+          // Pencocokan PERSIS: judul bagiannya "Terbitkan kartu baru", dan
+          // pencocokan longgar akan mengenai judul itu, bukan tombolnya.
+          const b = page.getByText('Terbitkan kartu', { exact: true }).first();
+          if (await b.count()) await b.click({ timeout: 4000 }).catch(() => {});
+          await page.waitForTimeout(1200);
+        }
+        if (route.endsWith('#tap')) {
+          const input = page.locator('input').first();
+          if (await input.count()) await input.fill('BG-7K2M-9XQ4').catch(() => {});
+          const b = page.getByText('Cari pemegang', { exact: false }).first();
+          if (await b.count()) await b.click({ timeout: 4000 }).catch(() => {});
+          await page.waitForTimeout(1800);
+        }
+
         const file = path.join(OUT, `${group}-${name}.png`);
         await page.screenshot({ path: file });
         const body = (await page.evaluate(() => document.body.innerText || '')).replace(/\s+/g, ' ').slice(0, 90);
