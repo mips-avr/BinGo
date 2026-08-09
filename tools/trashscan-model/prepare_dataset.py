@@ -43,17 +43,77 @@ def need(mod: str, pip_name: str | None = None):
         sys.exit(f'Modul "{mod}" belum terpasang. Jalankan: pip install {pip_name or mod}')
 
 
+def kaggle_credentials_path() -> Path | None:
+    """
+    Cari kredensial Kaggle di tiga tempat yang lazim.
+
+    Diperiksa lebih dulu dan dilaporkan dengan jelas, karena kegagalan bawaan
+    CLI Kaggle tanpa kredensial adalah stack trace OSError yang tidak
+    memberitahu apa yang harus dilakukan.
+    """
+    if os.environ.get('KAGGLE_USERNAME') and os.environ.get('KAGGLE_KEY'):
+        return Path('<env: KAGGLE_USERNAME/KAGGLE_KEY>')
+    for c in (Path.home() / '.kaggle' / 'kaggle.json',
+              Path(os.environ.get('KAGGLE_CONFIG_DIR', '')) / 'kaggle.json',
+              Path.cwd() / 'kaggle.json'):
+        try:
+            if c.is_file():
+                return c
+        except OSError:
+            continue
+    return None
+
+
+KAGGLE_HELP = """
+Kredensial Kaggle tidak ditemukan.
+
+  1. Buka kaggle.com -> ikon profil -> Settings -> API -> Create New Token.
+     Berkas kaggle.json akan terunduh.
+  2. Taruh di salah satu tempat berikut:
+       ~/.kaggle/kaggle.json            (lalu: chmod 600 ~/.kaggle/kaggle.json)
+       ./kaggle.json                    (di folder ini)
+     atau setel dua variabel lingkungan: KAGGLE_USERNAME dan KAGGLE_KEY.
+
+Di Google Colab, cara paling ringkas:
+
+    from google.colab import files; files.upload()   # pilih kaggle.json
+    !mkdir -p ~/.kaggle && cp kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
+
+Tanpa Kaggle, dua sumber lain tetap bisa dipakai:
+
+    python prepare_dataset.py --out data/unified --sources trashnet realwaste
+
+Konsekuensinya nyata dan harus disebut bila angkanya dikutip: tanpa Drinking
+Waste, kelas HDPE dan METAL_CAN kehilangan hampir seluruh contohnya, dan kelas
+PET kehilangan sumber terbesarnya.
+"""
+
+
 def fetch_drinking_waste(raw: Path) -> Path:
-    """Kaggle. Butuh ~/.kaggle/kaggle.json (Settings -> API -> Create New Token)."""
+    """Kaggle. Butuh kredensial API — lihat kaggle_credentials_path()."""
     dest = raw / 'drinking_waste'
     if dest.exists():
         return dest
     need('kaggle', 'kaggle')
+
+    where = kaggle_credentials_path()
+    if where is None:
+        sys.exit(KAGGLE_HELP)
+    print(f'  kredensial Kaggle: {where}')
+
     ref = SOURCE_META['drinking_waste']['kaggle_ref']
     dest.mkdir(parents=True, exist_ok=True)
     print(f'  mengunduh {ref} dari Kaggle…')
-    subprocess.run(['kaggle', 'datasets', 'download', '-d', ref, '-p', str(dest), '--unzip'],
-                   check=True)
+    try:
+        subprocess.run(['kaggle', 'datasets', 'download', '-d', ref, '-p', str(dest),
+                        '--unzip'], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.exit(
+            f'Unduhan Kaggle gagal (kode {e.returncode}).\n'
+            'Penyebab paling lazim, berurutan: token kedaluwarsa, syarat dataset belum '
+            'disetujui (buka halaman datasetnya sekali di peramban lalu klik Download), '
+            'atau jaringan memblokir kaggle.com.'
+        )
     return dest
 
 

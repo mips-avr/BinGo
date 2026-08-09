@@ -8,18 +8,34 @@ dicantumkan supaya bisa dicek ulang.
 
 **Tidak ada dataset publik yang berlabel 18 grade BinGo.** Yang paling dekat
 adalah WaDaBa (kode resin + warna + tingkat kekotoran), dan itu pun butuh
-perjanjian lisensi untuk anotasinya. Konsekuensinya taksonomi dibuat dua lapis:
+perjanjian lisensi untuk anotasinya.
 
-- **Lapis A — material (8 kelas).** Bisa dicapai dari dataset publik. Inilah yang
-  dilatih sekarang.
-- **Lapis B — grade (18 kelas).** Menentukan harga, dan hanya bisa dicapai dari
-  foto sendiri di lapak mitra. Belum ada datanya.
+Konsekuensinya taksonomi dibuat **tiga lapis**, dan pemisahannya menentukan
+apakah modelnya bisa dipasang sama sekali:
 
-Dari 18 grade, **hanya 3 yang bisa diturunkan langsung dari dataset publik tanpa
-menebak**: `LOGAM_KALENG` (dari kelas Aluminium Cans), `KERTAS_KARDUS` (dari
-Cardboard), dan `KACA_BELING` (dari Glass, dengan catatan di bawah). Sisanya
-menuntut pembedaan yang tidak dilabeli dataset mana pun — terutama bening versus
-berwarna, yang justru menentukan selisih harga terbesar.
+| Lapis | Satuan | Jumlah | Dari mana |
+|---|---|---|---|
+| **Kelas latih** | apa yang bisa dibedakan model dari foto | **10** | dataset publik |
+| **MaterialType** | satuan yang dipahami aplikasi | **8 dari 12** | turunan kelas latih |
+| **MaterialGrade** | satuan yang menentukan harga | **2 dari 18** | hanya yang tidak ambigu |
+
+**Kelas latih sengaja tidak sama dengan MaterialType.** Kardus dan kertas
+keduanya `PAPER` di mata aplikasi, tetapi jelas berbeda di mata kamera dan
+berbeda harga di lapak — jadi dilatih terpisah lalu digabung saat keluar. Sama
+untuk kaleng aluminium versus logam lain: selisih harganya besar dan dataset
+memang melabelinya. Melebur keduanya sejak awal berarti membuang sinyal yang
+sudah tersedia gratis.
+
+**Empat `MaterialType` tidak tercapai sama sekali: PVC, LDPE, PS, PP.** Tidak
+ada dataset publik yang melabelinya, dan justru inilah jenis yang paling sering
+ditemui pemulung — kresek, gelas plastik, sedotan, styrofoam.
+
+**Hanya 2 dari 18 grade** yang bisa diturunkan tanpa menebak: `KERTAS_KARDUS`
+dan `LOGAM_KALENG`. Turun dari tiga pada versi pertama, dan itu perbaikan bukan
+kemunduran: `KACA_BELING` sebelumnya diklaim dari kelas "Glass" Drinking Waste,
+padahal "beling" berarti **pecahan** sedangkan sumbernya botol utuh. Klaim itu
+akan runtuh pada pertanyaan pertama juri, dan lebih buruk lagi, akan
+menyesatkan harga di lapak.
 
 **Satu temuan yang perlu ditindaklanjuti di produk, bukan di model:** enum
 `MaterialGrade` tidak punya grade HDPE, padahal botol HDPE (galon, botol susu,
@@ -67,32 +83,34 @@ Sumber daftar: [waste-datasets-review](https://github.com/AgaMiko/waste-datasets
 
 ## Pemetaan label
 
-Tiga dataset memakai nama kelas yang berbeda-beda untuk benda yang sama. Berkas
-`label_map.py` menyatukannya ke Lapis A, dan menandai grade Lapis B hanya ketika
-sumbernya tidak ambigu.
+`label_map.py` menyatukan nama kelas ketiga dataset ke satu daftar kelas latih,
+lalu menerjemahkannya ke enum aplikasi. Berkas itu satu-satunya tempat
+terjemahan ini hidup; kalau enum di `packages/shared-types` berubah, di situlah
+perubahannya.
 
-| Sumber | Kelas asal | Lapis A (material) | Lapis B (grade) |
-|---|---|---|---|
-| Drinking Waste | AluCan | LOGAM | `LOGAM_KALENG` |
-| Drinking Waste | Glass | KACA | `KACA_BELING` ¹ |
-| Drinking Waste | PET | PLASTIK_PET | — ² |
-| Drinking Waste | HDPEM | PLASTIK_HDPE | — ³ |
-| TrashNet | cardboard | KARDUS | `KERTAS_KARDUS` |
-| TrashNet | paper | KERTAS | — ⁴ |
-| TrashNet | glass | KACA | — |
-| TrashNet | metal | LOGAM | — ⁵ |
-| TrashNet | plastic | PLASTIK_LAIN | — |
-| TrashNet | trash | RESIDU | — |
-| RealWaste | Cardboard | KARDUS | `KERTAS_KARDUS` |
-| RealWaste | Paper | KERTAS | — |
-| RealWaste | Glass | KACA | — |
-| RealWaste | Metal | LOGAM | — |
-| RealWaste | Plastic | PLASTIK_LAIN | — |
-| RealWaste | Food Organics, Vegetation, Textile Trash, Miscellaneous Trash | RESIDU | — |
+| Sumber | Kelas asal | Kelas latih | MaterialType | Grade |
+|---|---|---|---|---|
+| Drinking Waste | AluCan | `METAL_CAN` | `METAL` | `LOGAM_KALENG` |
+| Drinking Waste | Glass | `GLASS` | `GLASS` | — ¹ |
+| Drinking Waste | PET | `PET` | `PET` | — ² |
+| Drinking Waste | HDPEM | `HDPE` | `HDPE` | — ³ |
+| TrashNet | cardboard | `CARDBOARD` | `PAPER` | `KERTAS_KARDUS` |
+| TrashNet | paper | `PAPER` | `PAPER` | — ⁴ |
+| TrashNet | glass | `GLASS` | `GLASS` | — |
+| TrashNet | metal | `METAL_OTHER` | `METAL` | — ⁵ |
+| TrashNet | plastic | `PLASTIC_OTHER` | `OTHER_PLASTIC` | — |
+| TrashNet | trash | `MIXED` | `MIXED` | — |
+| RealWaste | Cardboard | `CARDBOARD` | `PAPER` | `KERTAS_KARDUS` |
+| RealWaste | Paper | `PAPER` | `PAPER` | — |
+| RealWaste | Glass | `GLASS` | `GLASS` | — |
+| RealWaste | Metal | `METAL_OTHER` | `METAL` | — |
+| RealWaste | Plastic | `PLASTIC_OTHER` | `OTHER_PLASTIC` | — |
+| RealWaste | Food Organics, Vegetation | `ORGANIC` | `ORGANIC` | — |
+| RealWaste | Textile Trash, Miscellaneous Trash | `MIXED` | `MIXED` | — |
 
-¹ "Beling" sebenarnya berarti pecahan kaca, sedangkan sumbernya botol utuh. Ini
-satu-satunya grade kaca yang ada di enum, jadi dipakai dengan catatan. Kalau
-lapak mitra membedakan botol utuh dan beling, enum perlu ditambah.
+¹ Satu-satunya grade kaca pada enum adalah `KACA_BELING` yang berarti pecahan,
+sedangkan sumbernya botol utuh. Grade sengaja tidak diklaim. Kalau lapak mitra
+membedakan botol utuh dan beling, enum perlu ditambah.
 
 ² PET bening dan PET berwarna beda harga, dan tidak ada dataset publik yang
 melabeli warnanya. Inilah contoh paling jelas kenapa foto sendiri tetap perlu.
@@ -101,8 +119,9 @@ melabeli warnanya. Inilah contoh paling jelas kenapa foto sendiri tetap perlu.
 
 ⁴ Koran, arsip/HVS, dan duplex punya harga berbeda dan semuanya masuk "paper".
 
-⁵ Aluminium, tembaga, besi, dan kaleng punya harga yang sangat berbeda —
-tembaga bisa puluhan kali lipat besi — dan semuanya masuk "metal".
+⁵ Kaleng dipisahkan menjadi `METAL_CAN` karena Drinking Waste melabelinya
+tersendiri. Sisanya — tembaga, besi, aluminium lembaran — tercampur di
+`METAL_OTHER`, dan tembaga bisa puluhan kali lipat harga besi.
 
 ## Cara mengunduh
 

@@ -4,23 +4,69 @@ Pipeline untuk melatih pengklasifikasi kemasan on-device dari **dataset publik
 berlisensi jelas**, lalu melaporkan angkanya dengan cara yang tahan ditanyai
 juri.
 
-## Baca ini dulu
+## Kemampuan model — apa yang benar-benar bisa ia keluarkan
 
-Taksonomi di sini dua lapis, dan pemisahan itu yang paling penting dipahami:
+**10 kelas latih**, yang diterjemahkan menjadi **8 dari 12 `MaterialType`** dan
+**2 dari 18 `MaterialGrade`**.
 
-- **Lapis material — 8 kelas.** Bisa dicapai dari dataset publik. Inilah yang
-  dilatih.
-- **Lapis grade — 18 kelas.** Menentukan harga di papan harga BinGo. Dari 18,
-  hanya **3** yang bisa diturunkan dari data publik tanpa menebak
-  (`LOGAM_KALENG`, `KERTAS_KARDUS`, `KACA_BELING`).
+| Kelas latih | → MaterialType | → Grade |
+|---|---|---|
+| `PET` | `PET` | — |
+| `HDPE` | `HDPE` | — |
+| `PLASTIC_OTHER` | `OTHER_PLASTIC` | — |
+| `PAPER` | `PAPER` | — |
+| `CARDBOARD` | `PAPER` | `KERTAS_KARDUS` |
+| `METAL_CAN` | `METAL` | `LOGAM_KALENG` |
+| `METAL_OTHER` | `METAL` | — |
+| `GLASS` | `GLASS` | — |
+| `ORGANIC` | `ORGANIC` | — |
+| `MIXED` | `MIXED` | — |
 
-Selisih harga terbesar justru ada pada pembedaan yang tidak dilabeli dataset
-mana pun: PET bening versus berwarna, koran versus arsip versus duplex, tembaga
-versus besi. Artinya model ini **asisten identifikasi kasar, bukan penentu
-harga**. Kode resin tetap jalur utama karena ia fakta, bukan tebakan; model
-adalah tahap dua ketika kode tidak terlihat.
+**Yang TIDAK bisa ia keluarkan, dan ini yang harus disebut lebih dulu di
+sidang:**
 
-Rincian lengkap pemilihan dataset, lisensi, dan pemetaan label: **[`DATASETS.md`](DATASETS.md)**.
+- **`PVC`, `LDPE`, `PS`, `PP`** — empat `MaterialType` yang tidak tercapai sama
+  sekali. Tidak ada dataset publik yang melabelinya, dan justru inilah yang
+  paling sering ditemui pemulung: kresek, gelas plastik, sedotan, styrofoam.
+- **16 dari 18 grade.** Termasuk seluruh pembedaan yang menentukan selisih harga
+  terbesar — bening versus berwarna, koran versus duplex, tembaga versus besi.
+
+Karena itu model ini **asisten identifikasi kasar, bukan penentu harga**. Kode
+resin tetap jalur utama karena ia fakta, bukan tebakan; model adalah tahap dua
+ketika kode tidak terlihat.
+
+Kalau nanti mau mengangkat kebaruan lewat model, yang bernilai bukan
+arsitekturnya melainkan **datasetnya**: foto material per-grade sebagaimana
+dipakai lapak Indonesia belum ada di publik mana pun. 30–50 foto per grade sudah
+cukup untuk mulai, dan pengumpulannya bisa digabung dengan wawancara pemulung
+yang memang diminta juri.
+
+Rincian pemilihan dataset, lisensi, dan pemetaan label: **[`DATASETS.md`](DATASETS.md)**.
+
+## Kredensial Kaggle
+
+Satu dari tiga sumber (Drinking Waste Classification) hanya ada di Kaggle.
+
+```bash
+pip install kaggle
+# kaggle.com → ikon profil → Settings → API → Create New Token
+mkdir -p ~/.kaggle && mv ~/Downloads/kaggle.json ~/.kaggle/
+chmod 600 ~/.kaggle/kaggle.json
+kaggle datasets list -s "drinking waste"      # uji token
+```
+
+Di Colab:
+
+```python
+from google.colab import files; files.upload()      # pilih kaggle.json
+!mkdir -p ~/.kaggle && cp kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
+```
+
+`prepare_dataset.py` memeriksa kredensial lebih dulu dan menjelaskan apa yang
+kurang, alih-alih gagal dengan stack trace. Tanpa Kaggle, dua sumber lain tetap
+bisa dipakai — tetapi kelas `HDPE` dan `METAL_CAN` kehilangan hampir seluruh
+contohnya dan `PET` kehilangan sumber terbesarnya, dan itu wajib disebut bila
+angkanya dikutip.
 
 ## Cara menjalankan
 
@@ -58,7 +104,14 @@ saja; notebook adalah jalur utama sekarang.
 
 ## Keluaran
 
-`artifacts/`: `metrics.json`, `report.md`, `model_int8.tflite`, `labels.txt`.
+`artifacts/`: `metrics.json`, `report.md`, `model_int8.tflite`, `labels.txt`,
+dan **`app_labels.json`**.
+
+Berkas terakhir itu yang membuat model dapat dipasang sama sekali: ia memetakan
+tiap kelas latih ke `MaterialType` dan `MaterialGrade`. Tanpa itu, keluaran
+model tidak berarti apa-apa bagi aplikasi — `CARDBOARD` dan `METAL_CAN` bukan
+nilai `MaterialType` yang sah, sehingga tidak bisa masuk `ScanResult`,
+`gradesForMaterial()`, penyaring titik setor, maupun papan harga.
 
 ## Yang dilaporkan, dan mengapa
 
@@ -122,5 +175,6 @@ terlatih.
 - Bukan "akurasi 97%" dari makalah orang lain. Kutip angkamu sendiri.
 - Bukan "AI menentukan harga". Harga datang dari bukti timbang, bukan dari model.
 - Bukan angka latensi notebook sebagai angka perangkat.
-- Bukan grade apa pun di luar tiga yang benar-benar tercapai.
+- Bukan grade apa pun di luar dua yang benar-benar tercapai.
+- Bukan PVC, LDPE, PS, atau PP. Model tidak pernah melihat satu pun contohnya.
 - Bukan angka dari mode `SMOKE`. Itu citra acak.
