@@ -1,5 +1,11 @@
 import type { ExpoConfig } from 'expo/config';
 
+const configuredVersionCode = Number.parseInt(process.env.BINGO_ANDROID_VERSION_CODE ?? '1', 10);
+const androidVersionCode =
+  Number.isSafeInteger(configuredVersionCode) && configuredVersionCode > 0
+    ? configuredVersionCode
+    : 1;
+
 /**
  * Konfigurasi Expo dinamis.
  * Variabel dengan prefiks `EXPO_PUBLIC_*` akan otomatis ter-expose ke runtime.
@@ -8,7 +14,7 @@ const config: ExpoConfig = {
   name: 'BinGo',
   slug: 'bingo',
   scheme: 'bingo',
-  version: '0.1.0',
+  version: process.env.BINGO_APP_VERSION ?? '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
   platforms: ['ios', 'android'],
@@ -18,14 +24,14 @@ const config: ExpoConfig = {
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'BinGo memakai lokasi Anda untuk menentukan titik penjemputan sampah & laporan ilegal.',
-      NSCameraUsageDescription:
-        'BinGo memerlukan kamera untuk TrashScan, laporan, dan foto bukti.',
+      NSCameraUsageDescription: 'BinGo memerlukan kamera untuk TrashScan, laporan, dan foto bukti.',
       NSPhotoLibraryUsageDescription:
         'BinGo memerlukan akses foto untuk melampirkan bukti laporan.',
     },
   },
   android: {
     package: 'id.bingo.app',
+    versionCode: androidVersionCode,
     adaptiveIcon: {
       backgroundColor: '#16A34A',
     },
@@ -37,6 +43,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    './plugins/withAndroidReleaseSigning',
     [
       'expo-location',
       {
@@ -73,7 +80,8 @@ const config: ExpoConfig = {
     [
       'react-native-nfc-manager',
       {
-        nfcPermission: 'BinGo membaca Kartu Mitra lewat NFC agar setoran tercatat atas nama pemiliknya.',
+        nfcPermission:
+          'BinGo membaca Kartu Mitra lewat NFC agar setoran tercatat atas nama pemiliknya.',
       },
     ],
   ],

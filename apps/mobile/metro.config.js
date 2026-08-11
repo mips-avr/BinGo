@@ -15,6 +15,9 @@ const projectRoot = __dirname;
  */
 const config = getDefaultConfig(projectRoot);
 
+// Model TrashScan adalah asset bundle, bukan source module JavaScript.
+config.resolver.assetExts = Array.from(new Set([...config.resolver.assetExts, 'tflite']));
+
 /**
  * Bundling web hanya dipakai oleh perkakas QC tangkapan layar
  * (`tools/qc-screenshots`). Tiga modul native tidak punya implementasi browser

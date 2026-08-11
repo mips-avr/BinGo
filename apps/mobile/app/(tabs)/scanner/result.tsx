@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { MaterialType } from '@bingo/shared-types';
+import { MATERIAL_GRADES, MaterialGrade, MaterialType } from '@bingo/shared-types';
 import type { ScanResult, ScanSource } from '../../../src/features/scanner';
 import { selectMaterialManually } from '../../../src/features/scanner';
 import { MaterialPicker } from '../../../src/components/pickups/MaterialPicker';
@@ -16,6 +16,7 @@ import { colors, radius, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
 const MATERIAL_VALUES = Object.values(MaterialType) as MaterialType[];
+const GRADE_VALUES = Object.values(MaterialGrade) as MaterialGrade[];
 const SOURCES: ScanSource[] = ['resin-code', 'visual-estimate', 'manual'];
 
 function parseSource(raw: string | undefined): ScanSource {
@@ -27,6 +28,7 @@ export default function ScanResultScreen() {
   const bottomInset = useBottomInset();
   const params = useLocalSearchParams<{
     materialType: string;
+    materialGrade: string;
     source: string;
     confident: string;
     visualScore: string;
@@ -41,8 +43,12 @@ export default function ScanResultScreen() {
       ? (params.materialType as MaterialType)
       : MaterialType.MIXED;
     const score = params.visualScore ? Number(params.visualScore) : NaN;
+    const grade = GRADE_VALUES.includes(params.materialGrade as MaterialGrade)
+      ? (params.materialGrade as MaterialGrade)
+      : null;
     return {
       materialType: material,
+      materialGrade: grade,
       source: parseSource(params.source),
       confident: params.confident === '1',
       visualScore: Number.isFinite(score) ? score : null,
@@ -52,6 +58,7 @@ export default function ScanResultScreen() {
     };
   }, [
     params.materialType,
+    params.materialGrade,
     params.source,
     params.confident,
     params.visualScore,
@@ -63,6 +70,9 @@ export default function ScanResultScreen() {
   const [corrected, setCorrected] = useState<ScanResult | null>(null);
   const [picking, setPicking] = useState(false);
   const result = corrected ?? initial;
+  const materialLabel = result.materialGrade
+    ? MATERIAL_GRADES[result.materialGrade].label
+    : t.pickup.material_label[result.materialType];
 
   function applyCorrection(material: MaterialType) {
     setCorrected(selectMaterialManually(material));
@@ -94,7 +104,7 @@ export default function ScanResultScreen() {
         {result.confident ? (
           <Card>
             <Text style={s.sectionLabel}>{t.scanner.result.material}</Text>
-            <Text style={s.materialText}>{t.pickup.material_label[result.materialType]}</Text>
+            <Text style={s.materialText}>{materialLabel}</Text>
           </Card>
         ) : (
           <Card style={s.unsureCard} testID="scan-not-confident">
@@ -117,8 +127,8 @@ export default function ScanResultScreen() {
           <Text style={s.sectionLabel}>{t.scanner.sourceTitle}</Text>
           <Text style={s.sourceLabel}>{sourceLabel}</Text>
           <Text style={s.sourceDetail}>{sourceDetail}</Text>
-          {/* Angka hanya muncul untuk tahap visual, dan disebut apa adanya:
-              selisih terhadap dugaan kedua, bukan "keyakinan model". */}
+          {/* Angka hanya muncul untuk tahap visual dan sudah dikalibrasi pada
+              validation set sebelum threshold ditentukan. */}
           {result.source === 'visual-estimate' && result.visualScore != null ? (
             <Text style={s.scoreText}>
               {t.scanner.visualSeparation.replace(
@@ -150,7 +160,12 @@ export default function ScanResultScreen() {
           dan orang berangkat membawa barangnya berdasarkan dugaan yang salah.
           Ini aturan yang sama seperti penahanan tip pembuangan di atas.
         */}
-        {result.confident ? <ScanNextSteps materialType={result.materialType} /> : null}
+        {result.confident ? (
+          <ScanNextSteps
+            materialType={result.materialType}
+            materialGrade={result.materialGrade}
+          />
+        ) : null}
 
         {/* ── Koreksi manual ── */}
         {picking ? (

@@ -353,20 +353,20 @@ export const en: TranslationDict = {
     stageOne:
       'Stage 1 — the resin code you point at on the packaging. That is a fact, not a guess.',
     stageTwo:
-      'Stage 2 — if the code is not visible, BinGo guesses from the photo colour and texture. The result is always labelled as an estimate.',
+      'Stage 2 — if the code is not visible, the TrashScan model classifies the photo on-device. You can still correct the result.',
     noModelNotice:
-      'BinGo does not ship a trained AI model. Stage 2 is a simple colour heuristic running on your phone; no photo leaves the device.',
+      'The AI model runs entirely on your phone. Photos are not sent to a server. Plastic still requires a resin code instead of guessing its type.',
     sourceTitle: 'Where this result comes from',
     sourceResin: 'Resin code read',
     sourceResinDetail: 'You pointed at recycling code {code} on the packaging.',
     sourceVisual: 'Visual estimate',
-    sourceVisualDetail: 'A guess from photo colour and texture — a suggestion, not a certainty.',
+    sourceVisualDetail: 'Output from the on-device TrashScan model — you can still correct it.',
     sourceManual: 'Chosen manually',
     sourceManualDetail: 'You decided this material type yourself.',
-    visualSeparation: 'Margin over the runner-up guess: {percent}%',
+    visualSeparation: 'Calibrated confidence score: {percent}%',
     notConfidentTitle: 'BinGo is not confident',
     notConfidentBody:
-      'The colour and texture of this photo fit more than one material, so BinGo withholds disposal guidance. Photograph the recycling symbol, or pick the material yourself.',
+      'The model score is below the safe threshold, or the plastic still needs a resin code. BinGo withholds disposal guidance until you photograph the recycling symbol or pick the material yourself.',
     notConfidentGuess: 'Strongest guess so far: {material}',
     disposalHeld: 'Disposal guidance is withheld until the material type is confirmed.',
     notThis: 'Not this?',

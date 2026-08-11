@@ -27,6 +27,7 @@ export default function TrashScanScreen() {
       pathname: '/(tabs)/scanner/result',
       params: {
         materialType: result.materialType,
+        materialGrade: result.materialGrade ?? '',
         source: result.source,
         confident: result.confident ? '1' : '0',
         visualScore: result.visualScore == null ? '' : String(result.visualScore),
@@ -158,8 +159,7 @@ export default function TrashScanScreen() {
           ))}
         </ScrollView>
 
-        {/* Pernyataan yang harus dibaca sebelum ada yang menyangka BinGo
-            menjalankan model penglihatan komputer. */}
+        {/* Penjelasan sumber hasil dan batas model tetap tampil di muka. */}
         <View style={s.noticeCard}>
           <Text style={s.noticeTitle}>{t.scanner.stageTitle}</Text>
           <Text style={s.noticeLine}>{t.scanner.stageOne}</Text>

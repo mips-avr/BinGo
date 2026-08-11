@@ -1,0 +1,134 @@
+name: Android APK Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: 'true'
+  EXPO_NO_TELEMETRY: '1'
+  EXPO_NO_GIT_STATUS: '1'
+
+jobs:
+  release-apk:
+    name: Build signed release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck and test TrashScan
+        run: |
+          pnpm --filter @bingo/mobile typecheck
+          pnpm --filter @bingo/mobile exec jest src/features/scanner/__tests__/classifier.test.ts --runInBand
+
+      - name: Validate signing secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BINGO_ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.BINGO_ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.BINGO_ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.BINGO_ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || { echo '::error::Missing BINGO_ANDROID_KEYSTORE_BASE64'; exit 1; }
+          test -n "$KEYSTORE_PASSWORD" || { echo '::error::Missing BINGO_ANDROID_KEYSTORE_PASSWORD'; exit 1; }
+          test -n "$KEY_ALIAS" || { echo '::error::Missing BINGO_ANDROID_KEY_ALIAS'; exit 1; }
+          test -n "$KEY_PASSWORD" || { echo '::error::Missing BINGO_ANDROID_KEY_PASSWORD'; exit 1; }
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.BINGO_ANDROID_KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/bingo-release.jks"
+
+      - name: Set release version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = 'tag' ]; then
+            VERSION_NAME="${GITHUB_REF_NAME#v}"
+          else
+            VERSION_NAME="0.1.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "BINGO_APP_VERSION=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "BINGO_ANDROID_VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+
+      - name: Generate Android native project
+        working-directory: apps/mobile
+        run: pnpm exec expo prebuild --platform android --clean --no-install
+
+      - name: Build signed release APK
+        working-directory: apps/mobile/android
+        env:
+          BINGO_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/bingo-release.jks
+          BINGO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.BINGO_ANDROID_KEYSTORE_PASSWORD }}
+          BINGO_ANDROID_KEY_ALIAS: ${{ secrets.BINGO_ANDROID_KEY_ALIAS }}
+          BINGO_ANDROID_KEY_PASSWORD: ${{ secrets.BINGO_ANDROID_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      - name: Verify and name APK
+        id: package
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          SOURCE_APK='apps/mobile/android/app/build/outputs/apk/release/app-release.apk'
+          "$APKSIGNER" verify --verbose --print-certs "$SOURCE_APK"
+          mkdir -p dist
+          if [ "$GITHUB_REF_TYPE" = 'tag' ]; then
+            APK_NAME="BinGo-${GITHUB_REF_NAME}.apk"
+          else
+            APK_NAME="BinGo-manual-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}.apk"
+          fi
+          cp "$SOURCE_APK" "dist/$APK_NAME"
+          echo "apk_path=dist/$APK_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bingo-release-apk-${{ github.ref_name }}
+          path: ${{ steps.package.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish GitHub Release asset
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_PATH: ${{ steps.package.outputs.apk_path }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$APK_PATH" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$APK_PATH#BinGo Android APK" --verify-tag --generate-notes
+          fi

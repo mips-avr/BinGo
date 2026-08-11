@@ -45,6 +45,8 @@ web-build/
 *.orig.*
 
 # Native
+/apps/mobile/android/
+/apps/mobile/ios/
 ios/Pods/
 ios/build/
 android/.gradle/

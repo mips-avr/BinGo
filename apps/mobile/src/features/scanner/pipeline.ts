@@ -1,4 +1,5 @@
 import { MaterialType } from '@bingo/shared-types';
+import type { MaterialGrade } from '@bingo/shared-types';
 import type { ScanResult, ScanSource } from './types';
 import { DISPOSAL_TIPS_ID, SCAN_POINTS_HINT } from './disposal-tips';
 import { estimateFromPhoto } from './visualClassifier';
@@ -11,9 +12,9 @@ import { estimateFromPhoto } from './visualClassifier';
  *             adalah penanda resmi yang dicetak produsen, jadi hasilnya
  *             ditegakkan langsung tanpa skor apa pun.
  *
- *   Tahap 2 — PERKIRAAN VISUAL. Dipakai hanya bila kodenya tidak terlihat
+ *   Tahap 2 — MODEL TFLITE. Dipakai hanya bila kodenya tidak terlihat
  *             (terhapus, tertutup label, kemasan terlalu kecil). Hasilnya
- *             selalu disajikan sebagai SARAN dan bisa berujung "belum yakin".
+ *             dikalibrasi dan bisa berujung "belum yakin".
  *
  * Yang sengaja tidak ada di berkas ini: jalur cadangan yang mengarang hasil.
  * Versi sebelumnya, ketika kamera gagal, memanggil pengklasifikasi dengan URI
@@ -22,8 +23,7 @@ import { estimateFromPhoto } from './visualClassifier';
  * sungguhan. Kegagalan sekarang mengembalikan `null`, dan layar pemindai wajib
  * menampilkannya sebagai galat.
  *
- * Tidak ada model AI di dalam BinGo saat ini. Tidak ada berkas `.tflite`, tidak
- * ada inferensi native, dan tidak ada cabang tipe yang berpura-pura ada.
+ * Model berjalan sepenuhnya di perangkat. Foto tidak dikirim ke backend.
  */
 
 /** Peta kode resin 1–7 ke kelas material (standar SPI/ASTM D7611). */
@@ -39,6 +39,7 @@ const RESIN_CODE_MATERIAL: Record<number, MaterialType> = {
 
 function build(
   materialType: MaterialType,
+  materialGrade: MaterialGrade | null,
   source: ScanSource,
   confident: boolean,
   visualScore: number | null,
@@ -46,6 +47,7 @@ function build(
 ): ScanResult {
   return {
     materialType,
+    materialGrade,
     source,
     confident,
     visualScore,
@@ -69,9 +71,9 @@ export function classifyByRecyclingCode(code: number): ScanResult {
   const materialType = RESIN_CODE_MATERIAL[code];
   if (!materialType) {
     // Kode di luar 1–7 tidak memetakan ke resin mana pun: jangan tegakkan.
-    return build(MaterialType.MIXED, 'resin-code', false, null, null);
+    return build(MaterialType.MIXED, null, 'resin-code', false, null, null);
   }
-  return build(materialType, 'resin-code', true, null, code);
+  return build(materialType, null, 'resin-code', true, null, code);
 }
 
 /**
@@ -82,10 +84,17 @@ export function classifyByRecyclingCode(code: number): ScanResult {
 export async function analyzePhoto(imageUri: string): Promise<ScanResult | null> {
   const verdict = await estimateFromPhoto(imageUri);
   if (!verdict) return null;
-  return build(verdict.materialType, 'visual-estimate', verdict.confident, verdict.score, null);
+  return build(
+    verdict.materialType,
+    verdict.materialGrade,
+    'visual-estimate',
+    verdict.confident,
+    verdict.score,
+    null,
+  );
 }
 
 /** Pengguna mengoreksi atau memilih sendiri jenis materialnya di layar hasil. */
 export function selectMaterialManually(materialType: MaterialType): ScanResult {
-  return build(materialType, 'manual', true, null, null);
+  return build(materialType, null, 'manual', true, null, null);
 }

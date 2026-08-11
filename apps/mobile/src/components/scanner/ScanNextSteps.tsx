@@ -7,6 +7,7 @@ import {
   INGUB_CATEGORY_ACTION,
   INGUB_CATEGORY_LABEL,
   ingubCategoryFor,
+  type MaterialGrade,
   type MaterialType,
 } from '@bingo/shared-types';
 
@@ -26,6 +27,7 @@ function rupiah(value: number): string {
 
 export interface ScanNextStepsProps {
   materialType: MaterialType;
+  materialGrade?: MaterialGrade | null;
 }
 
 /**
@@ -44,14 +46,17 @@ export interface ScanNextStepsProps {
  * adalah semua grade yang mungkin, bukan satu angka tunggal yang terkesan
  * pasti padahal tidak.
  */
-export function ScanNextSteps({ materialType }: ScanNextStepsProps) {
+export function ScanNextSteps({ materialType, materialGrade = null }: ScanNextStepsProps) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [region, setRegion] = useState('');
   const [locating, setLocating] = useState(false);
   const [locationDenied, setLocationDenied] = useState(false);
 
   const category = ingubCategoryFor(materialType);
-  const candidateGrades = useMemo(() => gradesForMaterial(materialType), [materialType]);
+  const candidateGrades = useMemo(() => {
+    const grades = gradesForMaterial(materialType);
+    return materialGrade ? grades.filter((grade) => grade.grade === materialGrade) : grades;
+  }, [materialGrade, materialType]);
 
   const askLocation = useCallback(async () => {
     setLocating(true);

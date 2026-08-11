@@ -6,30 +6,22 @@ juri.
 
 ## Kemampuan model — apa yang benar-benar bisa ia keluarkan
 
-**10 kelas latih**, yang diterjemahkan menjadi **8 dari 12 `MaterialType`** dan
-**2 dari 18 `MaterialGrade`**.
+Model final 11 Agustus 2026 memiliki tujuh kelas visual lintas-dataset:
+`PLASTIC`, `PAPER`, `CARDBOARD`, `METAL`, `GLASS`, `ORGANIC`, dan `MIXED`.
 
-| Kelas latih | → MaterialType | → Grade |
-|---|---|---|
-| `PET` | `PET` | — |
-| `HDPE` | `HDPE` | — |
-| `PLASTIC_OTHER` | `OTHER_PLASTIC` | — |
-| `PAPER` | `PAPER` | — |
-| `CARDBOARD` | `PAPER` | `KERTAS_KARDUS` |
-| `METAL_CAN` | `METAL` | `LOGAM_KALENG` |
-| `METAL_OTHER` | `METAL` | — |
-| `GLASS` | `GLASS` | — |
-| `ORGANIC` | `ORGANIC` | — |
-| `MIXED` | `MIXED` | — |
+| Kelas model | → MaterialType | → Grade | Perlakuan aplikasi |
+|---|---|---|---|
+| `PLASTIC` | `OTHER_PLASTIC` | — | wajib kode resin/koreksi pengguna |
+| `PAPER` | `PAPER` | — | dapat dipakai bila melewati threshold |
+| `CARDBOARD` | `PAPER` | `KERTAS_KARDUS` | dapat dipakai bila melewati threshold |
+| `METAL` | `METAL` | — | dapat dipakai bila melewati threshold |
+| `GLASS` | `GLASS` | — | dapat dipakai bila melewati threshold |
+| `ORGANIC` | `ORGANIC` | — | dapat dipakai bila melewati threshold |
+| `MIXED` | `MIXED` | — | dapat dipakai bila melewati threshold |
 
-**Yang TIDAK bisa ia keluarkan, dan ini yang harus disebut lebih dulu di
-sidang:**
-
-- **`PVC`, `LDPE`, `PS`, `PP`** — empat `MaterialType` yang tidak tercapai sama
-  sekali. Tidak ada dataset publik yang melabelinya, dan justru inilah yang
-  paling sering ditemui pemulung: kresek, gelas plastik, sedotan, styrofoam.
-- **16 dari 18 grade.** Termasuk seluruh pembedaan yang menentukan selisih harga
-  terbesar — bening versus berwarna, koran versus duplex, tembaga versus besi.
+Model **tidak menebak PET, HDPE, PVC, LDPE, PP, atau PS dari rupa plastik**.
+Dataset umum tidak konsisten memberi label resin. Kode resin 1–7 tetap jalur
+utama; keluaran visual `PLASTIC` sengaja berakhir sebagai keadaan belum pasti.
 
 Karena itu model ini **asisten identifikasi kasar, bukan penentu harga**. Kode
 resin tetap jalur utama karena ia fakta, bukan tebakan; model adalah tahap dua
@@ -125,8 +117,11 @@ saja; notebook adalah jalur utama sekarang.
 
 ## Keluaran
 
-`artifacts/`: `metrics.json`, `report.md`, `model_int8.tflite`, `labels.txt`,
-dan **`app_labels.json`**.
+Artefak final tersimpan sebagai model Keras float32, tiga varian TFLite,
+`labels.txt`, `app_labels.json`, serta laporan training/conversion/validation.
+Varian yang dipasang adalah **`model_float32.tflite`**: agreement terhadap
+Keras 100% pada sampel validasi konversi dan ukuran 3,65 MB. Int8 tidak dipakai
+karena agreement hanya 79%.
 
 Berkas terakhir itu yang membuat model dapat dipasang sama sekali: ia memetakan
 tiap kelas latih ke `MaterialType` dan `MaterialGrade`. Tanpa itu, keluaran
@@ -174,22 +169,16 @@ dan punya kelas sendiri di dataset publik. Sekarang ia terpaksa jatuh ke
 `PLASTIK_CAMPUR` yang harganya jauh lebih rendah. Pertimbangkan menambah
 `HDPE_RIGID`.
 
-## Memasang ke aplikasi
+## Pemasangan ke aplikasi
 
-Belum dikerjakan; ini jalurnya bila nanti diputuskan jalan.
+Sudah dipasang melalui `react-native-fast-tflite` 3.0.1 dengan CPU delegate.
+Metro membundel `apps/mobile/src/assets/trashscan/model_float32.tflite`, lalu
+`visualClassifier.ts` melakukan resize 224×224, menyusun tensor RGB float32
+0–255, menjalankan inference, temperature scaling `T=1,3`, dan threshold `0,75`.
 
-`react-native-fast-tflite` punya config plugin Expo dan mendukung delegate
-GPU/NNAPI serta CoreML, tetapi **butuh development build — tidak jalan di Expo
-Go**. APK untuk juri tidak terpengaruh.
-
-Sisi aplikasi sudah punya tempatnya: `apps/mobile/src/features/scanner/pipeline.ts`
-sudah memisahkan tahap 1 (kode resin) dan tahap 2 (dugaan visual), dan
-`visualClassifier.ts` memegang ambang abstain. Model masuk menggantikan isi tahap
-2, dengan ambang diambil dari kurva abstain di `metrics.json`.
-
-Yang berubah di naskah bila model jadi dipasang: Bab 5.4.1, Dokumen Teknis 4.2,
-dan baris AI/ML pada tabel stack — ketiganya sekarang menyatakan tidak ada model
-terlatih.
+Model berjalan on-device dan foto tidak dikirim ke backend. Karena modul
+inference bersifat native, TrashScan model memerlukan development build/APK dan
+tidak berjalan di Expo Go.
 
 ## Yang tidak boleh diklaim
 

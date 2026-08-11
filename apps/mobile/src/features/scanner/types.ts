@@ -1,4 +1,4 @@
-import type { MaterialType } from '@bingo/shared-types';
+import type { MaterialGrade, MaterialType } from '@bingo/shared-types';
 
 /**
  * Dari mana jenis material pada layar hasil berasal.
@@ -12,7 +12,7 @@ import type { MaterialType } from '@bingo/shared-types';
 export type ScanSource =
   /** Tahap 1 — pengguna menunjuk kode daur ulang 1–7 pada kemasan. */
   | 'resin-code'
-  /** Tahap 2 — dugaan heuristik dari warna & tekstur foto. Saran, bukan vonis. */
+  /** Tahap 2 — klasifikasi TFLite dari foto. Saran, bukan vonis. */
   | 'visual-estimate'
   /** Pengguna memilih sendiri jenis materialnya di layar hasil. */
   | 'manual';
@@ -23,6 +23,8 @@ export interface ScanResult {
    * dugaan terbaik dan TIDAK boleh ditampilkan sebagai keputusan.
    */
   materialType: MaterialType;
+  /** Grade hanya terisi bila kelas model memang membedakannya, saat ini kardus. */
+  materialGrade: MaterialGrade | null;
   source: ScanSource;
   /**
    * `false` berarti sistem menolak menyimpulkan. Layar hasil wajib meminta
@@ -31,8 +33,7 @@ export interface ScanResult {
    */
   confident: boolean;
   /**
-   * Keterpisahan dugaan visual teratas dari dugaan kedua (0–1). Bukan
-   * probabilitas terkalibrasi, dan sengaja tidak disebut demikian di UI.
+   * Probabilitas kelas teratas setelah temperature scaling (0–1).
    * `null` untuk sumber selain 'visual-estimate' — kode resin dan pilihan
    * manual bukan keluaran model, jadi tidak punya skor sama sekali.
    */
