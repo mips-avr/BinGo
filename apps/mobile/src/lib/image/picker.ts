@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { t } from '../../i18n';
 
 export interface PickedImage {
   uri: string;
@@ -14,9 +15,7 @@ async function ensure(perm: 'camera' | 'library'): Promise<void> {
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (req.status !== 'granted') {
     throw new Error(
-      perm === 'camera'
-        ? 'Izin kamera ditolak. Aktifkan di pengaturan untuk memotret bukti laporan.'
-        : 'Izin galeri ditolak. Aktifkan di pengaturan untuk memilih foto.',
+      perm === 'camera' ? t.report.cameraPermissionDenied : t.report.galleryPermissionDenied,
     );
   }
 }

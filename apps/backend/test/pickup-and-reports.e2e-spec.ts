@@ -10,7 +10,7 @@ interface AuthResp {
 
 async function register(
   app: INestApplication,
-  payload: { name: string; phone: string; role: 'CITIZEN' | 'WASTE_AGENT' | 'MSME'; nik?: string },
+  payload: { name: string; phone: string; role: 'CITIZEN' | 'WASTE_AGENT' | 'MSME' },
 ): Promise<AuthResp> {
   const res = await request(app.getHttpServer())
     .post('/api/v1/auth/register')
@@ -39,24 +39,68 @@ describe('Phase 3 e2e — pickup geospatial + reports + marketplace', () => {
   const agentPhone = `+62812${stamp}31`;
   const msmePhone = `+62812${stamp}41`;
 
+  const partnerPhone = `+62812${stamp}51`;
+
   let citizen: AuthResp;
   let v1: AuthResp;
   let v2: AuthResp;
   let v3: AuthResp;
   let agent: AuthResp;
   let msme: AuthResp;
+  let partner: AuthResp;
+
+  /**
+   * Menjamin seorang pemulung sampai Tingkat 1.
+   *
+   * Sejak verifikasi berjenjang diberlakukan, pemulung Tingkat 0 tidak boleh
+   * menerima penjemputan. Alur di berkas ini menguji hal lain (PostGIS, poin,
+   * laporan), jadi penjaminan disiapkan langsung lewat Prisma alih-alih
+   * melalui HTTP — tetapi tetap sebagai baris penjaminan yang sungguhan, bukan
+   * dengan menyetel `verificationLevel` begitu saja.
+   */
+  async function jaminAgen(agentId: string, attestorId: string, lembaga: string): Promise<void> {
+    await prisma.agentVerification.create({
+      data: {
+        agentId,
+        attestorId,
+        attestorType: 'BANK_SAMPAH',
+        attestorName: lembaga,
+        attestorPhone: partnerPhone,
+        attestorKey: lembaga.toLowerCase(),
+        status: 'DISETUJUI',
+        decidedAt: new Date(),
+        events: {
+          create: [
+            { action: 'DIAJUKAN', actorId: agentId },
+            { action: 'DISETUJUI', actorId: attestorId },
+          ],
+        },
+      },
+    });
+    await prisma.user.update({ where: { id: agentId }, data: { verificationLevel: 1 } });
+  }
 
   beforeAll(async () => {
     app = await bootstrapTestApp();
     prisma = app.get(PrismaService);
-    [citizen, v1, v2, v3, agent, msme] = await Promise.all([
+    [citizen, v1, v2, v3, agent, msme, partner] = await Promise.all([
       register(app, { name: 'Warga A', phone: citizenPhone, role: 'CITIZEN' }),
       register(app, { name: 'Verifier 1', phone: verifier1Phone, role: 'CITIZEN' }),
       register(app, { name: 'Verifier 2', phone: verifier2Phone, role: 'CITIZEN' }),
       register(app, { name: 'Verifier 3', phone: verifier3Phone, role: 'CITIZEN' }),
       register(app, { name: 'Pak Pemulung', phone: agentPhone, role: 'WASTE_AGENT' }),
       register(app, { name: 'Toko Hijau', phone: msmePhone, role: 'MSME' }),
+      register(app, { name: 'Operator Bank Sampah Uji', phone: partnerPhone, role: 'WASTE_AGENT' }),
     ]);
+
+    // Status operator mitra sengaja tidak punya endpoint: pendaftaran mitra
+    // dilakukan di luar aplikasi supaya dua akun Tingkat 0 tidak bisa saling
+    // menjamin. Di sini ia disetel langsung, seperti yang dilakukan seed.
+    await prisma.user.update({
+      where: { id: partner.user.id },
+      data: { partnerType: 'BANK_SAMPAH', partnerName: 'Bank Sampah Uji' },
+    });
+    await jaminAgen(agent.user.id, partner.user.id, 'Bank Sampah Uji');
   });
 
   afterAll(async () => {
@@ -66,7 +110,17 @@ describe('Phase 3 e2e — pickup geospatial + reports + marketplace', () => {
     await prisma.report.deleteMany({ where: { citizen: { phone: citizenPhone } } });
     await prisma.user.deleteMany({
       where: {
-        phone: { in: [citizenPhone, verifier1Phone, verifier2Phone, verifier3Phone, agentPhone, msmePhone] },
+        phone: {
+          in: [
+            citizenPhone,
+            verifier1Phone,
+            verifier2Phone,
+            verifier3Phone,
+            agentPhone,
+            msmePhone,
+            partnerPhone,
+          ],
+        },
       },
     });
     await app.close();
@@ -135,6 +189,9 @@ describe('Phase 3 e2e — pickup geospatial + reports + marketplace', () => {
       phone: `+62812${stamp}32`,
       role: 'WASTE_AGENT',
     });
+    // Dijamin juga, supaya yang diuji di sini benar-benar perlombaan status
+    // permintaan (404) dan bukan penjaga tingkat verifikasi (403).
+    await jaminAgen(agent2.user.id, partner.user.id, 'Bank Sampah Uji Dua');
     await request(app.getHttpServer())
       .patch(`/api/v1/pickup-requests/${pickupId}/accept`)
       .set('Authorization', `Bearer ${agent2.token.accessToken}`)

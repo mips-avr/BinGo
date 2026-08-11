@@ -8,11 +8,11 @@ import { STORAGE_KEYS, secureStorage } from '../../lib/storage/secure';
 
 const profile: UserProfile = {
   id: 'u1',
-  nik: null,
   name: 'Budi',
   phone: '+628123456789',
   role: 'CITIZEN',
   pointsBalance: 0,
+  verificationLevel: 0,
   createdAt: new Date('2026-05-17T00:00:00Z').toISOString(),
 };
 

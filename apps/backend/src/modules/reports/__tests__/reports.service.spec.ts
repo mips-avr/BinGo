@@ -76,8 +76,14 @@ describe('ReportsService', () => {
       prisma.report.findUnique.mockResolvedValue(reportRow({ verificationCount: 0 }));
       const txReport = { update: jest.fn() };
       txReport.update.mockResolvedValueOnce(reportRow({ verificationCount: 1 }));
+      // Verifikasi kini menulis satu baris `report_verifications` lalu
+      // menghitung ulang `verificationCount` dari jumlah barisnya.
+      const txVerification = {
+        create: jest.fn().mockResolvedValue({ id: 'v1' }),
+        count: jest.fn().mockResolvedValue(1),
+      };
       prisma.$transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) =>
-        fn({ report: txReport, user: { update: jest.fn() } }),
+        fn({ report: txReport, reportVerification: txVerification, user: { update: jest.fn() } }),
       );
 
       const res = await service.verify('r1', { id: 'other', role: 'CITIZEN' });
@@ -92,8 +98,12 @@ describe('ReportsService', () => {
       txReport.update
         .mockResolvedValueOnce(reportRow({ verificationCount: VERIFICATION_THRESHOLD }))
         .mockResolvedValueOnce(reportRow({ status: 'DIVERIFIKASI', verificationCount: VERIFICATION_THRESHOLD }));
+      const txVerification = {
+        create: jest.fn().mockResolvedValue({ id: 'v1' }),
+        count: jest.fn().mockResolvedValue(VERIFICATION_THRESHOLD),
+      };
       prisma.$transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) =>
-        fn({ report: txReport, user: { update: jest.fn() } }),
+        fn({ report: txReport, reportVerification: txVerification, user: { update: jest.fn() } }),
       );
 
       const res = await service.verify('r1', { id: 'other', role: 'CITIZEN' });

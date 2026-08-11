@@ -1,6 +1,7 @@
 {
   "name": "@bingo/shared-types",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "Tipe & kontrak DTO bersama antara backend dan mobile",
   "main": "./dist/index.js",
@@ -11,7 +12,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"(no lint configured for shared-types yet)\"",

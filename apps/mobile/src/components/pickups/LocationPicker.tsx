@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LatLng } from '@bingo/shared-types';
 import { getCurrentLocation } from '../../lib/location';
-import { colors, shadow } from '../../theme/screen';
+import { colors, radius, spacing, touch, typography } from '../../theme';
 import { t } from '../../i18n';
 
 export interface LocationPickerProps {
@@ -22,7 +22,7 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
       const res = await getCurrentLocation();
       onChange(res.coords, res.address);
     } catch (e) {
-      setPermissionError(e instanceof Error ? e.message : 'Gagal mengambil lokasi');
+      setPermissionError(e instanceof Error ? e.message : t.pickup.locationFailed);
     } finally {
       setLoading(false);
     }
@@ -43,7 +43,10 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
         <Pressable
           onPress={pick}
           accessibilityRole="button"
+          accessibilityLabel={t.pickup.locationPick}
+          accessibilityState={{ disabled: loading, busy: loading }}
           disabled={loading}
+          testID="location-pick"
           style={({ pressed }) => [lpS.pickBtn, pressed ? lpS.pickBtnPressed : null]}
         >
           {loading ? (
@@ -63,10 +66,15 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
 }
 
 const lpS = StyleSheet.create({
-  wrap: { marginBottom: 12 },
-  label: { marginBottom: 6, fontSize: 14, fontWeight: '600', color: colors.neutral700 },
+  wrap: { marginBottom: spacing.sm },
+  label: {
+    marginBottom: spacing.xxs + 2,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral700,
+  },
   card: {
-    borderRadius: 12,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.neutral300,
     backgroundColor: colors.white,
@@ -76,16 +84,17 @@ const lpS = StyleSheet.create({
   coords: { marginTop: 8, fontSize: 16, fontWeight: '600', color: colors.neutral900 },
   placeholder: { marginTop: 8, fontSize: 16, color: colors.neutral400 },
   pickBtn: {
-    marginTop: 12,
+    marginTop: spacing.sm,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: radius.xs,
     backgroundColor: colors.bingo100,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 10,
+    minHeight: touch.minTarget,
   },
   pickBtnPressed: { opacity: 0.7 },
   pickBtnText: { fontSize: 14, fontWeight: '700', color: colors.bingo700 },
-  error: { marginTop: 4, fontSize: 12, color: colors.red600 },
+  error: { marginTop: spacing.xxs, ...typography.error },
 });

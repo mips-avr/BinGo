@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { User } from '@prisma/client';
-import type { UserProfile, UserRole } from '@bingo/shared-types';
+import type { UserProfile, UserRole, VerificationLevel } from '@bingo/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export interface CreateUserInput {
@@ -9,7 +9,6 @@ export interface CreateUserInput {
   /** Hash password sudah harus dihitung oleh AuthService. */
   passwordHash: string;
   role: UserRole;
-  nik?: string | null;
 }
 
 @Injectable()
@@ -24,24 +23,18 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { phone } });
   }
 
-  async findByNik(nik: string): Promise<User | null> {
-    return this.prisma.user.findUnique({ where: { nik } });
-  }
-
   /**
    * Membuat user baru. Akan melempar `ConflictException` (HTTP 409) bila
-   * nomor telepon atau NIK sudah terdaftar.
+   * nomor telepon sudah terdaftar.
+   *
+   * Nomor telepon adalah satu-satunya pengenal unik yang diminta. Tidak ada
+   * pemeriksaan NIK karena tidak ada NIK yang disimpan: setiap akun baru mulai
+   * dari Tingkat 0 dan naik lewat penjaminan mitra.
    */
   async create(input: CreateUserInput): Promise<User> {
-    const [existingPhone, existingNik] = await Promise.all([
-      this.findByPhone(input.phone),
-      input.nik ? this.findByNik(input.nik) : Promise.resolve(null),
-    ]);
+    const existingPhone = await this.findByPhone(input.phone);
     if (existingPhone) {
       throw new ConflictException('Nomor telepon sudah terdaftar');
-    }
-    if (existingNik) {
-      throw new ConflictException('NIK sudah terdaftar');
     }
 
     return this.prisma.user.create({
@@ -50,7 +43,6 @@ export class UsersService {
         phone: input.phone,
         passwordHash: input.passwordHash,
         role: input.role,
-        nik: input.nik ?? null,
       },
     });
   }
@@ -67,11 +59,14 @@ export class UsersService {
   toProfile(user: User): UserProfile {
     return {
       id: user.id,
-      nik: user.nik,
       name: user.name,
       phone: user.phone,
       role: user.role as UserRole,
       pointsBalance: user.pointsBalance,
+      // `?? 0` menjaga profil tetap terbentuk pada baris lama yang belum
+      // memiliki kolom ini — tingkat 0 adalah nilai yang aman: tidak memberi
+      // satu pun izin tambahan.
+      verificationLevel: (user.verificationLevel ?? 0) as VerificationLevel,
       createdAt: user.createdAt.toISOString(),
     };
   }

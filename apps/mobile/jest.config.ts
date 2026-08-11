@@ -9,7 +9,7 @@ const config: Config = {
   // ke allow-list supaya file di virtual-store pnpm tetap ditransformasi
   // sampai segmen `node_modules/<paket>` berikutnya yang akan diperiksa ulang.
   transformIgnorePatterns: [
-    'node_modules/(?!\\.pnpm|(jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|nativewind|@bingo)',
+    'node_modules/(?!\\.pnpm|(jest-)?react-native|@react-native|expo(nent)?|@expo(nent)?|@expo-google-fonts|react-navigation|@react-navigation|@unimodules|unimodules|sentry-expo|native-base|react-native-svg|@bingo)',
   ],
   moduleNameMapper: {
     '^@bingo/shared-types$': '<rootDir>/../../packages/shared-types/src',

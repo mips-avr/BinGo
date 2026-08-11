@@ -1,35 +1,60 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { colors, shadow } from '../../theme/screen';
+import { Feather } from '@expo/vector-icons';
+import { colors, radius, spacing, shadow, touch, typography } from '../../theme';
+import { t } from '../../i18n';
 
 export interface ScreenHeaderProps {
   title: string;
   subtitle?: string;
   canGoBack?: boolean;
   trailing?: React.ReactNode;
+  /**
+   * `onDark` dipakai bila header berdiri di atas pratinjau kamera. Warna teks
+   * gelap default tidak terbaca di sana, dan kecerahan gambar kamera berubah
+   * terus sehingga tidak bisa diandalkan sebagai latar.
+   */
+  tone?: 'default' | 'onDark';
 }
 
-export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: ScreenHeaderProps) {
+export function ScreenHeader({
+  title,
+  subtitle,
+  canGoBack = true,
+  trailing,
+  tone = 'default',
+}: ScreenHeaderProps) {
+  const onDark = tone === 'onDark';
   const router = useRouter();
   return (
-    <View style={headerStyles.container}>
+    <View style={[headerStyles.container, onDark ? headerStyles.containerOnDark : null]}>
       <View style={headerStyles.leading}>
         {canGoBack ? (
+          // Kontrol yang paling sering dipakai di aplikasi — 44×44 penuh,
+          // bukan 40×40 seperti sebelumnya.
           <Pressable
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Kembali"
-            style={headerStyles.backBtn}
+            accessibilityLabel={t.common.back}
+            testID="screen-header-back"
+            style={({ pressed }) => [headerStyles.backBtn, pressed ? headerStyles.pressed : null]}
           >
-            <Text style={headerStyles.backIcon}>‹</Text>
+            <Feather name="chevron-left" size={24} color={onDark ? colors.white : colors.bingo700} />
           </Pressable>
         ) : null}
         <View style={headerStyles.titleWrap}>
-          <Text style={headerStyles.title} numberOfLines={1}>
+          <Text
+            style={[headerStyles.title, onDark ? headerStyles.titleOnDark : null]}
+            numberOfLines={1}
+            accessibilityRole="header"
+          >
             {title}
           </Text>
           {subtitle ? (
-            <Text style={headerStyles.subtitle} numberOfLines={1}>
+            <Text
+              style={[headerStyles.subtitle, onDark ? headerStyles.subtitleOnDark : null]}
+              numberOfLines={1}
+            >
               {subtitle}
             </Text>
           ) : null}
@@ -41,12 +66,15 @@ export function ScreenHeader({ title, subtitle, canGoBack = true, trailing }: Sc
 }
 
 const headerStyles = StyleSheet.create({
+  containerOnDark: { backgroundColor: colors.overlayDark },
+  titleOnDark: { color: colors.white },
+  subtitleOnDark: { color: colors.whiteAlpha85 },
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   leading: {
     flex: 1,
@@ -54,37 +82,27 @@ const headerStyles = StyleSheet.create({
     alignItems: 'center',
   },
   backBtn: {
-    marginRight: 12,
-    height: 40,
-    width: 40,
+    marginRight: spacing.sm,
+    height: touch.minTarget,
+    width: touch.minTarget,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.neutral200,
     ...shadow(1),
   },
-  backIcon: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.bingo700,
-    marginTop: -2,
-  },
+  pressed: { opacity: 0.7 },
   titleWrap: {
     flex: 1,
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.neutral900,
-  },
+  title: typography.headerTitle,
   subtitle: {
-    fontSize: 14,
-    color: colors.neutral600,
+    ...typography.bodyMuted,
     marginTop: 2,
   },
   trailing: {
-    marginLeft: 12,
+    marginLeft: spacing.sm,
   },
 });

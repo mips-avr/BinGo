@@ -4,23 +4,13 @@ import type { ReportDto } from '@bingo/shared-types';
 import { formatRelativeId } from '@bingo/shared-utils';
 import { Card } from '../ui/Card';
 import { StatusBadge } from '../ui/StatusBadge';
-import { colors } from '../../theme/screen';
+import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
-export function ReportCard({
-  report,
-  onPress,
-}: {
-  report: ReportDto;
-  onPress?: () => void;
-}) {
+export function ReportCard({ report, onPress }: { report: ReportDto; onPress?: () => void }) {
   return (
     <Card onPress={onPress} style={cardS.mb} padded={false}>
-      <Image
-        source={{ uri: report.imageUrl }}
-        style={cardS.image}
-        resizeMode="cover"
-      />
+      <Image source={{ uri: report.imageUrl }} style={cardS.image} resizeMode="cover" />
       <View style={cardS.body}>
         <View style={cardS.row}>
           {/* Icon indicator */}
@@ -28,7 +18,7 @@ export function ReportCard({
             <Feather name="flag" size={13} color={colors.red600} />
           </View>
           <Text style={cardS.desc} numberOfLines={2}>
-            {report.description ?? '(Tanpa deskripsi)'}
+            {report.description ?? t.common.noDescription}
           </Text>
           <StatusBadge status={report.status} />
         </View>
@@ -54,7 +44,7 @@ const cardS = StyleSheet.create({
     backgroundColor: colors.neutral200,
   },
   body: {
-    padding: 16,
+    padding: spacing.md,
   },
   row: {
     flexDirection: 'row',
@@ -64,18 +54,17 @@ const cardS = StyleSheet.create({
   iconCircle: {
     width: 28,
     height: 28,
-    borderRadius: 14,
-    backgroundColor: '#FEE2E2', // red-100
+    borderRadius: radius.pill,
+    backgroundColor: colors.red100,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
   },
   desc: {
     flex: 1,
-    fontSize: 15,
+    ...typography.cardTitle,
     fontWeight: '600',
-    color: colors.neutral900,
-    marginRight: 8,
+    marginRight: spacing.xs,
   },
   divider: {
     marginTop: 12,

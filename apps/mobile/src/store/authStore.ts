@@ -1,10 +1,5 @@
 import { create } from 'zustand';
-import type {
-  AuthResponse,
-  LoginRequest,
-  RegisterRequest,
-  UserProfile,
-} from '@bingo/shared-types';
+import type { AuthResponse, LoginRequest, RegisterRequest, UserProfile } from '@bingo/shared-types';
 import { loginApi, meApi, registerApi } from '../features/auth/api';
 import { STORAGE_KEYS, secureStorage } from '../lib/storage/secure';
 import { setOnUnauthorized } from '../lib/api/client';
@@ -16,6 +11,14 @@ interface AuthState {
   user: UserProfile | null;
   accessToken: string | null;
   hydrate: () => Promise<void>;
+  /**
+   * Menyegarkan profil yang tersimpan tanpa menyentuh token atau status.
+   *
+   * Dipakai `useMe()` setelah `/auth/me` dimuat ulang: saldo poin warga berubah
+   * di server ketika penjemputan selesai atau laporan diverifikasi, dan tanpa
+   * ini nilai di layar tetap nilai saat aplikasi pertama kali dibuka.
+   */
+  setUser: (user: UserProfile) => void;
   login: (input: LoginRequest) => Promise<void>;
   register: (input: RegisterRequest) => Promise<void>;
   logout: () => Promise<void>;
@@ -57,6 +60,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       await secureStorage.remove(STORAGE_KEYS.accessToken);
       set({ status: 'unauthenticated', user: null, accessToken: null });
     }
+  },
+
+  setUser(user) {
+    // Hanya diterapkan bila sesi masih hidup; menulis profil ke sesi yang sudah
+    // logout akan menghidupkan kembali nama pengguna lama di layar.
+    if (get().status !== 'authenticated') return;
+    set({ user });
   },
 
   async login(input) {

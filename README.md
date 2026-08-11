@@ -11,7 +11,7 @@ Repositori ini adalah **monorepo** berisi:
 - `apps/backend` — REST API NestJS + Prisma (PostgreSQL/PostGIS).
 - `apps/mobile` — aplikasi React Native (Expo) + NativeWind.
 - `packages/shared-types` — kontrak DTO bersama backend & mobile.
-- `packages/shared-utils` — helper murni (geo, currency, validator NIK/telepon).
+- `packages/shared-utils` — helper murni (geo, currency, validator & normalisasi nomor telepon Indonesia).
 - `packages/i18n` — string terlokalisasi Bahasa Indonesia.
 
 ---
@@ -103,7 +103,7 @@ Control** untuk tiga peran utama (`CITIZEN`, `WASTE_AGENT`, `MSME`).
 
 | Method | URL | Akses | Deskripsi |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/register` | publik | Daftar user baru (nama, telepon, password, role; opsional NIK) |
+| `POST` | `/api/v1/auth/register` | publik | Daftar user baru (nama, telepon, password, role) — **tanpa NIK** |
 | `POST` | `/api/v1/auth/login`    | publik | Login via telepon + password, mengembalikan JWT |
 | `GET`  | `/api/v1/auth/me`       | bearer | Profil user yang sedang login |
 | `GET`  | `/api/v1/users/me`      | bearer | Alias profil user (untuk modul mobile) |
@@ -117,15 +117,21 @@ melalui `JwtAuthGuard` + `RolesGuard` (terpasang via `APP_GUARD`).
   Passport JWT strategy, custom guards (`JwtAuthGuard`, `RolesGuard`) dan
   decorator (`@Public`, `@Roles`, `@CurrentUser`). DTO `RegisterDto`/`LoginDto`
   divalidasi `class-validator` plus validator kustom Indonesia: nomor
-  telepon dinormalisasi ke format `+628…`, dan NIK dicek 16 digit + komponen
-  tanggal lahir valid via `@bingo/shared-utils`. Seluruh pesan error
-  berbahasa Indonesia (lewat `AllExceptionsFilter`).
+  telepon dinormalisasi ke format `+628…` via `@bingo/shared-utils`. Seluruh
+  pesan error berbahasa Indonesia (lewat `AllExceptionsFilter`).
+
+  **BinGo tidak meminta dan tidak menyimpan NIK.** Pencocokan NIK ke sumber
+  resmi memerlukan perjanjian kerja sama dengan Ditjen Dukcapil (Permendagri
+  102/2019) yang tidak dimiliki tim ini, sehingga NIK yang tersimpan tidak
+  pernah dapat dibuktikan milik penggunanya — hanya risiko kebocoran tanpa
+  jaminan. Akuntabilitas pemulung ditegakkan lewat **verifikasi berjenjang**;
+  lihat bagian *Verifikasi berjenjang pemulung* di bawah.
 - **Mobile** — Axios client dengan interceptor JWT (`apps/mobile/src/lib/api/client.ts`),
   `expo-secure-store` untuk persistensi token, dan **Zustand** store
   (`authStore`) yang menjalankan `hydrate()` di `app/_layout.tsx`. Layar
   `/(auth)/login`, `/(auth)/role-select`, dan `/(auth)/register` (Expo Router)
   memakai komponen `Button`/`Input` (NativeWind) plus `LoginForm`/`RegisterForm`
-  yang memvalidasi telepon & NIK di sisi klien sebelum hit API.
+  yang memvalidasi nomor telepon di sisi klien sebelum hit API.
 - **Shared** — `@bingo/shared-types` mengekspor `UserRole`, `AuthResponse`,
   `JwtPayload`, `UserProfile` sehingga kontrak DTO tidak drift.
 
@@ -146,8 +152,8 @@ curl -s http://localhost:3000/api/v1/auth/register \
   -H 'content-type: application/json' \
   -d '{"name":"Budi","phone":"08123456789","password":"rahasiaSekali123","role":"CITIZEN"}'
 
-# Pesan error berbahasa Indonesia, mis. NIK tidak valid:
-# {"statusCode":400,"message":"NIK harus 16 digit angka dan memuat tanggal lahir yang valid"}
+# Pesan error berbahasa Indonesia, mis. nomor telepon tidak valid:
+# {"statusCode":400,"message":"Nomor telepon harus berformat Indonesia (contoh: 08123456789 atau +628123456789)"}
 ```
 
 ---
@@ -443,6 +449,195 @@ Alur uji manual:
 
 ---
 
+## Phase 7 — Bukti timbang digital (e-receipt) & papan harga
+
+Phase 7 menambahkan bagian yang menjadi inti klaim kebaruan BinGo: **setiap serah
+terima material meninggalkan catatan yang dapat diperiksa kedua pihak**, dan dari
+catatan itulah harga transaksi nyata dihitung.
+
+### Taksonomi grade material
+
+`MaterialType` menggolongkan berdasarkan jenis polimer (PET, PP, …). Penggolongan itu
+benar secara teknis tetapi tidak dipakai saat transaksi: dua barang dengan polimer
+sama bisa berbeda harga beberapa kali lipat. Karena itu ditambahkan **`MaterialGrade`**
+di `@bingo/shared-types` — 18 grade sebagaimana dipakai titik penerima di lapangan
+(botol bening, botol warna, gelas bening, gelas warna, kardus, koran, arsip, dan
+seterusnya), lengkap dengan label Bahasa Indonesia dan syarat kondisinya.
+
+Konstanta `MATERIAL_GRADES` sengaja **tidak memuat harga**. Harga hanya boleh berasal
+dari papan harga mitra di wilayah pengguna, bukan dari konstanta di dalam kode.
+
+### Endpoint baru
+
+| Method | URL | Role | Deskripsi |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/weighing-receipts` | `WASTE_AGENT` | Menerbitkan bukti timbang |
+| `GET` | `/api/v1/weighing-receipts/price-board?region=…&windowDays=7` | bearer | Sebaran harga per grade di satu wilayah |
+| `GET` | `/api/v1/weighing-receipts/mine` | bearer | Bukti di mana pengguna jadi penyetor atau penerbit |
+| `GET` | `/api/v1/weighing-receipts/:id` | bearer | Detail (hanya penyetor & penerbit) |
+
+### Keputusan desain yang penting
+
+- **Potongan tidak boleh disembunyikan di dalam harga.** Setiap baris punya
+  `deductionKg` (potongan berat, mis. kadar air) dan `deductionAmount` (potongan
+  rupiah, mis. biaya angkut) sebagai kolom terpisah, dan keduanya **wajib disertai
+  alasan**. Keluhan yang paling sering muncul di lapangan bukan harga per kilogram,
+  melainkan potongan yang tidak dijelaskan.
+- **Nomor tera timbangan.** Mengacu UU No. 2 Tahun 1981 tentang Metrologi Legal.
+  Bukti tanpa nomor tera tetap sah dicatat (`scaleVerified: false`) tetapi **tidak
+  dihitung ke papan harga**, karena beratnya tidak dapat dipertanggungjawabkan.
+- **Ambang minimum papan harga.** Sebaran hanya ditampilkan bila ada **≥3 baris data
+  dari ≥2 mitra berbeda** dalam jendela 7 hari. Di bawah itu grade masuk daftar
+  `insufficient` dan aplikasi menampilkan "data belum cukup" — menampilkan median dari
+  satu laporan tunggal berarti menyamarkan pengumuman satu pembeli sebagai informasi pasar.
+- **Yang ditampilkan adalah sebaran P25–median–P75, bukan satu angka**, agar
+  ketidakpastian terkomunikasikan apa adanya.
+- **Tidak ada harga nasional.** Setiap kueri papan harga wajib menyertakan `region`.
+- **Batasan ditegakkan di basis data**, bukan hanya di DTO: `CHECK` constraint
+  memastikan berat positif dan potongan berat tidak melebihi berat kotor.
+
+### Perhitungan
+
+```
+netWeightKg  = weightKg - deductionKg
+grossAmount  = round(netWeightKg × pricePerKg)
+subtotal     = grossAmount - deductionAmount
+```
+
+Bukti timbang ditolak bila potongan rupiah membuat pembayaran menjadi negatif.
+
+Nomor bukti berformat `BG-YYMMDD-XXXX`, memakai alfabet tanpa karakter yang mudah
+tertukar saat dibacakan (tanpa `0`/`O` dan `1`/`I`), dengan retry bila bertabrakan.
+
+### Antarmuka mobile
+
+| Peran | Layar | Lokasi |
+| --- | --- | --- |
+| Pemulung | Tab **Harga** — papan harga per wilayah | `app/(agent-tabs)/prices.tsx` |
+| Pemulung | Formulir terbitkan bukti timbang | `app/(agent-tabs)/receipts/new.tsx` |
+| Pemulung | Daftar & detail bukti timbang | `app/(agent-tabs)/receipts/` |
+| Warga | Daftar & detail bukti timbang, dibuka dari tab Profil | `app/(tabs)/receipts/` |
+
+Alur demo dari ujung ke ujung: pemulung buka **Pekerjaan → detail → Timbang & terbitkan
+bukti** → isi grade, berat, harga, potongan → bukti terbit → buka tab **Harga**, masukkan
+wilayah yang sama → sebaran harga bergerak. Warga melihat bukti yang sama dari
+**Profil → Bukti timbang saya**.
+
+Beberapa keputusan antarmuka yang disengaja:
+
+- **Pratinjau perhitungan langsung di formulir.** Rumusnya sama persis dengan sisi server
+  (`src/features/weighing/draft.ts`), sehingga angka yang dilihat pemulung saat mengisi
+  identik dengan angka pada bukti yang terbit. Kalau keduanya berbeda, bukti timbang
+  kehilangan kepercayaan.
+- **Kolom alasan potongan baru muncul ketika ada potongan**, lalu menjadi wajib. Pengguna
+  tidak dibebani kolom yang belum relevan, tetapi juga tidak bisa melewatinya.
+- **Grade menampilkan syarat kondisinya** begitu dipilih, dan grade yang tidak dibeli
+  titik penerima ditandai agar pemulung tidak membuang waktu mengumpulkannya.
+- **Papan harga menolak menampilkan angka** ketika data belum memenuhi ambang, dan
+  menyertakan halaman "Bagaimana angka ini dihitung" langsung di layar.
+
+### Cara verifikasi
+
+```bash
+pnpm backend:prisma:migrate   # migrasi 20260803000000_weighing_receipts
+pnpm backend:prisma:generate
+pnpm shared:build
+pnpm backend:test             # 74 unit test, 20 di antaranya untuk modul ini
+pnpm mobile:test              # 70 test, termasuk draft e-receipt & tampilan bukti
+pnpm --filter @bingo/mobile typecheck
+```
+
+---
+
+## Phase 8 — Verifikasi berjenjang pemulung (tanpa NIK)
+
+BinGo **tidak mengumpulkan dan tidak menyimpan NIK**. Akses data kependudukan
+diatur Permendagri 102/2019 dan hanya terbuka bagi lembaga yang sudah
+menandatangani perjanjian kerja sama dengan Ditjen Dukcapil; sebuah tim
+mahasiswa tidak termasuk di dalamnya. NIK yang dikumpulkan tanpa jalur
+pencocokan itu tidak akan pernah bisa dibuktikan milik penggunanya — yang
+tersisa hanyalah data pribadi berisiko tinggi tanpa jaminan apa pun.
+
+Akuntabilitas dibangun dari pihak yang benar-benar mengenal pemulung di
+lapangan. Yang disimpan sistem hanya **identitas penjamin, tanggal, status
+verifikasi, dan jejak audit** (tabel `agent_verifications` &
+`agent_verification_events`).
+
+### Tiga tingkat
+
+| Tingkat | Syarat | Yang diizinkan |
+| --- | --- | --- |
+| **0 — Terdaftar** | nama panggilan + nomor telepon + kata sandi, tanpa dokumen | papan harga & peta permintaan (`/radar`, `/nearby`, `/price-board`) |
+| **1 — Dijamin Mitra** | satu penjaminan disetujui oleh mitra terdaftar (bank sampah, lapak, TPS3R, KSM persampahan, RT/RW) | menerima penjemputan, menerbitkan bukti timbang |
+| **2 — Dijamin Ganda** | dua dari tiga: penjaminan kedua dari lembaga berbeda; ≥10 transaksi nirsengketa; rekomendasi dua pemulung Tingkat 2 | pekerjaan bernilai tinggi (≥20 kg) & prioritas radar |
+
+Tingkat adalah nilai **turunan**, disimpan di `users.verification_level` dan
+hanya ditulis oleh `AgentVerificationsService.recomputeLevel()`. Aturannya
+tinggal di satu tempat, `deriveVerificationLevel()` di
+`packages/shared-types/src/agent-verification.ts`, supaya backend, seed, dan
+aplikasi mobile tidak pernah berbeda pendapat soal angkanya.
+
+### Endpoint baru
+
+| Method | URL | Akses | Deskripsi |
+| --- | --- | --- | --- |
+| `POST`  | `/api/v1/agent-verifications`             | `WASTE_AGENT` | Pemulung mengajukan penjaminan ke satu mitra (status `MENUNGGU`) |
+| `GET`   | `/api/v1/agent-verifications/mine`        | `WASTE_AGENT` | Tingkat sendiri, angka yang mendasarinya, seluruh penjaminan + jejak audit |
+| `GET`   | `/api/v1/agent-verifications/inbox`       | `WASTE_AGENT` (operator mitra) | Pengajuan yang ditujukan ke akun mitra ini |
+| `PATCH` | `/api/v1/agent-verifications/:id/decide`  | `WASTE_AGENT` (penjamin ybs.) | `DISETUJUI` / `DITOLAK` / `DICABUT`; tingkat dihitung ulang seketika |
+| `POST`  | `/api/v1/agent-verifications/endorsements`| `WASTE_AGENT` Tingkat 2 | Merekomendasikan pemulung lain (syarat ketiga) |
+| `PATCH` | `/api/v1/weighing-receipts/:id/dispute`   | penyetor bukti | Mempersoalkan bukti timbang; bukti berhenti dihitung sebagai transaksi nirsengketa |
+
+Status operator mitra (`users.partner_type` / `users.partner_name`) **sengaja
+tidak punya endpoint**: pendaftaran mitra dilakukan di luar aplikasi. Bila akun
+mana pun bisa menandai dirinya sendiri sebagai mitra, dua akun Tingkat 0 tinggal
+saling menjamin dan seluruh jenjang ini runtuh.
+
+### Penegakan
+
+- `PickupRequestsService.accept()` — menolak Tingkat 0, dan menolak Tingkat < 2
+  untuk permintaan ≥ `HIGH_VALUE_MIN_WEIGHT_KG` (20 kg).
+- `WeighingReceiptsService.create()` — menolak Tingkat 0.
+- `PickupRequestsService.findRadar()` — Tingkat 2 melihat permintaan bernilai
+  tinggi lebih dahulu; radar tetap terbuka untuk semua tingkat.
+
+Tingkat selalu dibaca dari basis data, tidak pernah dari klaim di dalam token:
+JWT berumur tujuh hari, dan pencabutan penjaminan harus berlaku seketika.
+
+### Akun demo
+
+| Tingkat | Akun | Dasar |
+| --- | --- | --- |
+| 0 | `081234500041` Tono Wijaya | 1 pengajuan `MENUNGGU` + 1 penjaminan `DICABUT` |
+| 1 | `082222222222` Agus Pramono | 1 penjaminan Bank Sampah Melati |
+| 2 | `081234500042` Hendra Gunawan | 2 lembaga penjamin + 10 transaksi nirsengketa (dari 11 bukti, 1 disengketakan) |
+
+Akun operator mitra: `081234500031` (Bank Sampah Melati), `081234500032`
+(TPS3R Beji Bersih), `081234500033` (RT 05 RW 03 Beji).
+
+### Cara verifikasi
+
+```bash
+pnpm backend:prisma:migrate   # migrasi 20260806143000_verifikasi_berjenjang_tanpa_nik
+pnpm backend:prisma:generate
+pnpm shared:build
+pnpm backend:prisma:seed
+pnpm backend:test
+pnpm mobile:test
+pnpm --filter @bingo/mobile typecheck
+```
+
+---
+
+## Lisensi & komponen pihak ketiga
+
+BinGo dirilis di bawah **MIT License** (lihat `LICENSE`). Daftar seluruh pustaka pihak
+ketiga yang dideklarasikan langsung beserta lisensinya ada di
+[`docs/DAFTAR-KOMPONEN-DAN-LISENSI.md`](docs/DAFTAR-KOMPONEN-DAN-LISENSI.md) — 92
+komponen, seluruhnya berlisensi permisif (MIT, Apache-2.0, BSD-2-Clause, ISC).
+
+---
+
 ## Skrip umum
 
 | Perintah | Deskripsi |
@@ -466,7 +661,7 @@ BinGo/
 │   └── mobile/       # Expo (React Native)
 ├── packages/
 │   ├── shared-types/ # DTO bersama
-│   ├── shared-utils/ # validator NIK / telepon / geo
+│   ├── shared-utils/ # validator telepon / currency / geo
 │   └── i18n/         # Bahasa Indonesia (default)
 ├── infra/
 │   ├── docker/       # init SQL PostGIS
@@ -495,3 +690,4 @@ BinGo/
 - ✅ **Phase 4** — Frontend Warga (tab Beranda/Pickup/Lapor/WasteMart/Profil, GPS, foto, uploads)
 - ✅ **Phase 5** — Frontend Pemulung (dashboard, terdekat, terima/selesai, resolve laporan)
 - ✅ **Phase 6** — TrashScan (kamera + heuristik/TFLite-ready) & checkout UMKM (keranjang + pesanan)
+- ✅ **Phase 7** — Bukti timbang digital (e-receipt), taksonomi grade material, dan papan harga per wilayah

@@ -1,6 +1,7 @@
 {
   "name": "@bingo/i18n",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "String terlokalisasi (Bahasa Indonesia sebagai bahasa utama)",
   "main": "./dist/index.js",
@@ -11,7 +12,9 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "echo \"(no lint configured for i18n yet)\"",

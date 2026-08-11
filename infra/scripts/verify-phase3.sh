@@ -112,9 +112,17 @@ HTTP=$(curl -s -o /dev/null -w "%{http_code}" "$API/marketplace/checkout" -X POS
   -d "{\"items\":[{\"itemId\":\"$SEDOTAN_ID\",\"qty\":100}]}")
 [ "$HTTP" = "403" ] && ok "Ditolak 403 (MSME-only)" || err "Expected 403, got $HTTP"
 
-hr "Validasi NIK invalid menghasilkan pesan Bahasa Indonesia"
+# BinGo tidak mengumpulkan NIK (lihat Permendagri 102/2019 — akses Dukcapil
+# tidak terbuka bagi tim ini), jadi yang diperiksa di sini adalah validasi
+# nomor telepon: satu-satunya pengenal yang memang diminta saat mendaftar.
+hr "Validasi nomor telepon invalid menghasilkan pesan Bahasa Indonesia"
 ERR_BODY=$(curl -s "$API/auth/register" -H "content-type: application/json" \
-  -d '{"name":"Test","phone":"+628999999999","password":"rahasiaSekali123","role":"CITIZEN","nik":"123"}')
-echo "$ERR_BODY" | grep -q "NIK\|tidak valid" && ok "Pesan NIK: $(echo $ERR_BODY | jget '.message')" || err "Pesan tidak sesuai"
+  -d '{"name":"Test","phone":"123","password":"rahasiaSekali123","role":"CITIZEN"}')
+echo "$ERR_BODY" | grep -q "telepon" && ok "Pesan telepon: $(echo $ERR_BODY | jget '.message')" || err "Pesan tidak sesuai"
+
+hr "Pendaftaran menolak field NIK yang diselundupkan (whitelist DTO)"
+REG_BODY=$(curl -s "$API/auth/register" -H "content-type: application/json" \
+  -d '{"name":"Uji NIK","phone":"+628999999901","password":"rahasiaSekali123","role":"CITIZEN","nik":"3174010101900001"}')
+echo "$REG_BODY" | grep -qi "nik" && ok "Ditolak: $(echo $REG_BODY | jget '.message')" || err "Field nik seharusnya ditolak ValidationPipe (forbidNonWhitelisted)"
 
 echo -e "\n\033[1;32m✓ Verifikasi Phase 3 sukses\033[0m"

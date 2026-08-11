@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PickupRequestsService } from '../pickup-requests.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PointsService } from '../../points/points.service';
+import { AgentVerificationsService } from '../../agent-verifications/agent-verifications.service';
 
 function pickupRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -39,6 +40,13 @@ describe('PickupRequestsService', () => {
     $transaction: jest.Mock;
   };
   let points: { award: jest.Mock };
+  /**
+   * Penjenjangan verifikasi diuji di modulnya sendiri. Di sini yang perlu
+   * dipastikan hanyalah bahwa `accept()` benar-benar melewatinya — karena itu
+   * penjaga dipalsukan sebagai lolos secara bawaan, dan satu test khusus
+   * membuatnya menolak.
+   */
+  let verifications: { assertCanAcceptJobs: jest.Mock; getStoredLevel: jest.Mock };
 
   beforeEach(async () => {
     prisma = {
@@ -62,12 +70,17 @@ describe('PickupRequestsService', () => {
       ),
     };
     points = { award: jest.fn() };
+    verifications = {
+      assertCanAcceptJobs: jest.fn().mockResolvedValue(undefined),
+      getStoredLevel: jest.fn().mockResolvedValue(1),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         PickupRequestsService,
         { provide: PrismaService, useValue: prisma },
         { provide: PointsService, useValue: points },
+        { provide: AgentVerificationsService, useValue: verifications },
       ],
     }).compile();
     service = moduleRef.get(PickupRequestsService);
@@ -124,6 +137,10 @@ describe('PickupRequestsService', () => {
 
   describe('accept', () => {
     it('berhasil ketika status masih PENDING', async () => {
+      // `accept()` kini membaca baris permintaan lebih dulu untuk mengetahui
+      // beratnya, karena pekerjaan bernilai tinggi hanya boleh diambil
+      // pemulung Tingkat 2.
+      prisma.pickupRequest.findUnique.mockResolvedValue(pickupRow());
       prisma.pickupRequest.updateMany.mockResolvedValue({ count: 1 });
       prisma.pickupRequest.findUniqueOrThrow.mockResolvedValue(
         pickupRow({ agentId: 'a1', status: 'ACCEPTED' }),
@@ -134,6 +151,7 @@ describe('PickupRequestsService', () => {
     });
 
     it('melempar NotFound bila request sudah diambil agen lain', async () => {
+      prisma.pickupRequest.findUnique.mockResolvedValue(pickupRow());
       prisma.pickupRequest.updateMany.mockResolvedValue({ count: 0 });
       await expect(service.accept('p1', 'a1')).rejects.toBeInstanceOf(NotFoundException);
     });
@@ -154,7 +172,13 @@ describe('PickupRequestsService', () => {
       prisma.$transaction.mockImplementationOnce(async (fn: (tx: unknown) => unknown) => {
         const tx = {
           pickupRequest: {
-            update: jest.fn().mockResolvedValue(pickupRow({ status: 'COMPLETED', agentId: 'a1' })),
+            // Penyelesaian sekarang dijaga `updateMany` bersyarat status:
+            // count === 1 berarti transaksi ini yang memenangkan balapan dan
+            // berhak memberi poin.
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            findUniqueOrThrow: jest
+              .fn()
+              .mockResolvedValue(pickupRow({ status: 'COMPLETED', agentId: 'a1' })),
           },
         };
         return fn(tx);

@@ -6,14 +6,17 @@ import { formatIDR } from '@bingo/shared-utils';
 import { Button } from '../../../src/components/ui/Button';
 import { Card } from '../../../src/components/ui/Card';
 import { Input } from '../../../src/components/ui/Input';
+import { KeyboardAvoider } from '../../../src/components/ui/KeyboardAvoider';
+import { ItemImage } from '../../../src/components/marketplace/ItemImage';
+import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
+import { useBottomInset } from '../../../src/hooks/useBottomInset';
 import { useMarketplaceItem } from '../../../src/features/marketplace/hooks';
 import { useCartStore } from '../../../src/store/cartStore';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
-import { colors } from '../../../src/theme/screen';
+import { colors, radius, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
-const FALLBACK = 'https://placehold.co/800x500/16A34A/FFFFFF?text=BinGo';
 
 export default function MsmeMarketplaceItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,6 +24,7 @@ export default function MsmeMarketplaceItemDetail() {
   const query = useMarketplaceItem(id);
   const addItem = useCartStore((s) => s.addItem);
   const [qty, setQty] = useState('');
+  const bottomInset = useBottomInset();
 
   if (query.isLoading) {
     return (
@@ -34,9 +38,12 @@ export default function MsmeMarketplaceItemDetail() {
     return (
       <SafeAreaView style={s.safe} edges={['top']}>
         <ScreenHeader title={t.marketplace.title} />
-        <Text style={s.errorText}>
-          {extractApiErrorMessage(query.error, t.common.error)}
-        </Text>
+        <ErrorState
+          message={extractApiErrorMessage(query.error, t.common.errorMessage)}
+          onRetry={() => query.refetch()}
+          style={s.stateBlock}
+          testID="msme-item-error"
+        />
       </SafeAreaView>
     );
   }
@@ -54,12 +61,12 @@ export default function MsmeMarketplaceItemDetail() {
       return;
     }
     if (orderQty > item.stock) {
-      Alert.alert(t.common.error, `${t.marketplace.stock}: ${item.stock}`);
+      Alert.alert(t.common.error, t.msme.cart.stockWarning.replace('{stock}', String(item.stock)));
       return;
     }
     addItem(item, orderQty);
     Alert.alert(t.marketplace.addToCart, item.itemName, [
-      { text: t.common.cancel, style: 'cancel' },
+      { text: t.common.ok, style: 'cancel' },
       { text: t.msme.tabs.cart, onPress: () => router.push('/(msme-tabs)/cart') },
     ]);
   }
@@ -67,50 +74,75 @@ export default function MsmeMarketplaceItemDetail() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={item.itemName} subtitle={item.supplierName} />
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={s.scrollContent}
-      >
-        <Image
-          source={{ uri: item.imageUrl ?? FALLBACK }}
-          style={s.image}
-          resizeMode="cover"
-        />
+      {/* Kolom jumlah berada persis di atas tombol tambah ke keranjang —
+          keduanya tertutup papan ketik tanpa pembungkus ini. */}
+      <KeyboardAvoider>
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <ItemImage uri={item.imageUrl} label={item.itemName} height={200} style={s.image} />
 
-        <Card style={s.mt12}>
-          <Text style={s.priceText}>{formatIDR(item.price)}</Text>
-          <Text style={s.metaText}>
-            {t.marketplace.minOrder}: {item.minOrderQty} · {t.marketplace.stock}: {item.stock}
-          </Text>
-          <Text style={s.descText}>{item.description}</Text>
-        </Card>
+          <Card style={s.mt12}>
+            <Text style={s.priceText} numberOfLines={1}>
+              {formatIDR(item.price)}
+            </Text>
+            {/* Dulu satu baris tak terbatas; sekarang dua kolom yang boleh
+              membungkus tanpa saling menabrak. */}
+            <View style={s.metaRow}>
+              <View style={s.metaCol}>
+                <Text style={s.metaLabel}>{t.marketplace.minOrder}</Text>
+                <Text style={s.metaValue}>{item.minOrderQty}</Text>
+              </View>
+              <View style={s.metaCol}>
+                <Text style={s.metaLabel}>{t.marketplace.stock}</Text>
+                <Text style={s.metaValue}>{item.stock}</Text>
+              </View>
+            </View>
+            <Text style={s.descText}>{item.description}</Text>
+          </Card>
 
-        <View style={s.actionWrap}>
-          <Input
-            label={t.msme.cart.qty}
-            placeholder={String(item.minOrderQty)}
-            value={qty}
-            onChangeText={setQty}
-            keyboardType="numeric"
-          />
-          <Button label={t.msme.cart.addToCart} onPress={onAddToCart} testID="msme-add-cart" />
-        </View>
-      </ScrollView>
+          <View style={s.actionWrap}>
+            <Input
+              label={t.msme.cart.qty}
+              placeholder={String(item.minOrderQty)}
+              value={qty}
+              onChangeText={setQty}
+              keyboardType="numeric"
+            />
+            <Button label={t.msme.cart.addToCart} onPress={onAddToCart} testID="msme-add-cart" />
+          </View>
+        </ScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bingo50,
+  },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 32 },
-  loadingText: { fontSize: 14, color: colors.neutral600 },
-  errorText: { marginHorizontal: 20, marginTop: 16, fontSize: 14, color: colors.red600 },
-  image: { height: 224, width: '100%', borderRadius: 16, backgroundColor: colors.neutral200 },
-  mt12: { marginTop: 12 },
-  priceText: { fontSize: 24, fontWeight: '700', color: colors.bingo700 },
-  metaText: { marginTop: 8, fontSize: 14, color: colors.neutral700 },
-  descText: { marginTop: 12, fontSize: 16, lineHeight: 24, color: colors.neutral800 },
-  actionWrap: { marginTop: 16 },
+  scrollContent: { paddingHorizontal: spacing.lg },
+  loadingText: typography.bodyMuted,
+  stateBlock: { marginHorizontal: spacing.lg, marginTop: spacing.md },
+  image: {
+    height: 224,
+    width: '100%',
+    borderRadius: radius.md,
+  },
+  mt12: { marginTop: spacing.sm },
+  priceText: { ...typography.numeric, fontSize: 24, color: colors.bingo700 },
+  metaRow: { marginTop: spacing.sm, flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xl },
+  metaCol: { minWidth: 96 },
+  metaLabel: typography.overline,
+  metaValue: { marginTop: spacing.xxs, ...typography.numeric, fontSize: 16, fontWeight: '600' },
+  descText: { marginTop: spacing.sm, fontSize: 16, lineHeight: 24, color: colors.neutral800 },
+  actionWrap: { marginTop: spacing.md },
 });

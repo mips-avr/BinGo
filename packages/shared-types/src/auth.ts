@@ -1,8 +1,6 @@
 import type { UserProfile, UserRole } from './user';
 
 export interface RegisterRequest {
-  /** NIK 16 digit (opsional untuk peran MSME). */
-  nik?: string;
   name: string;
   phone: string;
   password: string;

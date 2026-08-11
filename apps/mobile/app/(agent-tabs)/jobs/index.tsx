@@ -1,11 +1,13 @@
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAssignedPickups } from '../../../src/features/pickups/hooks';
 import { PickupCard } from '../../../src/components/pickups/PickupCard';
 import { EmptyState } from '../../../src/components/ui/EmptyState';
+import { ErrorState } from '../../../src/components/ui/ErrorState';
+import { SkeletonList } from '../../../src/components/ui/Skeleton';
 import { extractApiErrorMessage } from '../../../src/lib/api/client';
-import { colors } from '../../../src/theme/screen';
+import { colors, spacing, typography } from '../../../src/theme';
 import { t } from '../../../src/i18n';
 
 export default function AgentJobsList() {
@@ -19,39 +21,54 @@ export default function AgentJobsList() {
     (p) => p.status === 'COMPLETED' || p.status === 'CANCELLED',
   );
 
+  const header = (
+    <View style={s.header}>
+      <Text style={s.title} accessibilityRole="header">
+        {t.agent.jobs.title}
+      </Text>
+    </View>
+  );
+
   if (query.isLoading) {
     return (
-      <SafeAreaView style={s.center} edges={['top']}>
-        <ActivityIndicator color={colors.bingo700} />
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {header}
+        <View style={s.listContent}>
+          <SkeletonList count={4} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (query.isError) {
+    return (
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {header}
+        <View style={s.listContent}>
+          <ErrorState
+            message={extractApiErrorMessage(query.error, t.common.errorMessage)}
+            onRetry={() => query.refetch()}
+            testID="jobs-error"
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <View style={s.header}>
-        <Text style={s.title}>{t.agent.jobs.title}</Text>
-      </View>
-
-      {query.isError ? (
-        <Text style={s.errorText}>
-          {extractApiErrorMessage(query.error, t.common.error)}
-        </Text>
-      ) : null}
+      {header}
 
       <FlatList
         data={[...active, ...history]}
         keyExtractor={(p) => p.id}
         contentContainerStyle={s.listContent}
         renderItem={({ item }) => (
-          <PickupCard
-            pickup={item}
-            onPress={() => router.push(`/(agent-tabs)/jobs/${item.id}`)}
-          />
+          <PickupCard pickup={item} onPress={() => router.push(`/(agent-tabs)/jobs/${item.id}`)} />
         )}
         ListEmptyComponent={
           <EmptyState
-            icon="🚚"
+            icon="truck"
             title={t.agent.jobs.emptyTitle}
             message={t.agent.jobs.emptyMessage}
           />
@@ -70,9 +87,7 @@ export default function AgentJobsList() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo50 },
-  header: { paddingHorizontal: 20, paddingVertical: 16 },
-  title: { fontSize: 20, fontWeight: '700', color: colors.neutral900 },
-  errorText: { marginHorizontal: 20, fontSize: 14, color: colors.red600 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  title: typography.headerTitle,
+  listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
 });

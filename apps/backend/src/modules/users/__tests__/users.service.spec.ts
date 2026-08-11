@@ -26,17 +26,16 @@ describe('UsersService', () => {
   });
 
   describe('create', () => {
-    it('membuat user baru ketika telepon & NIK belum dipakai', async () => {
+    it('membuat user baru ketika telepon belum dipakai, tanpa menulis kolom identitas apa pun', async () => {
       prisma.user.findUnique.mockResolvedValueOnce(null); // findByPhone
-      prisma.user.findUnique.mockResolvedValueOnce(null); // findByNik
       prisma.user.create.mockResolvedValue({
         id: 'u1',
         name: 'Budi',
         phone: '+628123456789',
         passwordHash: 'hash',
         role: 'CITIZEN',
-        nik: '3174010101900001',
         pointsBalance: 0,
+        verificationLevel: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -46,17 +45,17 @@ describe('UsersService', () => {
         phone: '+628123456789',
         passwordHash: 'hash',
         role: 'CITIZEN',
-        nik: '3174010101900001',
       });
 
       expect(user.id).toBe('u1');
+      // Perhatikan `toHaveBeenCalledWith` yang persis, bukan `objectContaining`:
+      // inilah yang membuat penambahan kembali kolom NIK gagal di sini.
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           name: 'Budi',
           phone: '+628123456789',
           passwordHash: 'hash',
           role: 'CITIZEN',
-          nik: '3174010101900001',
         },
       });
     });
@@ -72,20 +71,6 @@ describe('UsersService', () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });
-
-    it('menolak bila NIK sudah terdaftar', async () => {
-      prisma.user.findUnique.mockResolvedValueOnce(null); // phone bebas
-      prisma.user.findUnique.mockResolvedValueOnce({ id: 'existing' }); // NIK bentrok
-      await expect(
-        service.create({
-          name: 'Budi',
-          phone: '+628123456789',
-          passwordHash: 'hash',
-          role: 'CITIZEN',
-          nik: '3174010101900001',
-        }),
-      ).rejects.toBeInstanceOf(ConflictException);
-    });
   });
 
   describe('getProfileOrThrow', () => {
@@ -96,8 +81,8 @@ describe('UsersService', () => {
         phone: '+628123456789',
         passwordHash: 'rahasia',
         role: 'CITIZEN',
-        nik: null,
         pointsBalance: 25,
+        verificationLevel: 1,
         createdAt: new Date('2026-05-17T00:00:00Z'),
         updatedAt: new Date('2026-05-17T00:00:00Z'),
       });
@@ -105,11 +90,11 @@ describe('UsersService', () => {
       const profile = await service.getProfileOrThrow('u1');
       expect(profile).toEqual({
         id: 'u1',
-        nik: null,
         name: 'Budi',
         phone: '+628123456789',
         role: 'CITIZEN',
         pointsBalance: 25,
+        verificationLevel: 1,
         createdAt: '2026-05-17T00:00:00.000Z',
       });
       expect(profile as unknown as { passwordHash?: string }).not.toHaveProperty('passwordHash');

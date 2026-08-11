@@ -1,22 +1,42 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 const { getDefaultConfig } = require('expo/metro-config');
-const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 
 const projectRoot = __dirname;
-const monorepoRoot = path.resolve(projectRoot, '../..');
 
+/**
+ * Tidak ada `watchFolders`, `nodeModulesPaths`, `unstable_enableSymlinks`, atau
+ * `disableHierarchicalLookup` di sini, dan itu disengaja.
+ *
+ * Sejak SDK 52 `expo/metro-config` mengenali monorepo sendiri dan menyetel
+ * ketiganya dengan benar. Menyetelnya manual justru menabrak resolusi pnpm yang
+ * memakai symlink: `disableHierarchicalLookup` melarang Metro menelusuri ke
+ * direktori induk, sehingga paket yang di-symlink dari `.pnpm` tidak ketemu.
+ */
 const config = getDefaultConfig(projectRoot);
 
-config.watchFolders = [monorepoRoot];
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(monorepoRoot, 'node_modules'),
-];
-config.resolver.unstable_enableSymlinks = true;
+// Model TrashScan adalah asset bundle, bukan source module JavaScript.
+config.resolver.assetExts = Array.from(new Set([...config.resolver.assetExts, 'tflite']));
 
-module.exports = withNativeWind(config, {
-  input: './src/styles/global.css',
-  projectRoot,
-  cliCommand: 'npx --no-install tailwindcss',
-});
+/**
+ * Bundling web hanya dipakai oleh perkakas QC tangkapan layar
+ * (`tools/qc-screenshots`). Tiga modul native tidak punya implementasi browser
+ * yang berguna, jadi ketiganya dialihkan ke shim saat dan hanya saat
+ * `BINGO_WEB_QC` diset. Build Android/iOS tidak tersentuh.
+ */
+if (process.env.BINGO_WEB_QC) {
+  const shims = {
+    'expo-secure-store': path.resolve(projectRoot, 'tools/qc-web-shims/secure-store.js'),
+    'expo-camera': path.resolve(projectRoot, 'tools/qc-web-shims/camera.js'),
+    'react-native-nfc-manager': path.resolve(projectRoot, 'tools/qc-web-shims/nfc.js'),
+  };
+  const base = config.resolver.resolveRequest;
+  config.resolver.resolveRequest = (context, moduleName, platform) => {
+    if (platform === 'web' && shims[moduleName]) {
+      return { type: 'sourceFile', filePath: shims[moduleName] };
+    }
+    return (base || context.resolveRequest)(context, moduleName, platform);
+  };
+}
+
+module.exports = config;

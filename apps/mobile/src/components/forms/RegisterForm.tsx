@@ -1,18 +1,18 @@
 import { useState } from 'react';
-import { Alert, View } from 'react-native';
-import { isValidNIK, isValidPhoneID } from '@bingo/shared-utils';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { isValidPhoneID } from '@bingo/shared-utils';
 import type { UserRole } from '@bingo/shared-types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
+import { colors, radius, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
   name?: string;
   phone?: string;
   password?: string;
-  nik?: string;
 }
 
 export interface RegisterFormProps {
@@ -20,6 +20,17 @@ export interface RegisterFormProps {
   onSuccess?: () => void;
 }
 
+/**
+ * Formulir pendaftaran.
+ *
+ * Formulir ini pernah meminta NIK — wajib untuk warga dan pemulung, opsional
+ * untuk UMKM. Field itu dihapus seluruhnya. Mengumpulkan nomor kependudukan
+ * yang tidak dapat dicocokkan ke sumber resmi mana pun (Permendagri 102/2019
+ * membatasi akses Dukcapil) hanya memindahkan risiko kebocoran ke pengguna
+ * tanpa memberi jaminan apa pun sebagai gantinya — dan bagi pemulung, satu
+ * layar tambahan yang meminta KTP adalah alasan paling umum untuk berhenti
+ * mendaftar. Kepercayaan dibangun setelah pendaftaran, lewat penjaminan mitra.
+ */
 export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
   const register = useAuthStore((s) => s.register);
   const status = useAuthStore((s) => s.status);
@@ -27,20 +38,13 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [nik, setNik] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
   function validate(): FormErrors {
     const next: FormErrors = {};
-    if (name.trim().length < 2) next.name = 'Nama minimal 2 karakter';
-    if (!isValidPhoneID(phone)) next.phone = 'Nomor telepon tidak valid';
-    if (password.length < 8) next.password = 'Kata sandi minimal 8 karakter';
-    // NIK opsional untuk MSME, wajib untuk Warga & Pemulung.
-    if (role !== 'MSME') {
-      if (!isValidNIK(nik)) next.nik = 'NIK harus 16 digit angka yang valid';
-    } else if (nik && !isValidNIK(nik)) {
-      next.nik = 'NIK tidak valid';
-    }
+    if (name.trim().length < 2) next.name = t.auth.errors.nameMin;
+    if (!isValidPhoneID(phone)) next.phone = t.auth.errors.phoneInvalid;
+    if (password.length < 8) next.password = t.auth.errors.passwordMin;
     return next;
   }
 
@@ -50,16 +54,10 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
     if (Object.keys(issues).length > 0) return;
 
     try {
-      await register({
-        name: name.trim(),
-        phone,
-        password,
-        role,
-        nik: nik.trim() || undefined,
-      });
+      await register({ name: name.trim(), phone, password, role });
       onSuccess?.();
     } catch (err) {
-      Alert.alert(t.common.error, extractApiErrorMessage(err, 'Gagal mendaftar'));
+      Alert.alert(t.common.error, extractApiErrorMessage(err, t.auth.registerFailed));
     }
   }
 
@@ -83,16 +81,6 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
         testID="register-phone"
       />
       <Input
-        label={`${t.auth.nik}${role !== 'MSME' ? ' *' : ' (opsional)'}`}
-        autoCapitalize="none"
-        keyboardType="number-pad"
-        maxLength={16}
-        value={nik}
-        onChangeText={setNik}
-        error={errors.nik}
-        testID="register-nik"
-      />
-      <Input
         label={t.auth.password}
         secureTextEntry
         autoCapitalize="none"
@@ -101,12 +89,32 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
         error={errors.password}
         testID="register-password"
       />
+      {/* Ketiadaan permintaan NIK dinyatakan terang-terangan. Pemulung yang
+          pernah diminta KTP oleh aplikasi lain akan mencari-cari layar itu;
+          lebih baik ia tahu sejak awal bahwa layar itu memang tidak ada. */}
+      <View style={formS.notice} testID="register-no-id-notice">
+        <Text style={formS.noticeText}>{t.auth.noIdNumberNotice}</Text>
+      </View>
       <Button
         label={t.auth.register}
         onPress={handleSubmit}
         loading={status === 'loading'}
         testID="register-submit"
+        style={formS.submit}
       />
     </View>
   );
 }
+
+const formS = StyleSheet.create({
+  notice: {
+    marginTop: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.bingo50,
+    borderWidth: 1,
+    borderColor: colors.bingo100,
+  },
+  noticeText: { ...typography.caption },
+  submit: { marginTop: spacing.md },
+});

@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { UserRole } from '@bingo/shared-types';
 import { t } from '../../src/i18n';
-import { colors, screenStyles } from '../../src/theme/screen';
+import { colors, screenStyles, spacing, touch } from '../../src/theme';
 
 interface RoleOption {
   role: UserRole;
@@ -17,19 +17,19 @@ const ROLES: RoleOption[] = [
     role: 'CITIZEN',
     icon: '🏡',
     label: t.auth.role.CITIZEN,
-    description: 'Pindai sampah, ajukan penjemputan, dan laporkan pembuangan ilegal.',
+    description: t.auth.roleDescription.CITIZEN,
   },
   {
     role: 'WASTE_AGENT',
     icon: '🚚',
     label: t.auth.role.WASTE_AGENT,
-    description: 'Temukan permintaan penjemputan terdekat & kumpulkan pendapatan.',
+    description: t.auth.roleDescription.WASTE_AGENT,
   },
   {
     role: 'MSME',
     icon: '🏪',
     label: t.auth.role.MSME,
-    description: 'Akses katalog kemasan ramah lingkungan di WasteMart.',
+    description: t.auth.roleDescription.MSME,
   },
 ];
 
@@ -37,11 +37,16 @@ export default function RoleSelectScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={screenStyles.safeRoot}>
-      <ScrollView contentContainerStyle={screenStyles.scrollContentForm} keyboardShouldPersistTaps="handled">
-        <Text style={{ fontSize: 48, marginBottom: 8 }}>♻️</Text>
-        <Text style={screenStyles.screenTitle}>{t.auth.chooseRole}</Text>
-        <Text style={screenStyles.bodyMuted}>Pilih peran Anda untuk melanjutkan pendaftaran.</Text>
+    <SafeAreaView style={screenStyles.safeRoot} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={screenStyles.scrollContentForm}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={{ fontSize: 48, marginBottom: spacing.xs }}>♻️</Text>
+        <Text style={screenStyles.screenTitle} accessibilityRole="header">
+          {t.auth.chooseRole}
+        </Text>
+        <Text style={screenStyles.bodyMuted}>{t.auth.roleIntro}</Text>
 
         <View style={screenStyles.roleList}>
           {ROLES.map((opt) => (
@@ -51,6 +56,8 @@ export default function RoleSelectScreen() {
               onPress={() =>
                 router.push({ pathname: '/(auth)/register', params: { role: opt.role } })
               }
+              accessibilityRole="button"
+              accessibilityLabel={`${opt.label}. ${opt.description}`}
               style={({ pressed }) => [screenStyles.roleCard, pressed ? { opacity: 0.92 } : null]}
             >
               <Text style={screenStyles.roleIcon}>{opt.icon}</Text>
@@ -63,10 +70,15 @@ export default function RoleSelectScreen() {
           ))}
         </View>
 
-        <Pressable onPress={() => router.replace('/(auth)/login')} style={{ marginTop: 16 }}>
+        <Pressable
+          onPress={() => router.replace('/(auth)/login')}
+          accessibilityRole="button"
+          accessibilityLabel={`${t.auth.haveAccount} ${t.auth.login}`}
+          testID="go-to-login"
+          style={{ marginTop: spacing.md, minHeight: touch.minTarget, justifyContent: 'center' }}
+        >
           <Text style={[screenStyles.footerText, { textAlign: 'center' }]}>
-            Sudah punya akun?{' '}
-            <Text style={screenStyles.footerLink}>{t.auth.login}</Text>
+            {t.auth.haveAccount} <Text style={screenStyles.footerLink}>{t.auth.login}</Text>
           </Text>
         </Pressable>
       </ScrollView>

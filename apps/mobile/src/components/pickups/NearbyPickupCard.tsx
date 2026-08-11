@@ -3,7 +3,7 @@ import type { NearbyPickupResult } from '../../features/pickups/api';
 import { formatDistanceMeters } from '../../lib/geo/format';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
-import { colors } from '../../theme/screen';
+import { colors, spacing, typography } from '../../theme';
 import { t } from '../../i18n';
 
 export function NearbyPickupCard({
@@ -24,9 +24,7 @@ export function NearbyPickupCard({
           <Text style={cardS.address} numberOfLines={2}>
             {pickup.address}
           </Text>
-          <Text style={cardS.distance}>
-            📍 {formatDistanceMeters(pickup.distanceMeters)}
-          </Text>
+          <Text style={cardS.distance}>📍 {formatDistanceMeters(pickup.distanceMeters)}</Text>
           <Text style={cardS.material}>
             {t.pickup.material_label[pickup.materialType]} · {pickup.estimatedWeightKg} kg
           </Text>
@@ -47,7 +45,7 @@ export function NearbyPickupCard({
 }
 
 const cardS = StyleSheet.create({
-  mb: { marginBottom: 12 },
+  mb: { marginBottom: spacing.sm },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -55,7 +53,7 @@ const cardS = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: spacing.xs,
   },
   address: {
     fontSize: 16,
@@ -63,17 +61,17 @@ const cardS = StyleSheet.create({
     color: colors.neutral900,
   },
   distance: {
-    marginTop: 4,
-    fontSize: 14,
+    marginTop: spacing.xxs,
+    ...typography.body,
     fontWeight: '600',
     color: colors.bingo700,
   },
   material: {
-    marginTop: 4,
-    fontSize: 14,
+    marginTop: spacing.xxs,
+    ...typography.body,
     color: colors.neutral700,
   },
   btnWrap: {
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
 });

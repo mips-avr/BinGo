@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Report } from '@prisma/client';
 import { Prisma } from '@prisma/client';
 import type { ReportDto, ReportStatus as ReportStatusEnum } from '@bingo/shared-types';
@@ -58,8 +64,14 @@ export class ReportsService {
       typeof query.radiusKm === 'number'
     ) {
       const radius = query.radiusKm * 1000;
+      // Status disisipkan sebagai parameter terikat, bukan lewat `Prisma.raw`.
+      // `Prisma.raw` menempelkan teks apa adanya ke dalam SQL: nilainya memang
+      // divalidasi `@IsEnum` di DTO hari ini, tetapi itu berarti keamanan
+      // kueri ini bergantung pada dekorator di berkas lain yang bisa saja
+      // diganti nanti. Dengan parameter terikat, isi nilainya tidak pernah
+      // dapat mengubah bentuk kueri, apa pun yang lolos ke sini.
       const statusFilter = query.status
-        ? Prisma.sql`AND status = ${Prisma.raw(`'${query.status}'`)}::"ReportStatus"`
+        ? Prisma.sql`AND status = CAST(${query.status} AS "ReportStatus")`
         : Prisma.empty;
 
       const rows = await this.prisma.$queryRaw<NearbyReportRow[]>(Prisma.sql`
@@ -102,6 +114,23 @@ export class ReportsService {
   }
 
   // ---------- VERIFY (warga selain pembuat) ----------
+  /**
+   * Satu warga menyatakan bahwa laporan ini benar.
+   *
+   * Verifikasi dicatat sebagai baris tersendiri di `report_verifications`,
+   * bukan sekadar menaikkan penghitung. Sebelumnya `verificationCount` hanya
+   * dinaikkan tanpa mencatat siapa yang menaikkan, sehingga satu akun cukup
+   * memanggil endpoint ini tiga kali untuk menaikkan laporan apa pun ke status
+   * DIVERIFIKASI — termasuk laporan palsu — dan mencetak 50 poin bagi
+   * pelapornya. Verifikasi ganda bukan bug kecil: seluruh nilai status
+   * "diverifikasi" bertumpu pada anggapan bahwa tiga orang berbeda melihatnya.
+   *
+   * Aturan "satu orang satu suara" ditegakkan oleh kunci unik
+   * `(report_id, user_id)` di basis data, bukan oleh pemeriksaan di kode,
+   * supaya dua permintaan berbarengan dari akun yang sama tidak dapat
+   * menyelinap melewatinya. `verificationCount` lalu dihitung ulang dari
+   * jumlah baris — angkanya tidak bisa lagi menyimpang dari kenyataan.
+   */
   async verify(id: string, user: AuthenticatedUser): Promise<ReportDto> {
     const report = await this.prisma.report.findUnique({ where: { id } });
     if (!report) throw new NotFoundException('Laporan tidak ditemukan');
@@ -113,13 +142,21 @@ export class ReportsService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
-      const next = await tx.report.update({
-        where: { id },
-        data: { verificationCount: { increment: 1 } },
-      });
-      // Bila melewati threshold dan masih DILAPORKAN, naikkan status &
-      // berikan poin TrashLink ke pembuat laporan.
-      if (next.status === 'DILAPORKAN' && next.verificationCount >= VERIFICATION_THRESHOLD) {
+      try {
+        await tx.reportVerification.create({ data: { reportId: id, userId: user.id } });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          throw new ConflictException('Anda sudah memverifikasi laporan ini');
+        }
+        throw error;
+      }
+
+      const verificationCount = await tx.reportVerification.count({ where: { reportId: id } });
+      const next = await tx.report.update({ where: { id }, data: { verificationCount } });
+
+      // Bila melewati ambang dan masih DILAPORKAN, naikkan status & berikan
+      // poin TrashLink ke pembuat laporan.
+      if (next.status === 'DILAPORKAN' && verificationCount >= VERIFICATION_THRESHOLD) {
         const verified = await tx.report.update({
           where: { id },
           data: { status: 'DIVERIFIKASI' },

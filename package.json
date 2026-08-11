@@ -1,6 +1,7 @@
 {
   "name": "bingo",
   "version": "0.1.0",
+  "license": "MIT",
   "private": true,
   "description": "BinGo - Aplikasi pengelolaan sampah & kemasan ramah lingkungan untuk Indonesia",
   "engines": {
@@ -31,19 +32,5 @@
   "devDependencies": {
     "prettier": "^3.3.3",
     "typescript": "^5.5.4"
-  },
-  "pnpm": {
-    "overrides": {
-      "metro": "0.80.12"
-    },
-    "onlyBuiltDependencies": [
-      "@nestjs/core",
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
-      "@swc/core",
-      "esbuild",
-      "bcrypt"
-    ]
   }
 }

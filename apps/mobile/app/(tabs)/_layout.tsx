@@ -1,6 +1,9 @@
 import { Tabs, Redirect } from 'expo-router';
 import { Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../src/theme';
 import { getAuthenticatedHome } from '../../src/lib/navigation/role-routes';
+import { AppSplash } from '../../src/components/ui/AppSplash';
 import { useAuthStore } from '../../src/store/authStore';
 import { t } from '../../src/i18n';
 
@@ -13,20 +16,38 @@ const ICONS = {
   home: '🏠',
   scanner: '♻️',
   pickups: '🚚',
+  prices: '🏷️',
   reports: '📷',
   marketplace: '🛒',
   profile: '👤',
 } as const;
 
 function Icon({ name, focused }: { name: keyof typeof ICONS; focused: boolean }) {
-  return (
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{ICONS[name]}</Text>
-  );
+  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{ICONS[name]}</Text>;
+}
+
+/**
+ * React Navigation menambahkan inset bawah secara otomatis ke tab bar, tetapi
+ * `tabBarStyle` yang menuliskan `height`/`paddingBottom` sendiri menimpanya —
+ * itulah sebabnya ikon dan label sempat duduk di bawah home indicator pada
+ * perangkat tanpa tombol fisik. Inset dihitung ulang di sini.
+ */
+function useTabBarStyle() {
+  const insets = useSafeAreaInsets();
+  return {
+    paddingTop: spacing.xxs,
+    paddingBottom: spacing.xxs + insets.bottom,
+    height: 64 + insets.bottom,
+  };
 }
 
 export default function TabsLayout() {
+  const tabBarStyle = useTabBarStyle();
   const status = useAuthStore((s) => s.status);
   const user = useAuthStore((s) => s.user);
+  if (status === 'idle' || status === 'loading') {
+    return <AppSplash />;
+  }
   if (status === 'unauthenticated' || !user) {
     return <Redirect href="/(auth)/login" />;
   }
@@ -40,10 +61,10 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#15803D',
-        tabBarInactiveTintColor: '#737373',
+        tabBarActiveTintColor: colors.bingo700,
+        tabBarInactiveTintColor: colors.neutral500,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
-        tabBarStyle: { paddingTop: 4, paddingBottom: 4, height: 64 },
+        tabBarStyle,
       }}
     >
       <Tabs.Screen
@@ -67,18 +88,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <Icon name="pickups" focused={focused} />,
         }}
       />
+      {/* Papan harga ada di tab warga, bukan hanya di tab pemulung: warga yang
+          menjual harus bisa melihat rentang harga yang dipakai membayarnya. */}
       <Tabs.Screen
-        name="reports"
+        name="prices"
         options={{
-          title: t.tabs.reports,
-          tabBarIcon: ({ focused }) => <Icon name="reports" focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="marketplace"
-        options={{
-          title: t.tabs.marketplace,
-          tabBarIcon: ({ focused }) => <Icon name="marketplace" focused={focused} />,
+          title: t.weighing.tabTitle,
+          tabBarIcon: ({ focused }) => <Icon name="prices" focused={focused} />,
         }}
       />
       <Tabs.Screen
@@ -88,6 +104,14 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <Icon name="profile" focused={focused} />,
         }}
       />
+      {/* Lima tab adalah batas yang nyaman untuk satu ibu jari pada layar 5–6
+          inci; tab keenam dan seterusnya membuat label terpotong dan target
+          sentuh menyempit di bawah 44 dp. Laporan dan WasteMart karena itu
+          dibuka dari kartu aksi di Beranda, bukan dari tombol tab tersendiri,
+          dan Bukti Timbang dibuka dari Profil. */}
+      <Tabs.Screen name="reports" options={{ href: null }} />
+      <Tabs.Screen name="marketplace" options={{ href: null }} />
+      <Tabs.Screen name="receipts" options={{ href: null }} />
     </Tabs>
   );
 }

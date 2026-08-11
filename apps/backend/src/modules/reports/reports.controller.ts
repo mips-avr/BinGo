@@ -10,7 +10,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
@@ -26,7 +26,7 @@ export class ReportsController {
 
   @Post()
   @Roles('CITIZEN')
-  @ApiOkResponse({ description: 'Membuat laporan pembuangan ilegal (warga)' })
+  @ApiCreatedResponse({ description: 'Membuat laporan pembuangan ilegal (warga)' })
   create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateReportDto) {
     return this.service.create(user.id, dto);
   }
