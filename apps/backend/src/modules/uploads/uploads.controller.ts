@@ -12,10 +12,13 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
-import { diskStorage } from 'multer';
+import { put } from '@vercel/blob';
+import { memoryStorage } from 'multer';
 import { randomUUID } from 'node:crypto';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { Request } from 'express';
-import { UPLOADS_DIR } from './uploads.constants';
+import { UPLOADS_DIR, USES_BLOB_STORAGE } from './uploads.constants';
 
 /**
  * Daftar putih jenis berkas beserta ekstensi yang dipakai server.
@@ -41,7 +44,10 @@ const MIME_TO_EXTENSION: Record<string, string> = {
 };
 
 const ALLOWED_MIME = Object.keys(MIME_TO_EXTENSION);
-const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+// Vercel Function membatasi seluruh request body pada 4,5 MB. Sisakan ruang
+// untuk multipart boundary dan header agar pengguna mendapat 400 yang jelas,
+// bukan 413 dari edge sebelum request mencapai NestJS.
+const MAX_BYTES = 4 * 1024 * 1024;
 
 @ApiTags('Uploads')
 @ApiBearerAuth()
@@ -59,24 +65,13 @@ export class UploadsController {
       required: ['file'],
     },
   })
-  @ApiCreatedResponse({ description: 'Mengunggah foto (jpeg/png/webp/heic, maks 5MB)' })
+  @ApiCreatedResponse({ description: 'Mengunggah foto (jpeg/png/webp/heic, maks 4MB)' })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: UPLOADS_DIR,
-        filename: (_req, file, cb) => {
-          // Nama berkas sepenuhnya ditentukan server: waktu, UUID acak, dan
-          // ekstensi dari daftar putih. `file.originalname` diabaikan
-          // seluruhnya — termasuk ekstensinya dan kemungkinan `../` di
-          // dalamnya.
-          const ext = MIME_TO_EXTENSION[file.mimetype];
-          if (!ext) {
-            cb(new BadRequestException('Hanya gambar (jpeg/png/webp/heic) yang diizinkan'), '');
-            return;
-          }
-          cb(null, `${Date.now()}-${randomUUID()}${ext}`);
-        },
-      }),
+      // Memory storage diperlukan agar buffer yang sama dapat dikirim ke
+      // Vercel Blob. Batas 4 MB mencegah satu request menghabiskan memory
+      // Function secara tidak terkendali.
+      storage: memoryStorage(),
       limits: { fileSize: MAX_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME.includes(file.mimetype)) {
@@ -87,19 +82,42 @@ export class UploadsController {
       },
     }),
   )
-  uploadImage(
+  async uploadImage(
     @Req() req: Request,
     @UploadedFile(new ParseFilePipe({ fileIsRequired: true }))
     file: Express.Multer.File,
-  ) {
-    const baseUrl =
-      process.env.PUBLIC_BASE_URL?.replace(/\/+$/, '') ??
-      `${req.protocol}://${req.headers.host ?? 'localhost'}`;
-    const url = `${baseUrl}/uploads/${file.filename}`;
-    this.logger.log(`Foto disimpan: ${file.filename} (${file.size} bytes)`);
+  ): Promise<{ url: string; filename: string; size: number; mimeType: string }> {
+    const ext = MIME_TO_EXTENSION[file.mimetype];
+    if (!ext) {
+      throw new BadRequestException('Hanya gambar (jpeg/png/webp/heic) yang diizinkan');
+    }
+
+    // Nama tidak pernah berasal dari originalname milik klien.
+    const filename = `${Date.now()}-${randomUUID()}${ext}`;
+    let url: string;
+
+    if (USES_BLOB_STORAGE) {
+      const blob = await put(`reports/${filename}`, file.buffer, {
+        access: 'public',
+        addRandomSuffix: false,
+        contentType: file.mimetype,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      url = blob.url;
+    } else {
+      await writeFile(join(UPLOADS_DIR, filename), file.buffer);
+      const baseUrl =
+        process.env.PUBLIC_BASE_URL?.replace(/\/+$/, '') ??
+        `${req.protocol}://${req.headers.host ?? 'localhost'}`;
+      url = `${baseUrl}/uploads/${filename}`;
+    }
+
+    this.logger.log(
+      `Foto disimpan ke ${USES_BLOB_STORAGE ? 'Vercel Blob' : 'disk lokal'}: ${filename} (${file.size} bytes)`,
+    );
     return {
       url,
-      filename: file.filename,
+      filename,
       size: file.size,
       mimeType: file.mimetype,
     };

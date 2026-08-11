@@ -17,6 +17,7 @@ env:
   CI: 'true'
   EXPO_NO_TELEMETRY: '1'
   EXPO_NO_GIT_STATUS: '1'
+  EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
 
 jobs:
   build-apk:

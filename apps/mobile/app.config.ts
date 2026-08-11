@@ -5,6 +5,7 @@ const androidVersionCode =
   Number.isSafeInteger(configuredVersionCode) && configuredVersionCode > 0
     ? configuredVersionCode
     : 1;
+const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
 /**
  * Konfigurasi Expo dinamis.
@@ -86,7 +87,7 @@ const config: ExpoConfig = {
     ],
   ],
   extra: {
-    apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000',
+    apiBaseUrl: configuredApiBaseUrl || 'http://localhost:3000',
   },
 };
 

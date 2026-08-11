@@ -263,18 +263,18 @@ URL di field `reports.imageUrl`).
 
 | Method | URL | Akses | Deskripsi |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/uploads/image` | bearer | Unggah foto (`multipart/form-data`, field `file`). MIME: jpeg, png, webp, heic; maks 5 MB |
+| `POST` | `/api/v1/uploads/image` | bearer | Unggah foto (`multipart/form-data`, field `file`). MIME: jpeg, png, webp, heic; maks 4 MB |
 
 Respons mencakup `url` publik, misalnya `http://localhost:3000/uploads/<filename>.png`.
 
-- File disimpan di `apps/backend/uploads/` (default); override dengan env **`UPLOADS_DIR`** di production (volume/S3-gateway).
+- Saat lokal, file disimpan di `apps/backend/uploads/`. Pada Vercel, file disimpan permanen di **Vercel Blob** melalui `BLOB_READ_WRITE_TOKEN`.
 - **Helmet**: `crossOriginResourcePolicy` diset **`cross-origin`** supaya `<Image>` di simulator/device dapat memuat `http://HOST/uploads/…`.
 - **`PUBLIC_BASE_URL`** (opsional): basis URL lengkap untuk field `url` bila aplikasi ada di balik proxy/HTTPS.
 
 Lintas file inti:
 
 - Modul **`UploadsModule`** — `apps/backend/src/modules/uploads/`.
-- Serving statis **`/uploads/*`** dan konfig `NestExpressApplication` — `apps/backend/src/main.ts`.
+- Serving statis lokal **`/uploads/*`** dan konfig `NestExpressApplication` — `apps/backend/src/main.ts`.
 
 ### Mobile — apa yang dibuat untuk warga
 

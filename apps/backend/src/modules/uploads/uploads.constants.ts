@@ -6,9 +6,12 @@ import { resolve } from 'node:path';
  * (mis. di production gunakan volume mount atau bucket gateway).
  */
 export const UPLOADS_DIR = resolve(
-  process.env.UPLOADS_DIR ?? resolve(process.cwd(), 'uploads'),
+  process.env.UPLOADS_DIR ??
+    (process.env.VERCEL ? resolve('/tmp', 'bingo-uploads') : resolve(process.cwd(), 'uploads')),
 );
 
-if (!existsSync(UPLOADS_DIR)) {
+export const USES_BLOB_STORAGE = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+
+if (!USES_BLOB_STORAGE && !existsSync(UPLOADS_DIR)) {
   mkdirSync(UPLOADS_DIR, { recursive: true });
 }
