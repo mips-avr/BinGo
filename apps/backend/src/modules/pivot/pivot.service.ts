@@ -16,10 +16,15 @@ import {
   UserRole,
 } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
+import * as bcrypt from 'bcrypt';
+import { normalizePhoneID } from '@bingo/shared-utils';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import { PrismaService } from '../../prisma/prisma.service';
 import type {
   CardTapDto,
+  CreateCollectionRouteDto,
+  CreateCollectionRunDto,
+  CreateCollectorDto,
   CreateIntakeBatchDto,
   CreateLotDto,
   CreateOrderDto,
@@ -31,6 +36,7 @@ import type {
   UpdateStopDto,
   UpsertFacilityDto,
   CreateWasteReportDto,
+  IssueCollectorCardDto,
 } from './dto/pivot.dto';
 import type { PaymentProvider, VerificationEvidenceStore } from './providers';
 
@@ -239,8 +245,7 @@ export class PivotService {
     decision: Extract<OrganizationReviewDecision, 'APPROVED' | 'CHANGES_REQUESTED' | 'REJECTED'>,
     reason?: string,
   ) {
-    if (decision !== 'APPROVED' && !reason?.trim())
-      throw new BadRequestException('Alasan wajib diisi');
+    if (!reason?.trim()) throw new BadRequestException('Alasan keputusan wajib diisi');
     const application = await this.applicationDetail(id);
     if (application.status !== 'PENDING_REVIEW')
       throw new ConflictException('Pengajuan tidak sedang menunggu review');
@@ -273,7 +278,7 @@ export class PivotService {
   }
 
   async setSuspension(actorId: string, id: string, suspend: boolean, reason?: string) {
-    if (suspend && !reason?.trim()) throw new BadRequestException('Alasan suspensi wajib diisi');
+    if (!reason?.trim()) throw new BadRequestException('Alasan keputusan wajib diisi');
     const organization = await this.prisma.organization.findUnique({ where: { id } });
     if (!organization) throw new NotFoundException('Organisasi tidak ditemukan');
     return this.prisma.$transaction(async (tx) => {
@@ -782,14 +787,38 @@ export class PivotService {
     const membership = await this.membership(userId, ['MANAGER']);
     this.assertOrganizationActive(membership.organization.status);
     const orgId = membership.organizationId;
-    const [areas, collectors, runs, batches, lots, orders, reports] = await Promise.all([
+    const [
+      areas,
+      plans,
+      invoices,
+      collectors,
+      vehicles,
+      routes,
+      runs,
+      batches,
+      lots,
+      orders,
+      reports,
+    ] = await Promise.all([
       this.prisma.serviceArea.findMany({
         where: { organizationId: orgId },
         include: { _count: { select: { households: true } } },
       }),
+      this.prisma.servicePlan.findMany({ where: { organizationId: orgId, active: true } }),
+      this.prisma.invoice.findMany({
+        where: { organizationId: orgId },
+        include: { household: true },
+        orderBy: { dueAt: 'desc' },
+        take: 50,
+      }),
       this.prisma.collector.findMany({
         where: { organizationId: orgId },
         include: { user: true, cards: true },
+      }),
+      this.prisma.collectionVehicle.findMany({ where: { organizationId: orgId, active: true } }),
+      this.prisma.collectionRoute.findMany({
+        where: { organizationId: orgId, active: true },
+        include: { serviceArea: true, stops: { orderBy: { sequence: 'asc' } } },
       }),
       this.prisma.collectionRun.findMany({
         where: { organizationId: orgId },
@@ -822,7 +851,11 @@ export class PivotService {
     return {
       organization: membership.organization,
       areas,
+      plans,
+      invoices,
       collectors,
+      vehicles,
+      routes,
       runs,
       batches,
       lots,
@@ -830,6 +863,157 @@ export class PivotService {
       reports,
       inventoryKg: await this.inventoryBalance(orgId),
     };
+  }
+
+  async createCollectionRoute(userId: string, dto: CreateCollectionRouteDto) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const area = await this.prisma.serviceArea.findFirst({
+      where: { id: dto.serviceAreaId, organizationId: membership.organizationId, status: 'ACTIVE' },
+    });
+    if (!area) throw new NotFoundException('Wilayah layanan aktif tidak ditemukan');
+    const stops = dto.stops.map((value) => value.trim()).filter(Boolean);
+    if (!stops.length) throw new BadRequestException('Rute harus mempunyai sedikitnya satu titik');
+    return this.prisma.$transaction(async (tx) => {
+      const route = await tx.collectionRoute.create({
+        data: {
+          organizationId: membership.organizationId,
+          serviceAreaId: area.id,
+          name: dto.name.trim(),
+          stops: {
+            create: stops.map((address, index) => ({
+              sequence: index + 1,
+              label: `Titik ${index + 1}`,
+              address,
+            })),
+          },
+        },
+        include: { stops: true, serviceArea: true },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: 'COLLECTION_ROUTE_CREATED',
+          resourceType: 'CollectionRoute',
+          resourceId: route.id,
+        },
+      });
+      return route;
+    });
+  }
+
+  async createCollectionRun(userId: string, dto: CreateCollectionRunDto) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const [route, collector, vehicle] = await Promise.all([
+      this.prisma.collectionRoute.findFirst({
+        where: { id: dto.routeId, organizationId: membership.organizationId, active: true },
+      }),
+      this.prisma.collector.findFirst({
+        where: { id: dto.collectorId, organizationId: membership.organizationId, active: true },
+      }),
+      dto.vehicleId
+        ? this.prisma.collectionVehicle.findFirst({
+            where: { id: dto.vehicleId, organizationId: membership.organizationId, active: true },
+          })
+        : Promise.resolve(null),
+    ]);
+    if (!route) throw new NotFoundException('Rute aktif tidak ditemukan');
+    if (!collector) throw new NotFoundException('Petugas aktif tidak ditemukan');
+    if (dto.vehicleId && !vehicle) throw new NotFoundException('Kendaraan aktif tidak ditemukan');
+    return this.prisma.$transaction(async (tx) => {
+      const run = await tx.collectionRun.create({
+        data: {
+          organizationId: membership.organizationId,
+          routeId: route.id,
+          vehicleId: vehicle?.id,
+          scheduledFor: new Date(dto.scheduledFor),
+          assignments: { create: { collectorId: collector.id, userId: collector.userId } },
+        },
+        include: { route: true, vehicle: true, assignments: true },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: 'COLLECTION_RUN_CREATED',
+          resourceType: 'CollectionRun',
+          resourceId: run.id,
+        },
+      });
+      return run;
+    });
+  }
+
+  async createCollector(userId: string, dto: CreateCollectorDto) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const phone = normalizePhoneID(dto.phone);
+    if (!phone) throw new BadRequestException('Nomor telepon tidak valid');
+    const passwordHash = await bcrypt.hash(dto.initialPassword, 12);
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const account = await tx.user.create({
+          data: { name: dto.name.trim(), phone, role: 'COLLECTOR', passwordHash },
+        });
+        await tx.organizationMember.create({
+          data: {
+            organizationId: membership.organizationId,
+            userId: account.id,
+            role: 'COLLECTOR',
+          },
+        });
+        const collector = await tx.collector.create({
+          data: {
+            organizationId: membership.organizationId,
+            userId: account.id,
+            employeeNo: dto.employeeNo.trim().toUpperCase(),
+            hiredAt: new Date(),
+          },
+          include: { user: true, cards: true },
+        });
+        await tx.auditEvent.create({
+          data: {
+            actorId: userId,
+            organizationId: membership.organizationId,
+            action: 'COLLECTOR_CREATED',
+            resourceType: 'Collector',
+            resourceId: collector.id,
+          },
+        });
+        return collector;
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+        throw new ConflictException('Nomor telepon atau nomor petugas sudah terdaftar');
+      throw error;
+    }
+  }
+
+  async issueCollectorCard(userId: string, collectorId: string, dto: IssueCollectorCardDto) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const collector = await this.prisma.collector.findFirst({
+      where: { id: collectorId, organizationId: membership.organizationId, active: true },
+    });
+    if (!collector) throw new NotFoundException('Petugas aktif tidak ditemukan');
+    const uidHash = dto.uidCredential
+      ? createHash('sha256').update(dto.uidCredential.trim().toUpperCase()).digest('hex')
+      : null;
+    try {
+      return await this.prisma.collectorCard.create({
+        data: {
+          collectorId,
+          cardNumber: dto.cardNumber.trim().toUpperCase(),
+          uidHash,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
+        throw new ConflictException('Nomor kartu atau UID sudah dipakai');
+      throw error;
+    }
   }
 
   async createIntakeBatch(userId: string, dto: CreateIntakeBatchDto) {
@@ -981,20 +1165,46 @@ export class PivotService {
   async createLot(userId: string, dto: CreateLotDto) {
     const membership = await this.membership(userId, ['MANAGER']);
     this.assertOrganizationActive(membership.organization.status);
-    const available = await this.inventoryBalance(membership.organizationId, dto.material);
-    if (available < dto.quantityKg)
-      throw new ConflictException(`Inventory tersedia hanya ${available.toFixed(2)} kg`);
-    return this.prisma.materialLot.create({
-      data: {
-        organizationId: membership.organizationId,
-        code: `DEMO-LOT-${randomUUID().slice(0, 8).toUpperCase()}`,
-        material: dto.material,
-        quantityKg: dto.quantityKg,
-        availableKg: dto.quantityKg,
-        pricePerKg: dto.pricePerKg,
-        status: 'PUBLISHED',
+    return this.prisma.$transaction(
+      async (tx) => {
+        const entries = await tx.materialInventoryLedger.findMany({
+          where: { organizationId: membership.organizationId, material: dto.material },
+        });
+        const available = entries.reduce(
+          (total, entry) =>
+            total +
+            (['CREDIT', 'RELEASE'].includes(entry.direction)
+              ? Number(entry.quantityKg)
+              : -Number(entry.quantityKg)),
+          0,
+        );
+        if (available < dto.quantityKg)
+          throw new ConflictException(`Inventory tersedia hanya ${available.toFixed(2)} kg`);
+        const lot = await tx.materialLot.create({
+          data: {
+            organizationId: membership.organizationId,
+            code: `DEMO-LOT-${randomUUID().slice(0, 8).toUpperCase()}`,
+            material: dto.material,
+            quantityKg: dto.quantityKg,
+            availableKg: dto.quantityKg,
+            pricePerKg: dto.pricePerKg,
+            status: 'PUBLISHED',
+          },
+        });
+        await tx.materialInventoryLedger.create({
+          data: {
+            organizationId: membership.organizationId,
+            material: dto.material,
+            direction: 'RESERVE',
+            quantityKg: dto.quantityKg,
+            referenceType: 'MATERIAL_LOT',
+            referenceId: lot.id,
+          },
+        });
+        return lot;
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
   }
 
   async createOrder(userId: string, dto: CreateOrderDto) {
@@ -1029,16 +1239,6 @@ export class PivotService {
             status: 'RESERVED',
           },
         });
-        await tx.materialInventoryLedger.create({
-          data: {
-            organizationId: lot.organizationId,
-            material: lot.material,
-            direction: 'RESERVE',
-            quantityKg: dto.quantityKg,
-            referenceType: 'PURCHASE_ORDER',
-            referenceId: order.id,
-          },
-        });
         return order;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
@@ -1067,6 +1267,16 @@ export class PivotService {
         },
       });
       await tx.purchaseOrder.update({ where: { id: order.id }, data: { status: 'RECEIVED' } });
+      await tx.materialInventoryLedger.create({
+        data: {
+          organizationId: order.sellerOrgId,
+          material: order.lot.material,
+          direction: 'RELEASE',
+          quantityKg: dto.receivedKg,
+          referenceType: 'MATERIAL_RECEIPT_RELEASE',
+          referenceId: receipt.id,
+        },
+      });
       await tx.materialInventoryLedger.create({
         data: {
           organizationId: order.sellerOrgId,

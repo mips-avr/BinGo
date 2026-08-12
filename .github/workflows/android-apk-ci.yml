@@ -75,6 +75,7 @@ jobs:
           pnpm shared:build
           pnpm --filter @bingo/backend exec prisma format --check
           pnpm --filter @bingo/backend exec prisma validate
+          pnpm --filter @bingo/backend exec prisma generate
           pnpm --filter @bingo/backend exec prisma migrate deploy
           pnpm --filter @bingo/backend prisma:seed
           pnpm --filter @bingo/backend lint

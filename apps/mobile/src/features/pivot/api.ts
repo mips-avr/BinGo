@@ -48,6 +48,41 @@ export async function fetchManagerOperations() {
   return response.data;
 }
 
+export async function createCollectionRoute(input: {
+  serviceAreaId: string;
+  name: string;
+  stops: string[];
+}) {
+  return (await api.post('/api/v1/pivot/manager/routes', input)).data;
+}
+
+export async function createCollectionRun(input: {
+  routeId: string;
+  collectorId: string;
+  vehicleId?: string;
+  scheduledFor: string;
+}) {
+  return (await api.post('/api/v1/pivot/manager/runs', input)).data;
+}
+
+export async function createCollector(input: {
+  name: string;
+  phone: string;
+  employeeNo: string;
+  initialPassword: string;
+}) {
+  return (await api.post('/api/v1/pivot/manager/collectors', input)).data;
+}
+
+export async function issueCollectorCard(input: {
+  collectorId: string;
+  cardNumber: string;
+  uidCredential?: string;
+}) {
+  const { collectorId, ...body } = input;
+  return (await api.post(`/api/v1/pivot/manager/collectors/${collectorId}/cards`, body)).data;
+}
+
 export async function fetchBusinessCatalog() {
   const response = await api.get('/api/v1/pivot/business/catalog');
   return response.data;
@@ -58,15 +93,16 @@ export async function fetchPlatformApplications() {
   return response.data;
 }
 
+export async function fetchPlatformApplication(id: string) {
+  return (await api.get(`/api/v1/platform/applications/${id}`)).data;
+}
+
 export async function reviewApplication(
   id: string,
   action: 'approve' | 'request-changes' | 'reject',
   reason?: string,
 ) {
-  const response = await api.post(
-    `/api/v1/platform/applications/${id}/${action}`,
-    reason ? { reason } : {},
-  );
+  const response = await api.post(`/api/v1/platform/applications/${id}/${action}`, { reason });
   return response.data;
 }
 
@@ -75,6 +111,28 @@ export async function fetchFacilities(material?: string) {
     params: material ? { material } : undefined,
   });
   return response.data;
+}
+
+export async function createPlatformFacility(input: {
+  name: string;
+  operatorName: string;
+  address: string;
+  lat: number;
+  lng: number;
+  sourceUrl: string;
+  openingNote?: string;
+  materials: string[];
+}) {
+  return (await api.post('/api/v1/platform/facilities', input)).data;
+}
+
+export async function verifyPlatformFacility(input: {
+  id: string;
+  sourceUrl: string;
+  note?: string;
+}) {
+  const { id, ...body } = input;
+  return (await api.post(`/api/v1/platform/facilities/${id}/verify`, body)).data;
 }
 
 export async function fetchMyApplication() {
@@ -125,8 +183,8 @@ export async function suspendOrganization(id: string, reason: string) {
   const response = await api.post(`/api/v1/platform/organizations/${id}/suspend`, { reason });
   return response.data;
 }
-export async function reactivateOrganization(id: string) {
-  const response = await api.post(`/api/v1/platform/organizations/${id}/reactivate`);
+export async function reactivateOrganization(id: string, reason: string) {
+  const response = await api.post(`/api/v1/platform/organizations/${id}/reactivate`, { reason });
   return response.data;
 }
 export async function fetchPlatformModeration() {
@@ -159,6 +217,10 @@ export async function createWasteReport(input: {
 }) {
   const response = await api.post('/api/v1/pivot/reports', input);
   return response.data;
+}
+
+export async function resolveWasteReport(id: string, note: string) {
+  return (await api.post(`/api/v1/pivot/reports/${id}/resolve`, { note })).data;
 }
 
 export async function createLot(input: {

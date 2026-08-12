@@ -22,12 +22,16 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import type { AuthenticatedUser } from '../../common/types/authenticated-request';
 import {
   CardTapDto,
+  CreateCollectionRouteDto,
+  CreateCollectionRunDto,
+  CreateCollectorDto,
   CreateIntakeBatchDto,
   CreateLotDto,
   CreateOrderDto,
   CreateRequirementDto,
   CreateWeightEventDto,
   CreateWasteReportDto,
+  IssueCollectorCardDto,
   MockPaymentDto,
   ReceiveOrderDto,
   ResolveReportDto,
@@ -129,8 +133,9 @@ export class PlatformController {
   @Post('applications/:id/approve') approve(
     @CurrentUser() u: AuthenticatedUser,
     @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
   ) {
-    return this.service.reviewApplication(u.id, id, 'APPROVED');
+    return this.service.reviewApplication(u.id, id, 'APPROVED', dto.reason);
   }
   @Post('applications/:id/request-changes') changes(
     @CurrentUser() u: AuthenticatedUser,
@@ -159,8 +164,9 @@ export class PlatformController {
   @Post('organizations/:id/reactivate') reactivate(
     @CurrentUser() u: AuthenticatedUser,
     @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
   ) {
-    return this.service.setSuspension(u.id, id, false);
+    return this.service.setSuspension(u.id, id, false, dto.reason);
   }
   @Get('facilities') facilities() {
     return this.service.facilities();
@@ -249,6 +255,31 @@ export class PivotOperationsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.service.managerOperations(user.id);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('manager/routes') createRoute(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCollectionRouteDto,
+  ) {
+    return this.service.createCollectionRoute(user.id, dto);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('manager/runs') createRun(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCollectionRunDto,
+  ) {
+    return this.service.createCollectionRun(user.id, dto);
+  }
+  @Roles('MANAGER_ADMIN') @Post('manager/collectors') createCollector(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateCollectorDto,
+  ) {
+    return this.service.createCollector(user.id, dto);
+  }
+  @Roles('MANAGER_ADMIN') @Post('manager/collectors/:id/cards') issueCollectorCard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: IssueCollectorCardDto,
+  ) {
+    return this.service.issueCollectorCard(user.id, id, dto);
   }
   @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('weight-events') weight(
     @CurrentUser() user: AuthenticatedUser,

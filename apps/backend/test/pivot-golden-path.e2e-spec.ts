@@ -13,6 +13,10 @@ describe('Pivot five-role golden path (e2e)', () => {
   const applicantPhone = `+62813${stamp}`;
   let applicantUserId = '';
   let applicantOrgId = '';
+  let createdRouteId = '';
+  let createdRunId = '';
+  let createdCollectorUserId = '';
+  let createdFacilityId = '';
 
   async function login(name: string, phone: string) {
     const response = await request(app.getHttpServer())
@@ -49,6 +53,11 @@ describe('Pivot five-role golden path (e2e)', () => {
     }
     if (applicantOrgId) await prisma.organization.deleteMany({ where: { id: applicantOrgId } });
     if (applicantUserId) await prisma.user.deleteMany({ where: { id: applicantUserId } });
+    if (createdRunId) await prisma.collectionRun.deleteMany({ where: { id: createdRunId } });
+    if (createdRouteId) await prisma.collectionRoute.deleteMany({ where: { id: createdRouteId } });
+    if (createdCollectorUserId)
+      await prisma.user.deleteMany({ where: { id: createdCollectorUserId } });
+    if (createdFacilityId) await prisma.facility.deleteMany({ where: { id: createdFacilityId } });
     await app.close();
   });
 
@@ -119,6 +128,7 @@ describe('Pivot five-role golden path (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/platform/applications/${submitted.body.id}/approve`)
       .set('Authorization', auth('admin'))
+      .send({ reason: 'Identitas, kewenangan, dan dokumen pengajuan telah diperiksa' })
       .expect(201);
 
     const dashboard = await request(app.getHttpServer())
@@ -141,6 +151,100 @@ describe('Pivot five-role golden path (e2e)', () => {
       .get('/api/v1/pivot/manager/operations')
       .set('Authorization', auth('admin'))
       .expect(403);
+  });
+
+  it('Admin mengelola fasilitas dengan sumber dan verifikasi yang dapat diaudit', async () => {
+    const facility = await request(app.getHttpServer())
+      .post('/api/v1/platform/facilities')
+      .set('Authorization', auth('admin'))
+      .send({
+        name: `Fasilitas E2E ${stamp}`,
+        operatorName: 'Operator E2E Demo',
+        address: 'Alamat Fasilitas E2E, Jakarta',
+        lat: -6.225,
+        lng: 106.9,
+        sourceUrl: 'https://lingkunganhidup.jakarta.go.id/',
+        openingNote: '08.00 sampai 16.00',
+        materials: ['ORGANIC', 'PAPER'],
+      })
+      .expect(201);
+    createdFacilityId = facility.body.id;
+    expect(facility.body.materialRules).toHaveLength(2);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/platform/facilities/${facility.body.id}/verify`)
+      .set('Authorization', auth('admin'))
+      .send({
+        sourceUrl: 'https://lingkunganhidup.jakarta.go.id/',
+        note: 'Sumber dan jadwal telah diperiksa untuk E2E',
+      })
+      .expect(201);
+
+    const audits = await request(app.getHttpServer())
+      .get('/api/v1/platform/audit-events')
+      .set('Authorization', auth('admin'))
+      .expect(200);
+    expect(
+      audits.body.some(
+        (event: { action: string; resourceId: string }) =>
+          event.action === 'FACILITY_VERIFIED' && event.resourceId === facility.body.id,
+      ),
+    ).toBe(true);
+  });
+
+  it('Pengelola dapat membuat Petugas, kartu, rute, dan tugas tanpa manipulasi database', async () => {
+    const operations = await request(app.getHttpServer())
+      .get('/api/v1/pivot/manager/operations')
+      .set('Authorization', auth('manager'))
+      .expect(200);
+    expect(operations.body.areas.length).toBeGreaterThan(0);
+    expect(operations.body.routes.length).toBeGreaterThan(0);
+    expect(operations.body.vehicles.length).toBeGreaterThan(0);
+    expect(operations.body.invoices.length).toBeGreaterThan(0);
+
+    const collector = await request(app.getHttpServer())
+      .post('/api/v1/pivot/manager/collectors')
+      .set('Authorization', auth('manager'))
+      .send({
+        name: `Petugas E2E ${stamp}`,
+        phone: `+62814${stamp}`,
+        employeeNo: `E2E-${stamp}`,
+        initialPassword: PASSWORD,
+      })
+      .expect(201);
+    createdCollectorUserId = collector.body.userId;
+
+    const card = await request(app.getHttpServer())
+      .post(`/api/v1/pivot/manager/collectors/${collector.body.id}/cards`)
+      .set('Authorization', auth('manager'))
+      .send({ cardNumber: `BG-E2E-${stamp}` })
+      .expect(201);
+    expect(card.body.collectorId).toBe(collector.body.id);
+
+    const route = await request(app.getHttpServer())
+      .post('/api/v1/pivot/manager/routes')
+      .set('Authorization', auth('manager'))
+      .send({
+        serviceAreaId: operations.body.areas[0].id,
+        name: `Rute E2E ${stamp}`,
+        stops: ['Alamat E2E Nomor 1', 'Alamat E2E Nomor 2'],
+      })
+      .expect(201);
+    createdRouteId = route.body.id;
+    expect(route.body.stops).toHaveLength(2);
+
+    const run = await request(app.getHttpServer())
+      .post('/api/v1/pivot/manager/runs')
+      .set('Authorization', auth('manager'))
+      .send({
+        routeId: route.body.id,
+        collectorId: collector.body.id,
+        vehicleId: operations.body.vehicles[0].id,
+        scheduledFor: new Date(Date.now() + 86_400_000).toISOString(),
+      })
+      .expect(201);
+    createdRunId = run.body.id;
+    expect(run.body.assignments).toHaveLength(1);
   });
 
   it('pembayaran mock dan card tap bersifat idempoten', async () => {
@@ -244,7 +348,7 @@ describe('Pivot five-role golden path (e2e)', () => {
       .expect(201);
     for (const event of [
       { direction: 'IN', material: 'MIXED', weightKg: 20, suffix: 'in' },
-      { direction: 'SORTED_OUTPUT', material: 'ORGANIC', weightKg: 20, suffix: 'out' },
+      { direction: 'SORTED_OUTPUT', material: 'GLASS', weightKg: 20, suffix: 'out' },
     ]) {
       const { suffix, ...weight } = event;
       await request(app.getHttpServer())
@@ -265,7 +369,7 @@ describe('Pivot five-role golden path (e2e)', () => {
     const lot = await request(app.getHttpServer())
       .post('/api/v1/pivot/manager/lots')
       .set('Authorization', auth('manager'))
-      .send({ material: 'ORGANIC', quantityKg: 20, pricePerKg: 1200 })
+      .send({ material: 'GLASS', quantityKg: 20, pricePerKg: 1200 })
       .expect(201);
     const order = await request(app.getHttpServer())
       .post('/api/v1/pivot/business/orders')
@@ -300,6 +404,7 @@ describe('Pivot five-role golden path (e2e)', () => {
     await request(app.getHttpServer())
       .post(`/api/v1/platform/organizations/${organization.id}/reactivate`)
       .set('Authorization', auth('admin'))
+      .send({ reason: 'Uji suspensi selesai dan organisasi memenuhi pemeriksaan' })
       .expect(201);
   });
 });

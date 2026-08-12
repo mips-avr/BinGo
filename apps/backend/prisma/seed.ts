@@ -271,9 +271,13 @@ async function main() {
     where: { id: 'demo-requirement-organic' }, update: {},
     create: { id: 'demo-requirement-organic', organizationId: businessOrg.id, title: 'Bahan baku kompos organik minimal 50 kg (Demo)', material: 'ORGANIC', quantityKg: 50, pricePerKg: 1000, region: 'Jabodetabek', status: 'PUBLISHED' },
   });
-  await prisma.materialLot.upsert({
+  const demoLot = await prisma.materialLot.upsert({
     where: { code: 'DEMO-LOT-ORGANIC-001' }, update: {},
     create: { organizationId: managerOrg.id, code: 'DEMO-LOT-ORGANIC-001', material: 'ORGANIC', quantityKg: 50, availableKg: 50, pricePerKg: 1000, status: 'PUBLISHED' },
+  });
+  await prisma.materialInventoryLedger.upsert({
+    where: { referenceType_referenceId_direction: { referenceType: 'MATERIAL_LOT', referenceId: demoLot.id, direction: 'RESERVE' } }, update: {},
+    create: { organizationId: managerOrg.id, material: 'ORGANIC', direction: 'RESERVE', quantityKg: 50, referenceType: 'MATERIAL_LOT', referenceId: demoLot.id },
   });
 
   for (let index = 1; index <= 12; index += 1) {

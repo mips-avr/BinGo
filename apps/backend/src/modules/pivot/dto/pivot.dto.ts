@@ -1,8 +1,10 @@
 import { Transform } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsISO8601,
   IsInt,
   IsNumber,
   IsOptional,
@@ -59,6 +61,31 @@ export class CreateWeightEventDto {
 export class CreateIntakeBatchDto {
   @IsOptional() @IsString() stationId?: string;
   @IsOptional() @IsString() @Length(3, 80) batchNo?: string;
+}
+
+export class CreateCollectionRouteDto {
+  @IsString() serviceAreaId!: string;
+  @IsString() @Length(3, 120) name!: string;
+  @IsArray() @ArrayMinSize(1) @IsString({ each: true }) stops!: string[];
+}
+
+export class CreateCollectionRunDto {
+  @IsString() routeId!: string;
+  @IsString() collectorId!: string;
+  @IsOptional() @IsString() vehicleId?: string;
+  @IsISO8601() scheduledFor!: string;
+}
+
+export class CreateCollectorDto {
+  @IsString() @Length(3, 120) name!: string;
+  @IsString() @Length(8, 20) phone!: string;
+  @IsString() @Length(3, 40) employeeNo!: string;
+  @IsString() @Length(8, 100) initialPassword!: string;
+}
+
+export class IssueCollectorCardDto {
+  @IsString() @Length(3, 32) cardNumber!: string;
+  @IsOptional() @IsString() @Length(3, 100) uidCredential?: string;
 }
 
 export class CreateRequirementDto {

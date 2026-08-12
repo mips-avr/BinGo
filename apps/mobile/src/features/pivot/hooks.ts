@@ -9,12 +9,18 @@ import {
   fetchManagerOperations,
   fetchMyApplication,
   fetchPlatformApplications,
+  fetchPlatformApplication,
   fetchRoleDashboard,
   payMockInvoice,
   reviewApplication,
   tapCollectorCard,
   updateCollectorStop,
   createWasteReport,
+  resolveWasteReport,
+  createCollectionRoute,
+  createCollectionRun,
+  createCollector,
+  issueCollectorCard,
   createLot,
   createRequirement,
   createOrder,
@@ -31,6 +37,8 @@ import {
   fetchPlatformModeration,
   moderatePublication,
   fetchPlatformAudit,
+  createPlatformFacility,
+  verifyPlatformFacility,
 } from './api';
 
 export const pivotKeys = {
@@ -64,6 +72,26 @@ export const useFacilities = (material?: string) =>
     queryKey: [...pivotKeys.facilities, material],
     queryFn: () => fetchFacilities(material),
   });
+export const usePlatformApplication = (id: string) =>
+  useQuery({
+    queryKey: [...pivotKeys.applications, id],
+    queryFn: () => fetchPlatformApplication(id),
+    enabled: Boolean(id),
+  });
+export function useCreatePlatformFacility() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: createPlatformFacility,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.facilities }),
+  });
+}
+export function useVerifyPlatformFacility() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: verifyPlatformFacility,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.facilities }),
+  });
+}
 export const useMyApplication = () =>
   useQuery({ queryKey: pivotKeys.myApplication, queryFn: fetchMyApplication });
 export const usePlatformOrganizations = () =>
@@ -171,7 +199,7 @@ export function useOrganizationStatus() {
     }) =>
       action === 'suspend'
         ? suspendOrganization(id, reason ?? 'Pelanggaran kebijakan platform')
-        : reactivateOrganization(id),
+        : reactivateOrganization(id, reason ?? 'Pemeriksaan ulang telah selesai'),
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.organizations }),
   });
 }
@@ -197,6 +225,41 @@ export function useCreateReport() {
   return useMutation({
     mutationFn: createWasteReport,
     onSuccess: () => q.invalidateQueries({ queryKey: ['pivot'] }),
+  });
+}
+export function useResolveReport() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, note }: { id: string; note: string }) => resolveWasteReport(id, note),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useCreateCollectionRoute() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: createCollectionRoute,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useCreateCollectionRun() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: createCollectionRun,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useCreateCollector() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: createCollector,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useIssueCollectorCard() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: issueCollectorCard,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
   });
 }
 export function useCreateLot() {
