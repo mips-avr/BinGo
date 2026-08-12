@@ -12,30 +12,47 @@ interface MockItem {
 }
 
 function makeTx(items: Record<string, MockItem>) {
-  const createdRows: Array<{ buyerId: string; itemId: string; qty: number; totalPrice: number }> = [];
+  const createdRows: Array<{ buyerId: string; itemId: string; qty: number; totalPrice: number }> =
+    [];
   let txCounter = 0;
   return {
     marketplaceItem: {
-      findUnique: jest.fn(async ({ where: { id } }: { where: { id: string } }) => items[id] ?? null),
-      updateMany: jest.fn(async ({ where, data }: { where: { id: string; stock: { gte: number } }; data: { stock: { decrement: number } } }) => {
-        const item = items[where.id];
-        if (!item || item.stock < where.stock.gte) return { count: 0 };
-        item.stock -= data.stock.decrement;
-        return { count: 1 };
-      }),
+      findUnique: jest.fn(
+        async ({ where: { id } }: { where: { id: string } }) => items[id] ?? null,
+      ),
+      updateMany: jest.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string; stock: { gte: number } };
+          data: { stock: { decrement: number } };
+        }) => {
+          const item = items[where.id];
+          if (!item || item.stock < where.stock.gte) return { count: 0 };
+          item.stock -= data.stock.decrement;
+          return { count: 1 };
+        },
+      ),
     },
     transaction: {
-      create: jest.fn(async ({ data }: { data: { buyerId: string; itemId: string; qty: number; totalPrice: number } }) => {
-        txCounter += 1;
-        createdRows.push(data);
-        return {
-          id: `t${txCounter}`,
-          ...data,
-          status: 'PAID',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }),
+      create: jest.fn(
+        async ({
+          data,
+        }: {
+          data: { buyerId: string; itemId: string; qty: number; totalPrice: number };
+        }) => {
+          txCounter += 1;
+          createdRows.push(data);
+          return {
+            id: `t${txCounter}`,
+            ...data,
+            status: 'PAID',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        },
+      ),
     },
     __createdRows: createdRows,
   };

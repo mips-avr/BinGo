@@ -8,15 +8,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
-import { AgentVerificationsModule } from './modules/agent-verifications/agent-verifications.module';
-import { PointsModule } from './modules/points/points.module';
-import { PickupRequestsModule } from './modules/pickup-requests/pickup-requests.module';
-import { ReportsModule } from './modules/reports/reports.module';
-import { MarketplaceModule } from './modules/marketplace/marketplace.module';
 import { UploadsModule } from './modules/uploads/uploads.module';
-import { WeighingReceiptsModule } from './modules/weighing-receipts/weighing-receipts.module';
-import { DropPointsModule } from './modules/drop-points/drop-points.module';
-import { MemberCardsModule } from './modules/member-cards/member-cards.module';
+import { CollectionSchedulesModule } from './modules/collection-schedules/collection-schedules.module';
+import { PivotModule } from './modules/pivot/pivot.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -46,15 +40,9 @@ import { RolesGuard } from './common/guards/roles.guard';
     HealthModule,
     UsersModule,
     AuthModule,
-    AgentVerificationsModule,
-    PointsModule,
-    PickupRequestsModule,
-    ReportsModule,
-    MarketplaceModule,
     UploadsModule,
-    WeighingReceiptsModule,
-    DropPointsModule,
-    MemberCardsModule,
+    CollectionSchedulesModule,
+    PivotModule,
   ],
   providers: [
     // ThrottlerGuard didaftarkan PALING AWAL supaya permintaan yang melewati

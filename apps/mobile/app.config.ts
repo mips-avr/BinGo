@@ -18,14 +18,14 @@ const config: ExpoConfig = {
   version: process.env.BINGO_APP_VERSION ?? '0.1.0',
   orientation: 'portrait',
   userInterfaceStyle: 'automatic',
-  platforms: ['ios', 'android'],
+  platforms: ['ios', 'android', 'web'],
   ios: {
     supportsTablet: false,
     bundleIdentifier: 'id.bingo.app',
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
         'BinGo memakai lokasi Anda untuk menentukan titik penjemputan sampah & laporan ilegal.',
-      NSCameraUsageDescription: 'BinGo memerlukan kamera untuk TrashScan, laporan, dan foto bukti.',
+      NSCameraUsageDescription: 'BinGo memerlukan kamera untuk laporan dan foto bukti.',
       NSPhotoLibraryUsageDescription:
         'BinGo memerlukan akses foto untuk melampirkan bukti laporan.',
     },
@@ -36,7 +36,7 @@ const config: ExpoConfig = {
     adaptiveIcon: {
       backgroundColor: '#16A34A',
     },
-    permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'CAMERA'],
+    permissions: ['ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION', 'CAMERA', 'NFC'],
   },
   experiments: {
     typedRoutes: true,
@@ -57,12 +57,6 @@ const config: ExpoConfig = {
       {
         cameraPermission: 'BinGo memerlukan kamera untuk memotret bukti laporan.',
         photosPermission: 'BinGo memerlukan akses foto untuk melampirkan bukti laporan.',
-      },
-    ],
-    [
-      'expo-camera',
-      {
-        cameraPermission: 'BinGo memakai kamera untuk TrashScan dan identifikasi kemasan.',
       },
     ],
     /*

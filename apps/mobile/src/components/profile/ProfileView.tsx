@@ -63,7 +63,19 @@ export function ProfileView({ footer }: ProfileViewProps) {
         <Text style={profileS.userName} numberOfLines={2}>
           {user.name}
         </Text>
-        <Text style={profileS.userRole}>{t.auth.role[user.role]}</Text>
+        <Text style={profileS.userRole}>
+          {user.role === 'HOUSEHOLD'
+            ? 'Warga'
+            : user.role === 'COLLECTOR'
+              ? 'Petugas Pengumpul'
+              : user.role === 'MANAGER_ADMIN' || user.role === 'MANAGER_OPERATOR'
+                ? 'Pengelola'
+                : user.role === 'BUSINESS_BUYER'
+                  ? 'Business/Pengolah'
+                  : user.role === 'PLATFORM_ADMIN'
+                    ? 'Admin BinGo'
+                    : t.auth.role[user.role]}
+        </Text>
         {user.role === 'CITIZEN' ? (
           <View style={profileS.pointsWrap}>
             <PointsBadge points={user.pointsBalance} />
@@ -82,9 +94,6 @@ export function ProfileView({ footer }: ProfileViewProps) {
           <Row label={t.auth.name} value={user.name} />
           <Row label={t.auth.phone} value={user.phone ?? t.auth.phoneViaCard} />
         </View>
-        {/* Tidak ada baris NIK, dan itu dinyatakan, bukan sekadar dihilangkan
-            diam-diam: pengguna berhak tahu data apa yang tidak dipegang. */}
-        <Text style={profileS.privacyNote}>{t.auth.noIdNumberNotice}</Text>
       </Card>
 
       {user.role === 'WASTE_AGENT' ? (
@@ -94,7 +103,6 @@ export function ProfileView({ footer }: ProfileViewProps) {
           <Text style={profileS.verificationSummary}>
             {verificationLevelSummary(user.verificationLevel)}
           </Text>
-          <Text style={profileS.privacyNote}>{t.agent.verification.noIdNumber}</Text>
         </Card>
       ) : null}
 
@@ -171,10 +179,6 @@ const profileS = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.neutral900,
-  },
-  privacyNote: {
-    marginTop: spacing.sm,
-    ...typography.caption,
   },
   verificationCard: {
     marginTop: spacing.sm,

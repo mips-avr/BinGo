@@ -14,22 +14,22 @@ interface RoleOption {
 
 const ROLES: RoleOption[] = [
   {
-    role: 'CITIZEN',
+    role: 'HOUSEHOLD',
     icon: '🏡',
-    label: t.auth.role.CITIZEN,
-    description: t.auth.roleDescription.CITIZEN,
+    label: 'Warga',
+    description: 'Kelola layanan, iuran, jalur setor, dan laporan lingkungan.',
   },
   {
-    role: 'WASTE_AGENT',
-    icon: '🚚',
-    label: t.auth.role.WASTE_AGENT,
-    description: t.auth.roleDescription.WASTE_AGENT,
+    role: 'MANAGER_ADMIN',
+    icon: '🏢',
+    label: 'Pengelola',
+    description: 'Ajukan organisasi dan kelola layanan persampahan wilayah.',
   },
   {
-    role: 'MSME',
-    icon: '🏪',
-    label: t.auth.role.MSME,
-    description: t.auth.roleDescription.MSME,
+    role: 'BUSINESS_BUYER',
+    icon: '♻️',
+    label: 'Business/Pengolah',
+    description: 'Ajukan usaha dan temukan pasokan material non-residu.',
   },
 ];
 

@@ -6,6 +6,12 @@ export const UserRole = {
   CITIZEN: 'CITIZEN',
   WASTE_AGENT: 'WASTE_AGENT',
   MSME: 'MSME',
+  PLATFORM_ADMIN: 'PLATFORM_ADMIN',
+  MANAGER_ADMIN: 'MANAGER_ADMIN',
+  MANAGER_OPERATOR: 'MANAGER_OPERATOR',
+  COLLECTOR: 'COLLECTOR',
+  HOUSEHOLD: 'HOUSEHOLD',
+  BUSINESS_BUYER: 'BUSINESS_BUYER',
 } as const;
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
@@ -57,4 +63,21 @@ export interface UserProfile {
    */
   verificationLevel: VerificationLevel;
   createdAt: string;
+  active?: boolean;
+  platformRoles?: UserRole[];
+  memberships?: OrganizationMembership[];
+}
+
+export interface OrganizationMembership {
+  organizationId: string;
+  organizationName: string;
+  organizationType: 'MANAGER' | 'BUSINESS';
+  organizationStatus:
+    | 'DRAFT'
+    | 'PENDING_REVIEW'
+    | 'CHANGES_REQUESTED'
+    | 'ACTIVE'
+    | 'REJECTED'
+    | 'SUSPENDED';
+  role: 'MANAGER_ADMIN' | 'MANAGER_OPERATOR' | 'COLLECTOR' | 'HOUSEHOLD' | 'BUSINESS_BUYER';
 }

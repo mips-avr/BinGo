@@ -297,11 +297,7 @@ export class PickupRequestsService {
     if (user.role === 'CITIZEN' && pickup.citizenId !== user.id) {
       throw new ForbiddenException('Anda tidak memiliki akses ke permintaan ini');
     }
-    if (
-      user.role === 'WASTE_AGENT' &&
-      pickup.agentId !== user.id &&
-      pickup.status !== 'PENDING'
-    ) {
+    if (user.role === 'WASTE_AGENT' && pickup.agentId !== user.id && pickup.status !== 'PENDING') {
       throw new ForbiddenException('Anda tidak memiliki akses ke permintaan ini');
     }
 
@@ -483,7 +479,9 @@ export class PickupRequestsService {
       throw new ForbiddenException('Hanya pembuat permintaan yang boleh membatalkan');
     }
     if (pickup.status !== 'PENDING') {
-      throw new BadRequestException('Permintaan sudah diterima pemulung, hubungi pemulung untuk membatalkan');
+      throw new BadRequestException(
+        'Permintaan sudah diterima pemulung, hubungi pemulung untuk membatalkan',
+      );
     }
     const updated = await this.prisma.pickupRequest.update({
       where: { id },

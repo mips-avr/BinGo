@@ -17,7 +17,10 @@ export class NearbyQueryDto {
   @IsLongitude({ message: 'Longitude tidak valid' })
   lng!: number;
 
-  @ApiPropertyOptional({ example: 5, description: 'Radius pencarian dalam kilometer (default 5, maks 25)' })
+  @ApiPropertyOptional({
+    example: 5,
+    description: 'Radius pencarian dalam kilometer (default 5, maks 25)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({}, { message: 'Radius harus berupa angka' })

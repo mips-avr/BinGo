@@ -47,7 +47,11 @@ export class CreateWeighingLineDto {
   @Length(3, 160, { message: 'Alasan potongan minimal 3 dan maksimal 160 karakter' })
   deductionReason?: string;
 
-  @ApiProperty({ required: false, example: 2000, description: 'Potongan Rupiah, mis. biaya angkut' })
+  @ApiProperty({
+    required: false,
+    example: 2000,
+    description: 'Potongan Rupiah, mis. biaya angkut',
+  })
   @IsOptional()
   @IsInt({ message: 'Potongan rupiah harus berupa bilangan bulat' })
   @Min(0, { message: 'Potongan rupiah tidak boleh negatif' })

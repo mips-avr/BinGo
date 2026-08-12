@@ -39,7 +39,7 @@ export function VerificationBadge({ level, style, testID }: VerificationBadgePro
       accessibilityLabel={`${t.agent.verification.badgeLabel.replace(
         '{level}',
         String(level),
-      )} — ${verificationLevelName(level)}`}
+      )} · ${verificationLevelName(level)}`}
       testID={testID ?? `verification-badge-${level}`}
     >
       <Feather name={tone.icon} size={13} color={tone.fg} style={badgeS.icon} />

@@ -38,7 +38,7 @@ export function LocationPicker({ value, onChange, error }: LocationPickerProps) 
             📍 {value.lat.toFixed(5)}, {value.lng.toFixed(5)}
           </Text>
         ) : (
-          <Text style={lpS.placeholder}>—</Text>
+          <Text style={lpS.placeholder}>-</Text>
         )}
         <Pressable
           onPress={pick}

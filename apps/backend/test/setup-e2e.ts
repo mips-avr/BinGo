@@ -27,3 +27,4 @@ process.env.DATABASE_URL =
 process.env.JWT_SECRET =
   process.env.JWT_SECRET ?? 'test_secret_yang_panjangnya_minimal_32_karakter_ok';
 process.env.JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '1h';
+process.env.PRIVATE_EVIDENCE_DIR = process.env.PRIVATE_EVIDENCE_DIR ?? '/tmp/bingo-e2e-evidence';

@@ -8,6 +8,7 @@ import type { UserRole } from '@bingo/shared-types';
 export interface AuthenticatedUser {
   id: string;
   role: UserRole;
+  platformRoles?: UserRole[];
 }
 
 export interface AuthenticatedRequest extends Request {

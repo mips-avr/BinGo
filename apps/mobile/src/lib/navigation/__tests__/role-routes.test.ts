@@ -5,11 +5,11 @@ describe('getAuthenticatedHome', () => {
     expect(getAuthenticatedHome('CITIZEN')).toBe('/(tabs)');
   });
 
-  it('mengarahkan pemulung ke tab pemulung', () => {
-    expect(getAuthenticatedHome('WASTE_AGENT')).toBe('/(agent-tabs)');
+  it('mengarahkan role petugas lama ke pengalaman Petugas', () => {
+    expect(getAuthenticatedHome('WASTE_AGENT')).toBe('/(collector-tabs)');
   });
 
-  it('mengarahkan UMKM ke tab WasteMart', () => {
-    expect(getAuthenticatedHome('MSME')).toBe('/(msme-tabs)');
+  it('mengarahkan role business lama ke dashboard Business', () => {
+    expect(getAuthenticatedHome('MSME')).toBe('/(business)');
   });
 });

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { withAppBuildGradle } = require('@expo/config-plugins');
 
 const SIGNING_MARKER = 'bingoRelease {';

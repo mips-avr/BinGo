@@ -57,7 +57,7 @@ export function GradePicker({ value, onChange, error, testID }: GradePickerProps
               selected={value === grade}
               onPress={() => onChange(grade)}
               accessibilityLabel={
-                info.sellable ? info.label : `${info.label} — ${t.weighing.gradeNotSellable}`
+                info.sellable ? info.label : `${info.label}: ${t.weighing.gradeNotSellable}`
               }
               testID={`grade-${grade}`}
             />

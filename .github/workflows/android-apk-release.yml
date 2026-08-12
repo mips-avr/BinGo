@@ -23,6 +23,23 @@ jobs:
     name: Build signed release APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: bingo
+          POSTGRES_PASSWORD: bingo_dev_password
+          POSTGRES_DB: bingo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bingo -d bingo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://bingo:bingo_dev_password@localhost:5432/bingo?schema=public
+      JWT_SECRET: ci_test_secret_yang_panjangnya_lebih_dari_32_karakter
 
     steps:
       - name: Checkout
@@ -54,10 +71,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck and test TrashScan
+      - name: Typecheck and test pivot domain
         run: |
+          pnpm shared:build
+          pnpm --filter @bingo/backend exec prisma format --check
+          pnpm --filter @bingo/backend exec prisma validate
+          pnpm --filter @bingo/backend exec prisma migrate deploy
+          pnpm --filter @bingo/backend prisma:seed
+          pnpm --filter @bingo/backend lint
+          pnpm --filter @bingo/backend build
+          pnpm --filter @bingo/backend test --runInBand
+          pnpm --filter @bingo/backend test:e2e
+          pnpm --filter @bingo/mobile lint
           pnpm --filter @bingo/mobile typecheck
-          pnpm --filter @bingo/mobile exec jest src/features/scanner/__tests__/classifier.test.ts --runInBand
+          pnpm --filter @bingo/mobile exec jest --runInBand
+
+      - name: Export Expo Web
+        env:
+          EXPO_PUBLIC_WEB_BUILD: '1'
+        run: pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist/web
 
       - name: Validate signing secrets
         env:

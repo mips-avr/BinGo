@@ -2,11 +2,12 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
+  IsOptional,
   IsString,
   Length,
   MinLength,
   Validate,
-  ValidationArguments,
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
@@ -18,7 +19,7 @@ class IsIndonesianPhoneConstraint implements ValidatorConstraintInterface {
   validate(value: unknown): boolean {
     return typeof value === 'string' && normalizePhoneID(value) !== null;
   }
-  defaultMessage(_args: ValidationArguments): string {
+  defaultMessage(): string {
     return 'Nomor telepon harus berformat Indonesia (contoh: 08123456789 atau +628123456789)';
   }
 }
@@ -51,7 +52,16 @@ export class RegisterDto {
   @MinLength(8, { message: 'Kata sandi minimal 8 karakter' })
   password!: string;
 
-  @ApiProperty({ enum: ['CITIZEN', 'WASTE_AGENT', 'MSME'] })
+  @ApiProperty({ enum: ['HOUSEHOLD', 'MANAGER_ADMIN', 'BUSINESS_BUYER'] })
   @IsEnum(UserRole, { message: 'Peran tidak dikenali' })
+  @IsIn(['HOUSEHOLD', 'MANAGER_ADMIN', 'BUSINESS_BUYER'], {
+    message: 'Pendaftaran publik hanya tersedia untuk Warga, Pengelola, dan Business',
+  })
   role!: UserRole;
+
+  @ApiProperty({ required: false, example: 'Pengelola Sirkular RW 08' })
+  @IsOptional()
+  @IsString()
+  @Length(3, 180)
+  organizationName?: string;
 }

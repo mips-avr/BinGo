@@ -4,7 +4,8 @@ export interface RegisterRequest {
   name: string;
   phone: string;
   password: string;
-  role: UserRole;
+  role: Extract<UserRole, 'HOUSEHOLD' | 'MANAGER_ADMIN' | 'BUSINESS_BUYER'>;
+  organizationName?: string;
 }
 
 export interface LoginRequest {
@@ -26,6 +27,7 @@ export interface AuthResponse {
 export interface JwtPayload {
   sub: string;
   role: UserRole;
+  platformRoles?: UserRole[];
   iat?: number;
   exp?: number;
 }

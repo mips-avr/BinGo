@@ -60,16 +60,16 @@ describe('ReportsService', () => {
   describe('verify', () => {
     it('menolak verifikasi laporan milik sendiri', async () => {
       prisma.report.findUnique.mockResolvedValue(reportRow({ citizenId: 'me' }));
-      await expect(
-        service.verify('r1', { id: 'me', role: 'CITIZEN' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.verify('r1', { id: 'me', role: 'CITIZEN' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('menolak verifikasi laporan SELESAI', async () => {
       prisma.report.findUnique.mockResolvedValue(reportRow({ status: 'SELESAI' }));
-      await expect(
-        service.verify('r1', { id: 'other', role: 'CITIZEN' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.verify('r1', { id: 'other', role: 'CITIZEN' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('hanya menaikkan counter saat di bawah threshold', async () => {
@@ -93,11 +93,15 @@ describe('ReportsService', () => {
     });
 
     it('menaikkan status ke DIVERIFIKASI & memberi poin pada threshold', async () => {
-      prisma.report.findUnique.mockResolvedValue(reportRow({ verificationCount: VERIFICATION_THRESHOLD - 1 }));
+      prisma.report.findUnique.mockResolvedValue(
+        reportRow({ verificationCount: VERIFICATION_THRESHOLD - 1 }),
+      );
       const txReport = { update: jest.fn() };
       txReport.update
         .mockResolvedValueOnce(reportRow({ verificationCount: VERIFICATION_THRESHOLD }))
-        .mockResolvedValueOnce(reportRow({ status: 'DIVERIFIKASI', verificationCount: VERIFICATION_THRESHOLD }));
+        .mockResolvedValueOnce(
+          reportRow({ status: 'DIVERIFIKASI', verificationCount: VERIFICATION_THRESHOLD }),
+        );
       const txVerification = {
         create: jest.fn().mockResolvedValue({ id: 'v1' }),
         count: jest.fn().mockResolvedValue(VERIFICATION_THRESHOLD),
@@ -108,16 +112,21 @@ describe('ReportsService', () => {
 
       const res = await service.verify('r1', { id: 'other', role: 'CITIZEN' });
       expect(res.status).toBe('DIVERIFIKASI');
-      expect(points.award).toHaveBeenCalledWith('c1', 'REPORT_VERIFIED', undefined, expect.anything());
+      expect(points.award).toHaveBeenCalledWith(
+        'c1',
+        'REPORT_VERIFIED',
+        undefined,
+        expect.anything(),
+      );
     });
   });
 
   describe('resolve', () => {
     it('menolak warga lain (bukan pembuat)', async () => {
       prisma.report.findUnique.mockResolvedValue(reportRow({ status: 'DIVERIFIKASI' }));
-      await expect(
-        service.resolve('r1', { id: 'other', role: 'CITIZEN' }),
-      ).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.resolve('r1', { id: 'other', role: 'CITIZEN' })).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
     });
 
     it('pemulung boleh menyelesaikan laporan diverifikasi', async () => {
@@ -129,9 +138,9 @@ describe('ReportsService', () => {
 
     it('menolak resolve sebelum diverifikasi', async () => {
       prisma.report.findUnique.mockResolvedValue(reportRow({ status: 'DILAPORKAN' }));
-      await expect(
-        service.resolve('r1', { id: 'a1', role: 'WASTE_AGENT' }),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.resolve('r1', { id: 'a1', role: 'WASTE_AGENT' })).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('melempar NotFound bila laporan tidak ada', async () => {

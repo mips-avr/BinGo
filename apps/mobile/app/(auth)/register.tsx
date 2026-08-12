@@ -7,12 +7,18 @@ import { KeyboardAvoider } from '../../src/components/ui/KeyboardAvoider';
 import { t } from '../../src/i18n';
 import { colors, screenStyles, spacing } from '../../src/theme';
 
-const VALID_ROLES: UserRole[] = ['CITIZEN', 'WASTE_AGENT', 'MSME'];
+const VALID_ROLES: UserRole[] = ['HOUSEHOLD', 'MANAGER_ADMIN', 'BUSINESS_BUYER'];
 
 const ROLE_ICON: Record<UserRole, string> = {
   CITIZEN: '🏡',
   WASTE_AGENT: '🚚',
   MSME: '🏪',
+  PLATFORM_ADMIN: '🛡️',
+  MANAGER_ADMIN: '🏢',
+  MANAGER_OPERATOR: '🏢',
+  COLLECTOR: '🚚',
+  HOUSEHOLD: '🏡',
+  BUSINESS_BUYER: '♻️',
 };
 
 export default function RegisterScreen() {
@@ -20,7 +26,7 @@ export default function RegisterScreen() {
   const { role: roleParam } = useLocalSearchParams<{ role?: string }>();
   const role: UserRole = VALID_ROLES.includes(roleParam as UserRole)
     ? (roleParam as UserRole)
-    : 'CITIZEN';
+    : 'HOUSEHOLD';
 
   return (
     <SafeAreaView style={screenStyles.safeRoot} edges={['top', 'bottom']}>
@@ -46,7 +52,13 @@ export default function RegisterScreen() {
           <Text style={screenStyles.screenTitle} accessibilityRole="header">
             {t.auth.register}
           </Text>
-          <Text style={screenStyles.screenSubtitle}>{t.auth.role[role]}</Text>
+          <Text style={screenStyles.screenSubtitle}>
+            {role === 'HOUSEHOLD'
+              ? 'Warga'
+              : role === 'MANAGER_ADMIN'
+                ? 'Pengelola'
+                : 'Business/Pengolah'}
+          </Text>
 
           <RegisterForm role={role} onSuccess={() => router.replace('/')} />
 

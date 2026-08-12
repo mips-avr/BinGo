@@ -186,7 +186,12 @@ describe('PickupRequestsService', () => {
 
       const res = await service.complete('p1', 'a1');
       expect(res.status).toBe('COMPLETED');
-      expect(points.award).toHaveBeenCalledWith('c1', 'PICKUP_COMPLETED', undefined, expect.anything());
+      expect(points.award).toHaveBeenCalledWith(
+        'c1',
+        'PICKUP_COMPLETED',
+        undefined,
+        expect.anything(),
+      );
     });
 
     it('menolak menyelesaikan request yang sudah dibatalkan', async () => {

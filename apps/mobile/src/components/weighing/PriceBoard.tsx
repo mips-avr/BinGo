@@ -61,9 +61,6 @@ export function PriceBoard({
     <Card style={s.methodCard}>
       <Text style={s.methodTitle}>{t.weighing.methodologyTitle}</Text>
       <Text style={s.methodBody}>{t.weighing.methodologyBody}</Text>
-      {/* Jawaban langsung untuk "apa yang mencegah orang memalsukan papan
-          harga": dua jenis bukti yang tidak dapat diperiksa ulang dibuang. */}
-      <Text style={s.methodExcluded}>{t.weighing.methodologyExcluded}</Text>
     </Card>
   );
 
@@ -215,13 +212,6 @@ const s = StyleSheet.create({
     marginTop: spacing.xxs + 2,
     fontSize: 13,
     color: colors.neutral700,
-    lineHeight: 20,
-  },
-  methodExcluded: {
-    marginTop: spacing.sm,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.amber800,
     lineHeight: 20,
   },
 });
