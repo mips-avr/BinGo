@@ -1,4 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "pnpm --filter @bingo/backend exec prisma generate && pnpm --filter @bingo/backend build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "outputDirectory": "apps/backend/dist",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
