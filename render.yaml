@@ -1,0 +1,38 @@
+# Backend publik BinGo untuk demo kompetisi.
+#
+# Web tetap dibangun di Vercel. API ditempatkan di Render karena NestJS perlu
+# proses Node yang hidup dan menerima koneksi pada PORT platform. Rahasia tidak
+# pernah ditulis di berkas ini: Render meminta nilainya saat Blueprint pertama
+# kali dibuat, lalu menyimpannya di dashboard.
+services:
+  - type: web
+    runtime: node
+    name: bingo-api
+    region: singapore
+    plan: free
+    buildCommand: >-
+      corepack enable && pnpm install --frozen-lockfile && pnpm shared:build &&
+      pnpm --filter @bingo/backend exec prisma generate &&
+      pnpm --filter @bingo/backend build
+    # Free Web Service tidak menjalankan preDeployCommand. Migrasi dijalankan
+    # sebelum NestJS agar skema selaras pada setiap deploy.
+    startCommand: >-
+      pnpm --filter @bingo/backend prisma:migrate:deploy &&
+      pnpm --filter @bingo/backend start:prod
+    healthCheckPath: /health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_VERSION
+        value: 22.17.0
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: DATABASE_URL
+        sync: false
+      # Token ini memakai Vercel Blob yang sudah ada, sehingga foto dan dokumen
+      # tidak hilang ketika instance Free Render berhenti atau redeploy.
+      - key: BLOB_READ_WRITE_TOKEN
+        sync: false

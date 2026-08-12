@@ -1,0 +1,84 @@
+name: Frontend CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/frontend-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  EXPO_NO_TELEMETRY: '1'
+  EXPO_NO_GIT_STATUS: '1'
+  EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000' }}
+
+jobs:
+  validate:
+    name: Frontend quality checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm shared:build
+
+      - name: Lint mobile app
+        run: pnpm --filter @bingo/mobile lint
+
+      - name: Typecheck mobile app
+        run: pnpm --filter @bingo/mobile typecheck
+
+      - name: Test mobile app
+        run: pnpm --filter @bingo/mobile exec jest --runInBand
+
+      - name: Export web bundle
+        env:
+          EXPO_PUBLIC_WEB_BUILD: '1'
+        run: pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist/web
+
+      - name: Smoke test web route
+        run: |
+          pnpm dlx serve@14.2.5 dist/web --single --listen 4173 --no-clipboard &
+          WEB_PID=$!
+          trap 'kill "$WEB_PID"' EXIT
+          for attempt in {1..20}; do
+            curl --fail --silent http://127.0.0.1:4173/login >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/login >/dev/null
+          node apps/mobile/tools/smoke-web.mjs http://127.0.0.1:4173/login

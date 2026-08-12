@@ -1,0 +1,91 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - 'apps/backend/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/backend-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/backend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 'true'
+  DATABASE_URL: postgresql://bingo:bingo_dev_password@localhost:5432/bingo?schema=public
+  JWT_SECRET: ci_test_secret_yang_panjangnya_lebih_dari_32_karakter
+
+jobs:
+  validate:
+    name: Backend quality checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: bingo
+          POSTGRES_PASSWORD: bingo_dev_password
+          POSTGRES_DB: bingo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bingo -d bingo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm shared:build
+
+      - name: Validate Prisma schema
+        run: |
+          pnpm --filter @bingo/backend exec prisma format --check
+          pnpm --filter @bingo/backend exec prisma validate
+          pnpm --filter @bingo/backend exec prisma generate
+          pnpm --filter @bingo/backend exec prisma migrate deploy
+          pnpm --filter @bingo/backend prisma:seed
+
+      - name: Lint backend
+        run: pnpm --filter @bingo/backend lint
+
+      - name: Build backend
+        run: pnpm --filter @bingo/backend build
+
+      - name: Test backend
+        run: pnpm --filter @bingo/backend test --runInBand
+
+      - name: Test backend e2e
+        run: pnpm --filter @bingo/backend test:e2e

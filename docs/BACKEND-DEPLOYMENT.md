@@ -2,12 +2,13 @@
 
 Backend produksi BinGo menggunakan layanan yang memiliki paket gratis:
 
-- **Vercel Functions** untuk REST API NestJS;
+- **Render Web Service** untuk REST API NestJS;
 - **Neon PostgreSQL** dengan ekstensi PostGIS untuk data aplikasi dan operasi geospasial;
 - **Vercel Blob** untuk penyimpanan permanen foto laporan.
 
-Project Vercel memakai root directory `apps/backend`, runtime Node.js 22, dan region
-Singapore (`sin1`). Endpoint kesehatan tersedia di `GET /health`.
+Konfigurasi layanan ada di [`render.yaml`](../render.yaml). Render menjalankan
+migrasi Prisma sebelum API dijalankan, memakai Node.js 22 dan region Singapore.
+Endpoint kesehatan tersedia di `GET /health`.
 
 ## Variabel lingkungan
 
@@ -16,16 +17,17 @@ Singapore (`sin1`). Endpoint kesehatan tersedia di `GET /health`.
 | `DATABASE_URL`          | Connection string PostgreSQL dari integrasi Neon         |
 | `JWT_SECRET`            | Secret acak minimal 32 karakter; jangan disimpan di Git  |
 | `JWT_EXPIRES_IN`        | Masa berlaku token, default `7d`                         |
-| `BLOB_READ_WRITE_TOKEN` | Dibuat otomatis ketika Blob store dihubungkan ke project |
+| `BLOB_READ_WRITE_TOKEN` | Token Vercel Blob untuk foto dan dokumen persisten       |
 | `NODE_ENV`              | `production` untuk deployment produksi                   |
 | `PUBLIC_BASE_URL`       | Opsional; URL HTTPS backend tanpa trailing slash         |
 
 `BLOB_READ_WRITE_TOKEN`, `DATABASE_URL`, dan `JWT_SECRET` adalah rahasia. Nilainya
-disimpan sebagai environment variable di Vercel, bukan di repository atau APK.
+disimpan sebagai environment variable di Render, bukan di repository atau APK.
 
 ## Migrasi dan seed database
 
-Jalankan dari root monorepo setelah environment produksi tersedia:
+Render menjalankannya otomatis pada setiap deploy. Untuk pemulihan manual,
+jalankan dari root monorepo setelah environment produksi tersedia:
 
 ```bash
 pnpm --filter @bingo/backend prisma:migrate:deploy
@@ -41,7 +43,7 @@ Build mobile membaca URL backend melalui `EXPO_PUBLIC_API_BASE_URL`. Repository
 variable GitHub dengan nama yang sama harus berisi origin HTTPS backend, misalnya:
 
 ```text
-https://bingo-api.vercel.app
+https://bingo-api.onrender.com
 ```
 
 Nilai ini dimasukkan saat build APK. Perubahan URL memerlukan build APK baru;
