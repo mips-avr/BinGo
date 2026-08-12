@@ -58,4 +58,8 @@ jobs:
             echo "::error::Missing Vercel deployment secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID"
             exit 1
           fi
+<<<<<<< Updated upstream
           npx vercel --cwd apps/backend --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --confirm
+=======
+          npx vercel --cwd apps/backend --prod --token "$VERCEL_TOKEN" --confirm
+>>>>>>> Stashed changes

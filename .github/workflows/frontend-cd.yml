@@ -60,4 +60,8 @@ jobs:
             echo "::error::Missing frontend deployment secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID_FRONTEND"
             exit 1
           fi
+<<<<<<< Updated upstream
           npx vercel --cwd apps/mobile --prod --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID" --project "$VERCEL_PROJECT_ID" --confirm
+=======
+          npx vercel --cwd apps/mobile --prod --token "$VERCEL_TOKEN" --confirm
+>>>>>>> Stashed changes
