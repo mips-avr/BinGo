@@ -1,0 +1,34 @@
+import { DataCard, DataListView } from '../../src/components/pivot/DataListView';
+import { useBusinessCatalog } from '../../src/features/pivot/hooks';
+export default function Screen({ mode = 'lots' }: { mode?: string }) {
+  const q = useBusinessCatalog();
+  return (
+    <DataListView
+      title={
+        mode === 'requirements'
+          ? 'Kebutuhan Material'
+          : mode === 'orders'
+            ? 'Pesanan dan Penerimaan'
+            : 'Pasokan Material'
+      }
+      subtitle={
+        mode === 'orders'
+          ? 'Pantau status pesanan dan penerimaan material.'
+          : 'Temukan material yang sesuai kebutuhan produksi.'
+      }
+      query={q}
+      renderItems={(d) => {
+        const items =
+          mode === 'requirements' ? d.requirements : mode === 'orders' ? d.orders : d.lots;
+        return items.map((x: any) => (
+          <DataCard
+            key={x.id}
+            title={x.title ?? x.orderNo ?? x.code}
+            detail={`${x.quantityKg} kg ${x.material ?? x.lot?.material ?? ''}`}
+            meta={x.organization?.name ?? x.seller?.name ?? x.status}
+          />
+        ));
+      }}
+    />
+  );
+}

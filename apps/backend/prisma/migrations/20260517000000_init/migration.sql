@@ -6,7 +6,7 @@
 
 -- 1) Ekstensi PostGIS ---------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "postgis";
-CREATE EXTENSION IF NOT EXISTS "postgis_topology";
+-- CREATE EXTENSION IF NOT EXISTS "postgis_topology";
 
 -- 2) Enum types ---------------------------------------------------------
 CREATE TYPE "UserRole" AS ENUM ('CITIZEN', 'WASTE_AGENT', 'MSME');

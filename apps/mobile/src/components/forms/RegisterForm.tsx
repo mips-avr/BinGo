@@ -1,18 +1,19 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { isValidPhoneID } from '@bingo/shared-utils';
 import type { UserRole } from '@bingo/shared-types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
-import { colors, radius, spacing, typography } from '../../theme';
+import { spacing } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
   name?: string;
   phone?: string;
   password?: string;
+  organizationName?: string;
 }
 
 export interface RegisterFormProps {
@@ -38,6 +39,7 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
   function validate(): FormErrors {
@@ -45,6 +47,9 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
     if (name.trim().length < 2) next.name = t.auth.errors.nameMin;
     if (!isValidPhoneID(phone)) next.phone = t.auth.errors.phoneInvalid;
     if (password.length < 8) next.password = t.auth.errors.passwordMin;
+    if (role !== 'HOUSEHOLD' && organizationName.trim().length < 3) {
+      next.organizationName = 'Nama organisasi minimal 3 karakter';
+    }
     return next;
   }
 
@@ -54,7 +59,13 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
     if (Object.keys(issues).length > 0) return;
 
     try {
-      await register({ name: name.trim(), phone, password, role });
+      await register({
+        name: name.trim(),
+        phone,
+        password,
+        role: role as 'HOUSEHOLD' | 'MANAGER_ADMIN' | 'BUSINESS_BUYER',
+        organizationName: role === 'HOUSEHOLD' ? undefined : organizationName.trim(),
+      });
       onSuccess?.();
     } catch (err) {
       Alert.alert(t.common.error, extractApiErrorMessage(err, t.auth.registerFailed));
@@ -80,6 +91,16 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
         error={errors.phone}
         testID="register-phone"
       />
+      {role !== 'HOUSEHOLD' ? (
+        <Input
+          label={role === 'MANAGER_ADMIN' ? 'Nama Pengelola' : 'Nama Business'}
+          autoCapitalize="words"
+          value={organizationName}
+          onChangeText={setOrganizationName}
+          error={errors.organizationName}
+          testID="register-organization"
+        />
+      ) : null}
       <Input
         label={t.auth.password}
         secureTextEntry
@@ -89,12 +110,6 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
         error={errors.password}
         testID="register-password"
       />
-      {/* Ketiadaan permintaan NIK dinyatakan terang-terangan. Pemulung yang
-          pernah diminta KTP oleh aplikasi lain akan mencari-cari layar itu;
-          lebih baik ia tahu sejak awal bahwa layar itu memang tidak ada. */}
-      <View style={formS.notice} testID="register-no-id-notice">
-        <Text style={formS.noticeText}>{t.auth.noIdNumberNotice}</Text>
-      </View>
       <Button
         label={t.auth.register}
         onPress={handleSubmit}
@@ -107,14 +122,5 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
 }
 
 const formS = StyleSheet.create({
-  notice: {
-    marginTop: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.bingo50,
-    borderWidth: 1,
-    borderColor: colors.bingo100,
-  },
-  noticeText: { ...typography.caption },
   submit: { marginTop: spacing.md },
 });

@@ -27,6 +27,9 @@ export const ENDPOINTS = {
     complete: (id: string) => `/api/v1/pickup-requests/${id}/complete`,
     cancel: (id: string) => `/api/v1/pickup-requests/${id}/cancel`,
   },
+  collectionSchedules: {
+    root: '/api/v1/collection-schedules',
+  },
   reports: {
     root: '/api/v1/reports',
     mine: '/api/v1/reports/mine',

@@ -72,31 +72,15 @@ export function VerificationGate({ reason, onClose }: VerificationGateProps) {
               <>
                 <Text style={gateS.sectionTitle}>{t.agent.verification.criteriaTitle}</Text>
                 <Bullet text={t.agent.verification.criteriaSecondInstitution} />
-                <Bullet
-                  text={t.agent.verification.criteriaDisputeless
-                    .replace('{count}', '—')
-                    .replace('{required}', '10')}
-                />
-                <Bullet
-                  text={t.agent.verification.criteriaPeer
-                    .replace('{count}', '—')
-                    .replace('{required}', '2')}
-                />
+                <Bullet text={t.agent.verification.criteriaDisputeless} />
+                <Bullet text={t.agent.verification.criteriaPeer} />
                 <Text style={gateS.footnote}>
                   {t.agent.verification.highValueBadge} ≥ {HIGH_VALUE_MIN_WEIGHT_KG} kg
                 </Text>
               </>
             ) : (
-              <>
-                <Text style={gateS.steps}>{t.agent.verification.gateSteps}</Text>
-                <View style={gateS.allowedBox}>
-                  <Text style={gateS.allowedTitle}>{t.agent.verification.gateAllowedTitle}</Text>
-                  <Text style={gateS.allowedBody}>{t.agent.verification.gateAllowed}</Text>
-                </View>
-              </>
+              <Text style={gateS.steps}>{t.agent.verification.gateSteps}</Text>
             )}
-
-            <Text style={gateS.privacy}>{t.agent.verification.noIdNumber}</Text>
 
             <Button
               label={t.agent.verification.gateCta}
@@ -152,16 +136,5 @@ const gateS = StyleSheet.create({
   bulletDot: { marginRight: spacing.xs, ...typography.body },
   bulletText: { flex: 1, ...typography.body },
   footnote: { marginTop: spacing.sm, ...typography.caption },
-  allowedBox: {
-    marginTop: spacing.md,
-    padding: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.bingo50,
-    borderWidth: 1,
-    borderColor: colors.bingo100,
-  },
-  allowedTitle: { ...typography.caption, fontWeight: '700', color: colors.bingo800 },
-  allowedBody: { marginTop: 2, ...typography.caption },
-  privacy: { marginTop: spacing.md, ...typography.caption },
   cta: { marginTop: spacing.lg },
 });

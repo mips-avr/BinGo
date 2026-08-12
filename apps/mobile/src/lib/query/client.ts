@@ -48,6 +48,10 @@ export const queryKeys = {
     ) => ['pickups', 'radar', lat, lng, radiusKm, materialType, minWeightKg] as const,
     detail: (id: string) => ['pickups', 'detail', id] as const,
   },
+  collectionSchedules: {
+    list: (region: string, material: string | null, day: string | null) =>
+      ['collection-schedules', region, material, day] as const,
+  },
   reports: {
     all: (status?: string) => ['reports', 'all', status ?? null] as const,
     mine: ['reports', 'mine'] as const,

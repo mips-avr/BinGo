@@ -32,8 +32,10 @@ Perangkat lunak BinGo sendiri dirilis di bawah **MIT License** — lihat berkas
 | `@nestjs/platform-express`         | 10.4.22  | MIT          | runtime      |
 | `@nestjs/swagger`                  | 7.4.2    | MIT          | runtime      |
 | `@nestjs/terminus`                 | 10.3.0   | MIT          | runtime      |
+| `@nestjs/throttler`                | 6.5.0    | MIT          | runtime      |
 | `@prisma/client`                   | 5.22.0   | Apache-2.0   | runtime      |
 | `@types/multer`                    | 2.1.0    | MIT          | runtime      |
+| `@vercel/blob`                     | 2.8.0    | Apache-2.0   | runtime      |
 | `bcrypt`                           | 5.1.1    | MIT          | runtime      |
 | `class-transformer`                | 0.5.1    | MIT          | runtime      |
 | `class-validator`                  | 0.14.4   | MIT          | runtime      |
@@ -142,12 +144,12 @@ Perangkat lunak BinGo sendiri dirilis di bawah **MIT License** — lihat berkas
 
 | Lisensi      | Jumlah komponen |
 | ------------ | --------------- |
-| MIT          | 82              |
-| Apache-2.0   | 10              |
+| MIT          | 83              |
+| Apache-2.0   | 11              |
 | BSD-2-Clause | 2               |
 | ISC          | 1               |
 
-**Total komponen langsung: 95**
+**Total komponen langsung: 97**
 
 Tidak ditemukan komponen berlisensi copyleft kuat (GPL, AGPL, atau LGPL) di
 antara dependensi langsung, sehingga tidak ada kewajiban yang memaksa BinGo

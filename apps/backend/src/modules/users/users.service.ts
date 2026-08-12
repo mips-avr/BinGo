@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { User } from '@prisma/client';
+import type { OrganizationType, User } from '@prisma/client';
 import type { UserProfile, UserRole, VerificationLevel } from '@bingo/shared-types';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -21,6 +21,11 @@ export class UsersService {
 
   async findByPhone(phone: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { phone } });
+  }
+
+  async getPlatformRoles(userId: string): Promise<UserRole[]> {
+    const roles = await this.prisma.platformRole.findMany({ where: { userId } });
+    return roles.map((item) => item.role as UserRole);
   }
 
   /**
@@ -47,12 +52,67 @@ export class UsersService {
     });
   }
 
+  async createOrganizationApplicationShell(
+    userId: string,
+    organizationName: string,
+    type: OrganizationType,
+    role: 'MANAGER_ADMIN' | 'BUSINESS_BUYER',
+  ): Promise<void> {
+    const slugBase = organizationName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 70);
+    const suffix = userId.slice(0, 6);
+    await this.prisma.organization.create({
+      data: {
+        name: organizationName,
+        slug: `${slugBase || 'organisasi'}-${suffix}`,
+        type,
+        status: 'DRAFT',
+        members: { create: { userId, role } },
+        applications: {
+          create: {
+            applicantId: userId,
+            organizationName,
+            organizationType: type,
+            responsibleName: '',
+            contactPhone: '',
+            address: '',
+            serviceRegions: [],
+            managedFacilities: [],
+            acceptedMaterials: [],
+          },
+        },
+      },
+    });
+  }
+
   async getProfileOrThrow(id: string): Promise<UserProfile> {
-    const user = await this.findById(id);
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        platformRoles: true,
+        organizationMemberships: { include: { organization: true } },
+      },
+    });
     if (!user) {
       throw new NotFoundException('Pengguna tidak ditemukan');
     }
-    return this.toProfile(user);
+    const profile = this.toProfile(user);
+    if (!user.platformRoles || !user.organizationMemberships) return profile;
+    return {
+      ...profile,
+      active: user.active,
+      platformRoles: user.platformRoles.map((item) => item.role as UserRole),
+      memberships: user.organizationMemberships.map((item) => ({
+        organizationId: item.organizationId,
+        organizationName: item.organization.name,
+        organizationType: item.organization.type,
+        organizationStatus: item.organization.status,
+        role: item.role,
+      })),
+    };
   }
 
   /** Memetakan entitas Prisma ke DTO publik (tanpa passwordHash). */

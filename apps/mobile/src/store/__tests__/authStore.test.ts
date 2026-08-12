@@ -45,7 +45,7 @@ describe('useAuthStore', () => {
       name: 'Budi',
       phone: '08123456789',
       password: 'rahasia123',
-      role: 'CITIZEN',
+      role: 'HOUSEHOLD',
     });
     expect(useAuthStore.getState().status).toBe('authenticated');
   });

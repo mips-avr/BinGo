@@ -6,7 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
-import { UPLOADS_DIR } from './modules/uploads/uploads.constants';
+import { UPLOADS_DIR, USES_BLOB_STORAGE } from './modules/uploads/uploads.constants';
 
 /**
  * Entry point aplikasi BinGo API.
@@ -26,7 +26,11 @@ async function bootstrap(): Promise<void> {
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.enableCors({ origin: true, credentials: true });
 
-  app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
+  // Pada Vercel, foto dilayani langsung dari Vercel Blob. Static assets hanya
+  // dipasang untuk pengembangan lokal atau deployment dengan volume permanen.
+  if (!USES_BLOB_STORAGE) {
+    app.useStaticAssets(UPLOADS_DIR, { prefix: '/uploads/' });
+  }
 
   // Endpoint /health sengaja diletakkan di root (tanpa prefix /api dan tanpa
   // versi) agar mudah dipakai sebagai liveness/readiness probe.
@@ -60,7 +64,9 @@ async function bootstrap(): Promise<void> {
     SwaggerModule.setup('docs', app, document);
   }
 
-  const port = Number(process.env.BACKEND_PORT ?? 3000);
+  // Vercel/hosting platform menentukan PORT. BACKEND_PORT tetap dipakai pada
+  // Docker dan pengembangan lokal.
+  const port = Number(process.env.PORT ?? process.env.BACKEND_PORT ?? 3000);
   await app.listen(port);
   logger.log(`BinGo API berjalan di http://localhost:${port}`);
   logger.log(`Dokumentasi Swagger: http://localhost:${port}/docs`);

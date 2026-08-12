@@ -52,16 +52,22 @@ describe('WeighingReceiptsService', () => {
       weighingReceipt: {
         // Kembalikan data yang benar-benar dikirim service supaya asersi
         // perhitungan menguji nilai nyata, bukan nilai yang dipalsukan mock.
-        create: jest.fn(async ({ data }: { data: Record<string, any> }) => ({
-          id: 'r1',
-          ...data,
-          pickupRequestId: data.pickupRequestId ?? null,
-          scaleTeraNo: data.scaleTeraNo ?? null,
-          notes: data.notes ?? null,
-          createdAt: new Date('2026-08-03T10:00:00Z'),
-          updatedAt: new Date('2026-08-03T10:00:00Z'),
-          lines: (data.lines.create as Record<string, unknown>[]).map(storedLine),
-        })),
+        create: jest.fn(
+          async ({
+            data,
+          }: {
+            data: Record<string, unknown> & { lines: { create: Record<string, unknown>[] } };
+          }) => ({
+            id: 'r1',
+            ...data,
+            pickupRequestId: data.pickupRequestId ?? null,
+            scaleTeraNo: data.scaleTeraNo ?? null,
+            notes: data.notes ?? null,
+            createdAt: new Date('2026-08-03T10:00:00Z'),
+            updatedAt: new Date('2026-08-03T10:00:00Z'),
+            lines: data.lines.create.map(storedLine),
+          }),
+        ),
         findUnique: jest.fn().mockResolvedValue(null),
         findMany: jest.fn().mockResolvedValue([]),
       },
@@ -172,9 +178,7 @@ describe('WeighingReceiptsService', () => {
         service.create(
           AGENT,
           baseDto({
-            lines: [
-              { grade: 'PET_BOTOL_BENING', weightKg: 10, deductionKg: 2, pricePerKg: 2500 },
-            ],
+            lines: [{ grade: 'PET_BOTOL_BENING', weightKg: 10, deductionKg: 2, pricePerKg: 2500 }],
           }),
         ),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -219,9 +223,9 @@ describe('WeighingReceiptsService', () => {
     });
 
     it('menolak bila penerbit dan penyetor adalah orang yang sama', async () => {
-      await expect(
-        service.create(AGENT, baseDto({ sellerId: AGENT })),
-      ).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.create(AGENT, baseDto({ sellerId: AGENT }))).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
     });
 
     it('menolak bila penyetor tidak ditemukan', async () => {

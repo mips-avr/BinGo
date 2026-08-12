@@ -148,6 +148,39 @@ export interface TranslationDict {
       MIXED: string;
     };
   };
+  collectionSchedule: {
+    title: string;
+    open: string;
+    emptyTitle: string;
+    emptyMessage: string;
+    source: string;
+    verifiedAt: string;
+    preparation: string;
+    timeRange: string;
+    timeNotListed: string;
+    daysNotListed: string;
+    serviceMode: {
+      DOOR_TO_DOOR: string;
+      COLLECTION_POINT: string;
+    };
+    publisherType: {
+      DLH: string;
+      SUDIN_LH: string;
+      KELURAHAN_RT_RW: string;
+      BANK_SAMPAH: string;
+      TPS3R: string;
+      OPERATOR: string;
+    };
+    day: {
+      MONDAY: string;
+      TUESDAY: string;
+      WEDNESDAY: string;
+      THURSDAY: string;
+      FRIDAY: string;
+      SATURDAY: string;
+      SUNDAY: string;
+    };
+  };
   report: {
     title: string;
     feedTitle: string;
@@ -655,11 +688,10 @@ export const id: TranslationDict = {
     register: 'Daftar',
     logout: 'Keluar',
     phone: 'Nomor Telepon',
-    phoneViaCard: 'Belum ada — akun lewat Kartu Mitra',
+    phoneViaCard: 'Terdaftar lewat Kartu Mitra',
     password: 'Kata Sandi',
     name: 'Nama Lengkap',
-    noIdNumberNotice:
-      'BinGo tidak meminta NIK. Cukup nama panggilan dan nomor telepon; pemulung menambah kepercayaan lewat penjaminan mitra, bukan lewat nomor kependudukan.',
+    noIdNumberNotice: 'Daftar dengan nama dan nomor telepon.',
     chooseRole: 'Pilih peran Anda',
     roleIntro: 'Pilih peran Anda untuk melanjutkan pendaftaran.',
     changeRole: 'Ganti peran',
@@ -759,6 +791,39 @@ export const id: TranslationDict = {
       MIXED: 'Campuran',
     },
   },
+  collectionSchedule: {
+    title: 'Jadwal pengangkutan rutin',
+    open: 'Jadwal rutin',
+    emptyTitle: 'Jadwal belum tersedia',
+    emptyMessage: 'Belum ada jadwal terverifikasi untuk wilayah ini.',
+    source: 'Lihat sumber',
+    verifiedAt: 'Sumber diperiksa {date}',
+    preparation: 'Persiapan',
+    timeRange: '{start} sampai {end}',
+    timeNotListed: 'Waktu tidak dicantumkan',
+    daysNotListed: 'Hari tidak dicantumkan',
+    serviceMode: {
+      DOOR_TO_DOOR: 'Diambil dari rumah',
+      COLLECTION_POINT: 'Pengangkutan dari titik kumpul',
+    },
+    publisherType: {
+      DLH: 'Dinas Lingkungan Hidup',
+      SUDIN_LH: 'Suku Dinas Lingkungan Hidup',
+      KELURAHAN_RT_RW: 'Kelurahan atau RT/RW',
+      BANK_SAMPAH: 'Bank sampah',
+      TPS3R: 'TPS3R',
+      OPERATOR: 'Operator pengangkutan',
+    },
+    day: {
+      MONDAY: 'Senin',
+      TUESDAY: 'Selasa',
+      WEDNESDAY: 'Rabu',
+      THURSDAY: 'Kamis',
+      FRIDAY: 'Jumat',
+      SATURDAY: 'Sabtu',
+      SUNDAY: 'Minggu',
+    },
+  },
   report: {
     title: 'Laporan Pembuangan Ilegal',
     feedTitle: 'Laporan komunitas',
@@ -777,7 +842,7 @@ export const id: TranslationDict = {
     verifyCount: '{count} verifikasi',
     detailTitle: 'Detail Laporan',
     emptyTitle: 'Belum ada laporan',
-    emptyMessage: 'Bantu lingkungan Anda — laporkan tumpukan sampah yang Anda temukan.',
+    emptyMessage: 'Laporkan tumpukan sampah yang Anda temukan.',
     cameraUnavailable: 'Kamera tidak tersedia',
     cameraPermissionDenied:
       'Izin kamera ditolak. Aktifkan di pengaturan untuk memotret bukti laporan.',
@@ -858,7 +923,7 @@ export const id: TranslationDict = {
       ringLabel: 'Cincin jarak {distance}',
       centerLabel: 'Posisi Anda',
       legendTitle: 'Cara membaca radar',
-      legendShape: 'Huruf di dalam titik menandai jenis material — jangan hanya lihat warnanya.',
+      legendShape: 'Huruf di dalam titik menunjukkan jenis material.',
       legendSize: 'Titik makin besar berarti estimasi beratnya makin banyak.',
       legendPosition: 'Jarak titik dari pusat = jarak sebenarnya. Arah titik = arah mata angin.',
       listTitle: 'Daftar permintaan',
@@ -923,25 +988,22 @@ export const id: TranslationDict = {
         '1': 'Anda dapat menerima penjemputan dan menerbitkan bukti timbang.',
         '2': 'Anda dapat mengambil pekerjaan bernilai tinggi dan mendapat prioritas pada radar.',
       },
-      noIdNumber:
-        'BinGo tidak menyimpan NIK. Yang dicatat hanya identitas penjamin, tanggal, status verifikasi, dan jejak auditnya.',
+      noIdNumber: 'Verifikasi dilakukan melalui mitra penjamin.',
       gateTitle: 'Perlu satu penjaminan mitra',
-      gateBody:
-        'Akun Anda masih Tingkat 0 (Terdaftar), jadi belum dapat mengambil pekerjaan penjemputan. BinGo tidak meminta NIK — yang diperlukan adalah satu pihak yang mengenal Anda di lapangan dan bersedia menjamin.',
+      gateBody: 'Verifikasi Tingkat 1 diperlukan untuk mengambil pekerjaan ini.',
       gateSteps:
-        'Minta penjaminan dari salah satu: bank sampah, lapak/pengepul, TPS3R, KSM persampahan, atau RT/RW tempat Anda bekerja. Cukup satu, dan Anda naik ke Tingkat 1.',
-      gateAllowedTitle: 'Yang tetap bisa Anda lakukan sekarang',
-      gateAllowed:
-        'Membuka papan harga wilayah mana pun dan melihat seluruh permintaan di radar — keduanya terbuka untuk Tingkat 0.',
+        'Minta verifikasi dari bank sampah, lapak, pengepul, TPS3R, KSM persampahan, atau RT/RW tempat Anda bekerja.',
+      gateAllowedTitle: 'Akses Tingkat 0',
+      gateAllowed: 'Anda tetap dapat melihat radar dan papan harga.',
       gateCta: 'Mengerti',
       highValueTitle: 'Pekerjaan bernilai tinggi',
       highValueBody:
         'Permintaan {weight} kg hanya dapat diambil pemulung Tingkat 2 (Dijamin Ganda). Anda sekarang Tingkat {level}.',
       highValueBadge: 'Nilai tinggi',
-      criteriaTitle: 'Syarat Tingkat 2 — penuhi dua dari tiga',
+      criteriaTitle: 'Pilih dua syarat untuk Tingkat 2',
       criteriaSecondInstitution: 'Penjaminan kedua dari lembaga yang berbeda',
-      criteriaDisputeless: '{count} dari {required} transaksi nirsengketa',
-      criteriaPeer: '{count} dari {required} rekomendasi pemulung Tingkat 2',
+      criteriaDisputeless: '10 transaksi tanpa sengketa',
+      criteriaPeer: '2 rekomendasi dari mitra Tingkat 2',
       partnerTypes: {
         BANK_SAMPAH: 'Bank sampah',
         LAPAK: 'Lapak / pengepul',
@@ -954,36 +1016,32 @@ export const id: TranslationDict = {
   scanner: {
     title: 'TrashScan',
     instruction: 'Cari segitiga daur ulang pada kemasan, lalu ketuk angkanya di bawah',
-    capture: 'Kode tidak terlihat — potret saja',
+    capture: 'Pindai dengan kamera',
     analyzing: 'Membaca foto…',
-    manualCode: 'Tahap 1 — ketuk kode daur ulang',
-    manualCodeHint: 'Angka di dalam segitiga daur ulang (1–7). Ini cara paling akurat.',
+    manualCode: 'Pilih kode daur ulang',
+    manualCodeHint: 'Pilih angka 1 sampai 7 yang tercetak pada kemasan.',
     permissionDenied: 'Izin kamera ditolak. Aktifkan di pengaturan perangkat.',
     captureFailed: 'Foto tidak dapat dibaca',
-    captureFailedBody:
-      'BinGo tidak berhasil membaca foto ini, jadi tidak ada hasil yang bisa ditampilkan. Potret ulang dengan cahaya cukup, atau ketuk kode daur ulang pada kemasan.',
+    captureFailedBody: 'Potret ulang dengan cahaya cukup atau pilih kode daur ulang.',
     resultTitle: 'Hasil pemindaian',
     scanAgain: 'Pindai lagi',
     useForPickup: 'Buat permintaan pickup',
     stageTitle: 'TrashScan bekerja dua tahap',
-    stageOne: 'Tahap 1 — kode resin yang Anda tunjuk pada kemasan. Ini fakta, bukan tebakan.',
-    stageTwo:
-      'Tahap 2 — bila kodenya tidak terlihat, model TrashScan mengklasifikasikan foto di perangkat. Hasilnya tetap dapat dikoreksi.',
-    noModelNotice:
-      'Model AI berjalan langsung di ponsel. Foto tidak dikirim ke server. Plastik tetap memerlukan kode resin agar jenisnya tidak ditebak.',
+    stageOne: 'Pilih kode resin yang tercetak pada kemasan.',
+    stageTwo: 'Gunakan kamera jika kode tidak terlihat.',
+    noModelNotice: 'Periksa hasil sebelum melanjutkan.',
     sourceTitle: 'Dasar hasil ini',
     sourceResin: 'Kode resin dibaca',
     sourceResinDetail: 'Anda menunjuk kode daur ulang {code} pada kemasan.',
     sourceVisual: 'Perkiraan visual',
-    sourceVisualDetail: 'Keluaran model TrashScan di perangkat — tetap dapat dikoreksi pengguna.',
+    sourceVisualDetail: 'Hasil analisis foto.',
     sourceManual: 'Dipilih manual',
     sourceManualDetail: 'Anda sendiri yang menentukan jenis material ini.',
     visualSeparation: 'Skor keyakinan terkalibrasi: {percent}%',
-    notConfidentTitle: 'BinGo belum yakin',
-    notConfidentBody:
-      'Skor model belum melewati batas aman, atau plastiknya masih memerlukan kode resin. BinGo menahan petunjuk pembuangan sampai Anda memotret simbol daur ulang atau memilih material sendiri.',
-    notConfidentGuess: 'Dugaan terkuat sejauh ini: {material}',
-    disposalHeld: 'Petunjuk pembuangan ditahan sampai jenis materialnya dipastikan.',
+    notConfidentTitle: 'Perlu konfirmasi',
+    notConfidentBody: 'Pilih jenis material atau pindai ulang dengan cahaya yang lebih baik.',
+    notConfidentGuess: 'Kemungkinan material: {material}',
+    disposalHeld: 'Konfirmasi jenis material untuk melihat panduan.',
     notThis: 'Bukan ini?',
     chooseManual: 'Pilih jenis material sendiri',
     chooseManualTitle: 'Pilih jenis material',
@@ -992,7 +1050,7 @@ export const id: TranslationDict = {
     result: {
       material: 'Jenis material',
       disposal: 'Cara pembuangan',
-      points: 'Nilai poin edukasi',
+      points: 'Poin',
     },
   },
   msme: {
@@ -1074,16 +1132,14 @@ export const id: TranslationDict = {
     alreadyIssued: 'Bukti timbang sudah diterbitkan untuk permintaan ini.',
     walkInTitle: 'Setoran langsung (walk-in)',
     walkInToggle: 'Setoran langsung, tanpa permintaan penjemputan',
-    walkInBadge: 'Walk-in — tidak masuk papan harga',
-    walkInExplain:
-      'Bukti walk-in tetap sah sebagai catatan dua pihak dan tetap bisa dibagikan ke penyetor. Namun ia tidak ikut menyusun papan harga: tanpa permintaan penjemputan di aplikasi, tidak ada jejak yang bisa membuktikan serah terima itu benar terjadi, sehingga harganya tidak dapat diperiksa ulang.',
+    walkInBadge: 'Setoran langsung',
+    walkInExplain: 'Bukti tersimpan sebagai transaksi setoran langsung.',
     walkInSellerLabel: 'ID akun penyetor',
     walkInSellerHint:
       'Minta penyetor menunjukkan ID akun BinGo miliknya. Bukti timbang selalu terikat pada dua pihak yang jelas.',
     walkInSellerRequired: 'ID penyetor wajib diisi untuk setoran langsung.',
     fromPickupTitle: 'Dari permintaan penjemputan',
-    fromPickupBody:
-      'Bukti ini terikat pada satu permintaan penjemputan, sehingga masuk papan harga selama nomor tera diisi.',
+    fromPickupBody: 'Bukti ini terhubung ke permintaan penjemputan.',
     share: 'Bagikan bukti',
     shareFailed: 'Gagal membagikan bukti timbang.',
     shareDialogTitle: 'Bagikan bukti timbang',
@@ -1102,16 +1158,14 @@ export const id: TranslationDict = {
     windowFilter: 'Jendela waktu data',
     gradeFilterAll: 'Semua jenis',
     spreadAxis: 'Sebaran harga per kg',
-    spreadNarrow: 'Sebaran sempit — harga di wilayah ini relatif seragam.',
-    spreadWide:
-      'Sebaran lebar — harga antar titik penerima berbeda jauh. Tanyakan dulu sebelum menyetor.',
+    spreadNarrow: 'Harga di wilayah ini relatif seragam.',
+    spreadWide: 'Harga antar titik penerima cukup beragam.',
     spreadSingle: 'Semua bukti melaporkan harga yang sama.',
     bandAccessibility: '{label}. Median {median} per kg. Sebaran {p25} sampai {p75} per kg.',
-    publicNotice: 'Papan harga terbuka untuk siapa saja — tidak perlu akun untuk membacanya.',
+    publicNotice: 'Papan harga dapat dilihat tanpa akun.',
     citizenEntryTitle: 'Cek harga di wilayah Anda',
     citizenEntrySubtitle: 'Lihat rentang harga sebelum menyerahkan material ke pemulung.',
-    methodologyExcluded:
-      'Yang TIDAK dihitung: bukti tanpa nomor tera timbangan, dan bukti setoran langsung (walk-in) yang tidak berasal dari permintaan penjemputan di aplikasi. Keduanya tetap tersimpan sebagai catatan dua pihak, tetapi tidak dapat diperiksa ulang oleh pihak ketiga sehingga tidak boleh menggerakkan papan harga.',
+    methodologyExcluded: 'Rentang menggunakan bukti timbang yang memenuhi syarat.',
     priceBoardTitle: 'Papan harga',
     priceBoardSubtitle: 'Rentang harga yang dilaporkan titik penerima di wilayah ini',
     priceBoardRegion: 'Wilayah',
@@ -1132,7 +1186,7 @@ export const id: TranslationDict = {
     lastReported: 'Terakhir dilaporkan {time}',
     methodologyTitle: 'Bagaimana angka ini dihitung',
     methodologyBody:
-      'Angka berasal dari bukti timbang bernomor tera yang tercatat di wilayah ini dalam jendela waktu di atas. Yang ditampilkan adalah sebaran persentil 25, median, dan persentil 75 — bukan satu angka tunggal — agar ketidakpastian terlihat apa adanya. Rentang hanya muncul bila ada minimal 3 bukti dari 2 titik penerima berbeda. Ini bukan harga acuan resmi dan tidak mengikat titik penerima manapun.',
+      'Rentang dihitung dari minimal 3 bukti timbang pada 2 titik penerima di wilayah dan periode yang dipilih.',
     errors: {
       partnerNameMin: 'Nama titik penerima minimal 3 karakter',
       regionMin: 'Wilayah minimal 3 karakter',
@@ -1149,7 +1203,7 @@ export const id: TranslationDict = {
   scanNext: {
     ingubTitle: 'Kategori pilah wajib',
     ingubSource:
-      'Instruksi Gubernur DKI Jakarta No. 5 Tahun 2026 — warga Jakarta wajib memilah empat kategori sejak 10 Mei 2026.',
+      'Instruksi Gubernur DKI Jakarta No. 5 Tahun 2026, berlaku sejak 10 Mei 2026.',
     priceTitle: 'Perkiraan harga',
     priceNeedsLocation: 'Harga berbeda antarwilayah. Izinkan lokasi untuk melihat harga di sekitarmu.',
     priceNeedsLocationDenied:
@@ -1160,16 +1214,13 @@ export const id: TranslationDict = {
     priceInsufficient:
       'Belum cukup bukti timbang di {region} untuk material ini. Angka hanya ditampilkan setelah ada cukup data dari beberapa mitra berbeda.',
     priceSample: '{samples} bukti · {partners} mitra',
-    priceDisclaimer:
-      'Rentang dari transaksi nyata, bukan tarif yang ditetapkan BinGo. Harga akhir tetap kesepakatanmu dengan penerima.',
-    priceGradeWarning:
-      'Satu jenis bisa masuk beberapa grade dengan harga jauh berbeda — bening dan berwarna misalnya. Kondisi barang menentukan grade akhirnya.',
+    priceDisclaimer: 'Rentang harga dari bukti timbang 7 hari terakhir.',
+    priceGradeWarning: 'Harga mengikuti grade dan kondisi material.',
     dropNeedsLocation: 'Izinkan lokasi untuk melihat titik setor terdekat.',
   },
   card: {
     title: 'Kartu Mitra',
-    subtitle:
-      'Untuk penyetor yang belum punya ponsel. Kartu ini adalah akunnya — riwayat timbang dan tingkat verifikasinya sama seperti pengguna beraplikasi.',
+    subtitle: 'Akun praktis bagi penyetor tanpa ponsel.',
     issueTitle: 'Terbitkan kartu baru',
     issueCta: 'Terbitkan kartu',
     holderName: 'Nama pemegang',
@@ -1217,12 +1268,10 @@ export const id: TranslationDict = {
       'Terbitkan kartu untuk penyetor yang rutin datang tetapi tidak punya ponsel, supaya setorannya tercatat atas namanya sendiri.',
     useForReceipt: 'Pakai untuk bukti timbang',
     nfcUnavailable: 'Ponsel ini tidak mendukung NFC',
-    nfcUnavailableHelp:
-      'Nomor kartu tetap bisa diketik manual, dan hasilnya sama persis. Tidak ada fitur yang hilang.',
+    nfcUnavailableHelp: 'Masukkan nomor kartu secara manual.',
     nfcDisabled: 'NFC sedang mati. Nyalakan lewat pengaturan ponsel.',
     printHint: 'Nomor ini harus ikut tercetak di kartu.',
-    whyNoKtp:
-      'KTP tidak diminta. Banyak pemulung bekerja jauh dari alamat KTP-nya, dan mensyaratkannya justru menolak orang yang paling membutuhkan kartu ini. Penjaminnya adalah Anda, mitra penerbit.',
+    whyNoKtp: 'Verifikasi dilakukan oleh mitra penerbit.',
   },
   dropPoint: {
     title: 'Titik setor',
@@ -1238,11 +1287,10 @@ export const id: TranslationDict = {
     rewardPoints: 'Poin platform',
     rewardNone: 'Tanpa imbalan',
     openExternal: 'Buka layanan',
-    externalWarning: 'Membuka layanan pihak ketiga di luar BinGo.',
+    externalWarning: 'Lanjut ke layanan operator.',
     verifiedAt: 'Diperiksa {date}',
     source: 'Sumber',
-    disclaimer:
-      'Disusun dari sumber publik. BinGo tidak berafiliasi dengan operator titik ini dan tidak menjamin ketersediaannya saat Anda datang.',
+    disclaimer: 'Informasi titik setor diperbarui secara berkala.',
     operatorNotice: 'Dioperasikan {operator}',
     loadError: 'Gagal memuat titik setor',
     useLocation: 'Pakai lokasi saya',

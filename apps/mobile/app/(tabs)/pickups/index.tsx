@@ -16,18 +16,29 @@ export default function PickupsList() {
   const query = useMyPickups();
 
   const header = (
-    <View style={s.header}>
-      <Text style={s.title} accessibilityRole="header">
-        {t.pickup.listTitle}
-      </Text>
-      {/* Dulu tombol ini digambar tangan; sekarang memakai ui/Button ukuran
-          kecil supaya tinggi sentuhnya tetap ≥44dp. */}
-      <Button
-        label={t.pickup.create}
-        size="sm"
-        onPress={() => router.push('/(tabs)/pickups/new')}
-        testID="create-pickup"
-      />
+    <View>
+      <View style={s.header}>
+        <Text style={s.title} accessibilityRole="header">
+          {t.pickup.listTitle}
+        </Text>
+      </View>
+      <View style={s.actionRow}>
+        <Button
+          label={t.collectionSchedule.open}
+          size="sm"
+          variant="secondary"
+          style={s.action}
+          onPress={() => router.push('/(tabs)/pickups/schedules')}
+          testID="open-collection-schedules"
+        />
+        <Button
+          label={t.pickup.create}
+          size="sm"
+          style={s.action}
+          onPress={() => router.push('/(tabs)/pickups/new')}
+          testID="create-pickup"
+        />
+      </View>
     </View>
   );
 
@@ -95,13 +106,17 @@ export default function PickupsList() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bingo50 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   title: { ...typography.headerTitle, flexShrink: 1 },
+  actionRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  action: { flex: 1 },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl },
 });

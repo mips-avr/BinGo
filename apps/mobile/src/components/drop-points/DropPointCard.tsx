@@ -124,7 +124,6 @@ export const DropPointCard = memo(function DropPointCard({ point }: DropPointCar
       <Text style={s.provenance}>
         {formatVerified(point.verifiedAt)} · {t.dropPoint.source}
       </Text>
-      {!isBingo ? <Text style={s.provenance}>{t.dropPoint.externalWarning}</Text> : null}
     </Card>
   );
 });

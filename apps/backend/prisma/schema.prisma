@@ -18,8 +18,8 @@ generator client {
 }
 
 datasource db {
-  provider   = "postgresql"
-  url        = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 // ----------------------------- Enum types -----------------------------
@@ -28,6 +28,128 @@ enum UserRole {
   CITIZEN
   WASTE_AGENT
   MSME
+  PLATFORM_ADMIN
+  MANAGER_ADMIN
+  MANAGER_OPERATOR
+  COLLECTOR
+  HOUSEHOLD
+  BUSINESS_BUYER
+}
+
+enum OrganizationType {
+  MANAGER
+  BUSINESS
+}
+
+enum OrganizationStatus {
+  DRAFT
+  PENDING_REVIEW
+  CHANGES_REQUESTED
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum OrganizationReviewDecision {
+  SUBMITTED
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+  SUSPENDED
+  REACTIVATED
+}
+
+enum MemberRole {
+  MANAGER_ADMIN
+  MANAGER_OPERATOR
+  COLLECTOR
+  HOUSEHOLD
+  BUSINESS_BUYER
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  VOID
+}
+
+enum PaymentStatus {
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum ServiceAreaStatus {
+  ACTIVE
+  COLLECTING_INTEREST
+  INACTIVE
+}
+
+enum RouteRunStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum RouteStopStatus {
+  PENDING
+  ARRIVED
+  COLLECTED
+  SKIPPED
+}
+
+enum WeightDirection {
+  IN
+  SORTED_OUTPUT
+  RESIDUE
+  CORRECTION
+}
+
+enum WeightSource {
+  MANUAL
+  SIMULATOR
+}
+
+enum BatchStatus {
+  OPEN
+  BALANCED
+  APPROVED
+  REJECTED
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+  RESERVE
+  RELEASE
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  CLOSED
+}
+
+enum PurchaseOrderStatus {
+  RESERVED
+  CONFIRMED
+  RECEIVED
+  CANCELLED
+}
+
+enum FacilityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WasteReportStatus {
+  SUBMITTED
+  VERIFIED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
 }
 
 enum PickupStatus {
@@ -97,6 +219,30 @@ enum MaterialType {
   MIXED
 }
 
+enum CollectionSchedulePublisherType {
+  DLH
+  SUDIN_LH
+  KELURAHAN_RT_RW
+  BANK_SAMPAH
+  TPS3R
+  OPERATOR
+}
+
+enum CollectionServiceMode {
+  DOOR_TO_DOOR
+  COLLECTION_POINT
+}
+
+enum CollectionDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
 /// Grade material sebagaimana dipakai titik penerima di lapangan. Lebih halus
 /// daripada MaterialType: dua grade dengan polimer sama dapat berbeda harga
 /// beberapa kali lipat (mis. gelas plastik bening vs berwarna).
@@ -164,8 +310,9 @@ model User {
   partnerType AttestorType? @map("partner_type")
   partnerName String?       @map("partner_name") @db.VarChar(160)
 
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  active    Boolean  @default(true)
 
   pickupRequestsAsCitizen PickupRequest[]      @relation("CitizenPickups")
   pickupRequestsAsAgent   PickupRequest[]      @relation("AgentPickups")
@@ -181,8 +328,22 @@ model User {
   endorsementsReceived    AgentEndorsement[]       @relation("EndorsementsReceived")
   endorsementsGiven       AgentEndorsement[]       @relation("EndorsementsGiven")
 
-  memberCard              MemberCard?              @relation("CardHolder")
-  memberCardsIssued       MemberCard[]             @relation("CardIssuer")
+  memberCard        MemberCard?  @relation("CardHolder")
+  memberCardsIssued MemberCard[] @relation("CardIssuer")
+
+  platformRoles            PlatformRole[]
+  organizationMemberships  OrganizationMember[]
+  organizationApplications OrganizationApplication[] @relation("ApplicationApplicant")
+  applicationReviews       OrganizationReviewEvent[] @relation("ApplicationReviewer")
+  verificationDocuments    VerificationDocument[]    @relation("VerificationUploader")
+  householdProfile         Household?
+  collectorProfile         Collector?
+  payments                 PaymentEvent[]
+  routeAssignments         RouteAssignment[]
+  cardEvents               CardTapEvent[]
+  wasteReports             WasteReport[]             @relation("WasteReportReporter")
+  wasteReportEvents        WasteReportEvent[]        @relation("WasteReportActor")
+  auditEvents              AuditEvent[]              @relation("AuditActor")
 
   @@index([role])
   @@map("users")
@@ -195,8 +356,8 @@ model User {
 /// serta jejak audit (`AgentVerificationEvent`). Tidak ada nomor kependudukan,
 /// tidak ada pindaian dokumen.
 model AgentVerification {
-  id       String @id @default(uuid())
-  agentId  String @map("agent_id")
+  id         String @id @default(uuid())
+  agentId    String @map("agent_id")
   /// Akun operator mitra yang dimintai penjaminan.
   attestorId String @map("attestor_id")
 
@@ -210,10 +371,10 @@ model AgentVerification {
   /// dipakai menghitung "penjaminan kedua dari lembaga BERBEDA".
   attestorKey   String       @map("attestor_key") @db.VarChar(180)
 
-  status     AgentVerificationStatus @default(MENUNGGU)
-  requestedAt DateTime               @default(now()) @map("requested_at")
-  decidedAt   DateTime?              @map("decided_at")
-  note        String?                @db.Text
+  status      AgentVerificationStatus @default(MENUNGGU)
+  requestedAt DateTime                @default(now()) @map("requested_at")
+  decidedAt   DateTime?               @map("decided_at")
+  note        String?                 @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -300,6 +461,36 @@ model PickupRequest {
   @@map("pickup_requests")
 }
 
+/// Jadwal pengangkutan rutin yang diterbitkan pengelola layanan wilayah.
+///
+/// Model ini sengaja terpisah dari PickupRequest. Jadwal berlaku bagi suatu
+/// wilayah dan tidak mempunyai pemilik warga maupun status pekerjaan,
+/// sedangkan PickupRequest adalah permintaan individual yang diterima agen.
+model CollectionSchedule {
+  id              String                          @id @default(uuid())
+  title           String                          @db.VarChar(160)
+  publisherName   String                          @map("publisher_name") @db.VarChar(180)
+  publisherType   CollectionSchedulePublisherType @map("publisher_type")
+  serviceMode     CollectionServiceMode           @map("service_mode")
+  area            String                          @db.VarChar(220)
+  regionKey       String                          @map("region_key") @db.VarChar(220)
+  materials       MaterialType[]                  @map("materials")
+  days            CollectionDay[]                 @map("days")
+  startTime       String?                         @map("start_time") @db.VarChar(5)
+  endTime         String?                         @map("end_time") @db.VarChar(5)
+  scheduleNote    String?                         @map("schedule_note") @db.Text
+  preparationNote String?                         @map("preparation_note") @db.Text
+  sourceUrl       String                          @unique @map("source_url") @db.Text
+  verifiedAt      DateTime                        @map("verified_at")
+  active          Boolean                         @default(true)
+  createdAt       DateTime                        @default(now()) @map("created_at")
+  updatedAt       DateTime                        @updatedAt @map("updated_at")
+
+  @@index([regionKey, active])
+  @@index([publisherType])
+  @@map("collection_schedules")
+}
+
 /// Bukti timbang digital (e-receipt).
 ///
 /// Ini adalah inti klaim kebaruan BinGo: setiap serah terima material
@@ -346,11 +537,11 @@ model WeighingReceipt {
 
   /// Total disimpan hasil hitung agar papan harga dan riwayat tidak perlu
   /// menjumlahkan ulang setiap kali dibaca. Nilai uang dalam Rupiah (integer).
-  totalWeightKg         Decimal @map("total_weight_kg") @db.Decimal(10, 2)
-  totalDeductionKg      Decimal @map("total_deduction_kg") @db.Decimal(10, 2)
-  totalGrossAmount      Int     @map("total_gross_amount")
-  totalDeductionAmount  Int     @map("total_deduction_amount")
-  totalNetAmount        Int     @map("total_net_amount")
+  totalWeightKg        Decimal @map("total_weight_kg") @db.Decimal(10, 2)
+  totalDeductionKg     Decimal @map("total_deduction_kg") @db.Decimal(10, 2)
+  totalGrossAmount     Int     @map("total_gross_amount")
+  totalDeductionAmount Int     @map("total_deduction_amount")
+  totalNetAmount       Int     @map("total_net_amount")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -378,20 +569,20 @@ model WeighingReceipt {
 /// muncul di lapangan bukan harga per kilogram, melainkan potongan yang tidak
 /// dijelaskan; menyembunyikannya di dalam harga menghapus seluruh guna bukti ini.
 model WeighingReceiptLine {
-  id        String        @id @default(uuid())
-  receiptId String        @map("receipt_id")
-  grade     MaterialGrade
+  id              String        @id @default(uuid())
+  receiptId       String        @map("receipt_id")
+  grade           MaterialGrade
   /// Berat kotor hasil timbang.
-  weightKg  Decimal       @map("weight_kg") @db.Decimal(8, 2)
+  weightKg        Decimal       @map("weight_kg") @db.Decimal(8, 2)
   /// Potongan berat, misalnya karena kadar air.
-  deductionKg     Decimal @default(0) @map("deduction_kg") @db.Decimal(8, 2)
-  deductionReason String? @map("deduction_reason") @db.VarChar(160)
+  deductionKg     Decimal       @default(0) @map("deduction_kg") @db.Decimal(8, 2)
+  deductionReason String?       @map("deduction_reason") @db.VarChar(160)
   /// Harga per kilogram dalam Rupiah.
-  pricePerKg      Int     @map("price_per_kg")
+  pricePerKg      Int           @map("price_per_kg")
   /// Potongan dalam Rupiah, misalnya biaya angkut.
-  deductionAmount Int     @default(0) @map("deduction_amount")
+  deductionAmount Int           @default(0) @map("deduction_amount")
   /// (weightKg - deductionKg) × pricePerKg, dibulatkan ke Rupiah terdekat.
-  grossAmount     Int     @map("gross_amount")
+  grossAmount     Int           @map("gross_amount")
   /// grossAmount - deductionAmount.
   subtotal        Int
 
@@ -595,4 +786,772 @@ model MemberCard {
   @@index([issuedById])
   @@index([status])
   @@map("member_cards")
+}
+
+// =====================================================================
+// BinGo Pivot MVP: five-role, organization-scoped circular waste service
+// =====================================================================
+
+model PlatformRole {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  role      UserRole @default(PLATFORM_ADMIN)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("platform_roles")
+}
+
+model Organization {
+  id               String             @id @default(uuid())
+  name             String             @db.VarChar(180)
+  slug             String             @unique @db.VarChar(100)
+  type             OrganizationType
+  status           OrganizationStatus @default(DRAFT)
+  contactName      String?            @map("contact_name") @db.VarChar(120)
+  contactPhone     String?            @map("contact_phone") @db.VarChar(20)
+  address          String?            @db.VarChar(255)
+  suspensionReason String?            @map("suspension_reason") @db.Text
+  suspendedAt      DateTime?          @map("suspended_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  members                OrganizationMember[]
+  applications           OrganizationApplication[]
+  serviceAreas           ServiceArea[]
+  households             Household[]
+  servicePlans           ServicePlan[]
+  subscriptions          Subscription[]
+  invoices               Invoice[]
+  collectors             Collector[]
+  vehicles               CollectionVehicle[]
+  calendars              CollectionCalendar[]
+  routes                 CollectionRoute[]
+  collectionRuns         CollectionRun[]
+  weighStations          WeighStation[]
+  intakeBatches          IntakeBatch[]
+  sortingBatches         SortingBatch[]
+  inventoryEntries       MaterialInventoryLedger[]
+  requirements           BusinessRequirement[]
+  qualitySpecs           MaterialQualitySpec[]
+  supplyAgreements       OfftakeAgreement[]        @relation("AgreementSupplier")
+  buyerAgreements        OfftakeAgreement[]        @relation("AgreementBuyer")
+  materialLots           MaterialLot[]
+  purchaseOrdersAsSeller PurchaseOrder[]           @relation("PurchaseSeller")
+  purchaseOrdersAsBuyer  PurchaseOrder[]           @relation("PurchaseBuyer")
+  facilities             Facility[]
+  wasteReports           WasteReport[]
+  auditEvents            AuditEvent[]
+
+  @@index([type, status])
+  @@map("organizations")
+}
+
+model OrganizationMember {
+  id             String     @id @default(uuid())
+  organizationId String     @map("organization_id")
+  userId         String     @map("user_id")
+  role           MemberRole
+  active         Boolean    @default(true)
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, role])
+  @@index([userId, active])
+  @@map("organization_members")
+}
+
+model OrganizationApplication {
+  id                  String             @id @default(uuid())
+  organizationId      String             @map("organization_id")
+  applicantId         String             @map("applicant_id")
+  version             Int                @default(1)
+  status              OrganizationStatus @default(DRAFT)
+  organizationName    String             @map("organization_name") @db.VarChar(180)
+  organizationType    OrganizationType   @map("organization_type")
+  responsibleName     String             @map("responsible_name") @db.VarChar(120)
+  contactPhone        String             @map("contact_phone") @db.VarChar(20)
+  address             String             @db.VarChar(255)
+  serviceRegions      String[]           @map("service_regions")
+  authorityBasis      String?            @map("authority_basis") @db.Text
+  managedFacilities   String[]           @map("managed_facilities")
+  acceptedMaterials   MaterialType[]     @map("accepted_materials")
+  capacityNote        String?            @map("capacity_note") @db.Text
+  receivingSchedule   String?            @map("receiving_schedule") @db.Text
+  qualityNotes        String?            @map("quality_notes") @db.Text
+  declarationAccepted Boolean            @default(false) @map("declaration_accepted")
+  submittedAt         DateTime?          @map("submitted_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  applicant    User                      @relation("ApplicationApplicant", fields: [applicantId], references: [id], onDelete: Restrict)
+  documents    VerificationDocument[]
+  reviews      OrganizationReviewEvent[]
+
+  @@index([status, submittedAt])
+  @@index([applicantId])
+  @@map("organization_applications")
+}
+
+model VerificationDocument {
+  id            String   @id @default(uuid())
+  applicationId String   @map("application_id")
+  uploadedById  String   @map("uploaded_by_id")
+  label         String   @db.VarChar(120)
+  storageKey    String   @map("storage_key") @db.VarChar(500)
+  mimeType      String   @map("mime_type") @db.VarChar(100)
+  demo          Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  application OrganizationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  uploadedBy  User                    @relation("VerificationUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([applicationId])
+  @@map("verification_documents")
+}
+
+model OrganizationReviewEvent {
+  id            String                     @id @default(uuid())
+  applicationId String                     @map("application_id")
+  reviewerId    String?                    @map("reviewer_id")
+  version       Int
+  decision      OrganizationReviewDecision
+  reason        String?                    @db.Text
+  createdAt     DateTime                   @default(now()) @map("created_at")
+
+  application OrganizationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  reviewer    User?                   @relation("ApplicationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([applicationId, createdAt])
+  @@map("organization_review_events")
+}
+
+model ServiceArea {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  name           String            @db.VarChar(160)
+  region         String            @db.VarChar(180)
+  status         ServiceAreaStatus @default(ACTIVE)
+  densityLabel   String?           @map("density_label") @db.VarChar(80)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  households   Household[]
+  plans        ServicePlan[]
+  calendars    CollectionCalendar[]
+  routes       CollectionRoute[]
+
+  @@index([organizationId, status])
+  @@map("service_areas")
+}
+
+model Household {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  serviceAreaId  String   @map("service_area_id")
+  userId         String?  @unique @map("user_id")
+  accountNo      String   @map("account_no") @db.VarChar(32)
+  displayAddress String   @map("display_address") @db.VarChar(255)
+  lat            Float?
+  lng            Float?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceArea   ServiceArea    @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  subscriptions Subscription[]
+  invoices      Invoice[]
+  routeStops    RouteStop[]
+
+  @@unique([organizationId, accountNo])
+  @@index([serviceAreaId, active])
+  @@map("households")
+}
+
+model ServicePlan {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")
+  serviceAreaId  String?         @map("service_area_id")
+  name           String          @db.VarChar(120)
+  monthlyFee     Int             @map("monthly_fee")
+  collectionDays CollectionDay[] @map("collection_days")
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceArea   ServiceArea?   @relation(fields: [serviceAreaId], references: [id], onDelete: SetNull)
+  subscriptions Subscription[]
+
+  @@index([organizationId, active])
+  @@map("service_plans")
+}
+
+model Subscription {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  householdId    String    @map("household_id")
+  servicePlanId  String    @map("service_plan_id")
+  startsAt       DateTime  @map("starts_at")
+  endsAt         DateTime? @map("ends_at")
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  household    Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  servicePlan  ServicePlan  @relation(fields: [servicePlanId], references: [id], onDelete: Restrict)
+  invoices     Invoice[]
+
+  @@index([organizationId, active])
+  @@map("subscriptions")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  organizationId String        @map("organization_id")
+  householdId    String        @map("household_id")
+  subscriptionId String        @map("subscription_id")
+  period         String        @db.VarChar(7)
+  amount         Int
+  status         InvoiceStatus @default(UNPAID)
+  dueAt          DateTime      @map("due_at")
+  paidAt         DateTime?     @map("paid_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  household    Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  subscription Subscription   @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  payments     PaymentEvent[]
+
+  @@unique([subscriptionId, period])
+  @@index([organizationId, status])
+  @@map("invoices")
+}
+
+model PaymentEvent {
+  id             String        @id @default(uuid())
+  invoiceId      String        @map("invoice_id")
+  userId         String        @map("user_id")
+  idempotencyKey String        @unique @map("idempotency_key") @db.VarChar(100)
+  provider       String        @default("MOCK") @db.VarChar(32)
+  method         String        @db.VarChar(50)
+  amount         Int
+  reference      String        @unique @db.VarChar(80)
+  status         PaymentStatus
+  occurredAt     DateTime      @default(now()) @map("occurred_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, occurredAt])
+  @@map("payment_events")
+}
+
+model Collector {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  userId         String   @unique @map("user_id")
+  employeeNo     String   @map("employee_no") @db.VarChar(40)
+  active         Boolean  @default(true)
+  hiredAt        DateTime @map("hired_at")
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards        CollectorCard[]
+  assignments  RouteAssignment[]
+  weightEvents WeightEvent[]
+
+  @@unique([organizationId, employeeNo])
+  @@map("collectors")
+}
+
+model CollectorCard {
+  id          String   @id @default(uuid())
+  collectorId String   @map("collector_id")
+  cardNumber  String   @unique @map("card_number") @db.VarChar(32)
+  uidHash     String?  @unique @map("uid_hash") @db.VarChar(128)
+  active      Boolean  @default(true)
+  issuedAt    DateTime @default(now()) @map("issued_at")
+
+  collector Collector      @relation(fields: [collectorId], references: [id], onDelete: Cascade)
+  taps      CardTapEvent[]
+
+  @@index([collectorId, active])
+  @@map("collector_cards")
+}
+
+model CardTapEvent {
+  id             String   @id @default(uuid())
+  cardId         String   @map("card_id")
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  deviceEventId  String   @unique @map("device_event_id") @db.VarChar(100)
+  source         String   @db.VarChar(32)
+  occurredAt     DateTime @default(now()) @map("occurred_at")
+
+  card CollectorCard @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  user User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, occurredAt])
+  @@map("card_tap_events")
+}
+
+model CollectionVehicle {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  label          String   @db.VarChar(100)
+  plateNumber    String?  @map("plate_number") @db.VarChar(20)
+  capacityKg     Decimal? @map("capacity_kg") @db.Decimal(10, 2)
+  active         Boolean  @default(true)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  runs         CollectionRun[]
+
+  @@map("collection_vehicles")
+}
+
+model CollectionCalendar {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")
+  serviceAreaId  String          @map("service_area_id")
+  title          String          @db.VarChar(160)
+  days           CollectionDay[]
+  startTime      String?         @map("start_time") @db.VarChar(5)
+  endTime        String?         @map("end_time") @db.VarChar(5)
+  materials      MaterialType[]
+  active         Boolean         @default(true)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceArea  ServiceArea  @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
+
+  @@index([organizationId, active])
+  @@map("collection_calendars")
+}
+
+model CollectionRoute {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  serviceAreaId  String   @map("service_area_id")
+  name           String   @db.VarChar(120)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  serviceArea  ServiceArea     @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
+  stops        RouteStop[]
+  runs         CollectionRun[]
+
+  @@index([organizationId, active])
+  @@map("collection_routes")
+}
+
+model RouteStop {
+  id          String          @id @default(uuid())
+  routeId     String          @map("route_id")
+  householdId String?         @map("household_id")
+  sequence    Int
+  label       String          @db.VarChar(160)
+  address     String          @db.VarChar(255)
+  status      RouteStopStatus @default(PENDING)
+  issueNote   String?         @map("issue_note") @db.Text
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  route     CollectionRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  household Household?      @relation(fields: [householdId], references: [id], onDelete: SetNull)
+
+  @@unique([routeId, sequence])
+  @@map("route_stops")
+}
+
+model CollectionRun {
+  id             String         @id @default(uuid())
+  organizationId String         @map("organization_id")
+  routeId        String         @map("route_id")
+  vehicleId      String?        @map("vehicle_id")
+  scheduledFor   DateTime       @map("scheduled_for")
+  status         RouteRunStatus @default(PLANNED)
+  startedAt      DateTime?      @map("started_at")
+  completedAt    DateTime?      @map("completed_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  route         CollectionRoute    @relation(fields: [routeId], references: [id], onDelete: Restrict)
+  vehicle       CollectionVehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  assignments   RouteAssignment[]
+  intakeBatches IntakeBatch[]
+
+  @@index([organizationId, scheduledFor])
+  @@map("collection_runs")
+}
+
+model RouteAssignment {
+  id          String @id @default(uuid())
+  runId       String @map("run_id")
+  collectorId String @map("collector_id")
+  userId      String @map("user_id")
+
+  run       CollectionRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  collector Collector     @relation(fields: [collectorId], references: [id], onDelete: Restrict)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, collectorId])
+  @@map("route_assignments")
+}
+
+model WeighStation {
+  id             String  @id @default(uuid())
+  organizationId String  @map("organization_id")
+  name           String  @db.VarChar(140)
+  address        String  @db.VarChar(255)
+  active         Boolean @default(true)
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  channels      ScaleChannel[]
+  intakeBatches IntakeBatch[]
+
+  @@map("weigh_stations")
+}
+
+model ScaleChannel {
+  id        String       @id @default(uuid())
+  stationId String       @map("station_id")
+  label     String       @db.VarChar(100)
+  source    WeightSource
+  active    Boolean      @default(true)
+
+  station      WeighStation  @relation(fields: [stationId], references: [id], onDelete: Cascade)
+  weightEvents WeightEvent[]
+
+  @@map("scale_channels")
+}
+
+model IntakeBatch {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  runId          String?     @map("run_id")
+  stationId      String      @map("station_id")
+  batchNo        String      @unique @map("batch_no") @db.VarChar(40)
+  status         BatchStatus @default(OPEN)
+  inputKg        Decimal     @default(0) @map("input_kg") @db.Decimal(12, 2)
+  outputKg       Decimal     @default(0) @map("output_kg") @db.Decimal(12, 2)
+  toleranceKg    Decimal     @default(1) @map("tolerance_kg") @db.Decimal(8, 2)
+  approvedAt     DateTime?   @map("approved_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  run            CollectionRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  station        WeighStation   @relation(fields: [stationId], references: [id], onDelete: Restrict)
+  sortingBatches SortingBatch[]
+  weightEvents   WeightEvent[]
+
+  @@index([organizationId, status])
+  @@map("intake_batches")
+}
+
+model SortingBatch {
+  id             String      @id @default(uuid())
+  organizationId String      @map("organization_id")
+  intakeBatchId  String      @map("intake_batch_id")
+  status         BatchStatus @default(OPEN)
+  approvedAt     DateTime?   @map("approved_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  intakeBatch  IntakeBatch   @relation(fields: [intakeBatchId], references: [id], onDelete: Cascade)
+  weightEvents WeightEvent[]
+
+  @@index([intakeBatchId])
+  @@map("sorting_batches")
+}
+
+model WeightEvent {
+  id             String          @id @default(uuid())
+  intakeBatchId  String          @map("intake_batch_id")
+  sortingBatchId String?         @map("sorting_batch_id")
+  collectorId    String?         @map("collector_id")
+  scaleChannelId String?         @map("scale_channel_id")
+  deviceEventId  String          @unique @map("device_event_id") @db.VarChar(100)
+  direction      WeightDirection
+  source         WeightSource
+  material       MaterialType
+  weightKg       Decimal         @map("weight_kg") @db.Decimal(12, 2)
+  correctionOfId String?         @map("correction_of_id")
+  note           String?         @db.Text
+  occurredAt     DateTime        @default(now()) @map("occurred_at")
+
+  intakeBatch  IntakeBatch   @relation(fields: [intakeBatchId], references: [id], onDelete: Restrict)
+  sortingBatch SortingBatch? @relation(fields: [sortingBatchId], references: [id], onDelete: SetNull)
+  collector    Collector?    @relation(fields: [collectorId], references: [id], onDelete: SetNull)
+  scaleChannel ScaleChannel? @relation(fields: [scaleChannelId], references: [id], onDelete: SetNull)
+
+  @@index([intakeBatchId, occurredAt])
+  @@map("weight_events")
+}
+
+model MaterialInventoryLedger {
+  id             String          @id @default(uuid())
+  organizationId String          @map("organization_id")
+  material       MaterialType
+  direction      LedgerDirection
+  quantityKg     Decimal         @map("quantity_kg") @db.Decimal(12, 2)
+  referenceType  String          @map("reference_type") @db.VarChar(50)
+  referenceId    String          @map("reference_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([referenceType, referenceId, direction])
+  @@index([organizationId, material, createdAt])
+  @@map("material_inventory_ledger")
+}
+
+model BusinessRequirement {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  title          String            @db.VarChar(160)
+  material       MaterialType
+  quantityKg     Decimal           @map("quantity_kg") @db.Decimal(12, 2)
+  pricePerKg     Int?              @map("price_per_kg")
+  region         String            @db.VarChar(180)
+  status         PublicationStatus @default(DRAFT)
+  hiddenReason   String?           @map("hidden_reason") @db.Text
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  qualitySpecs MaterialQualitySpec[]
+  agreements   OfftakeAgreement[]
+
+  @@index([organizationId, status])
+  @@map("business_requirements")
+}
+
+model MaterialQualitySpec {
+  id                  String       @id @default(uuid())
+  organizationId      String       @map("organization_id")
+  requirementId       String?      @map("requirement_id")
+  material            MaterialType
+  moistureMaxPct      Decimal?     @map("moisture_max_pct") @db.Decimal(5, 2)
+  contaminationMaxPct Decimal?     @map("contamination_max_pct") @db.Decimal(5, 2)
+  notes               String?      @db.Text
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requirement  BusinessRequirement? @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  lots         MaterialLot[]
+
+  @@map("material_quality_specs")
+}
+
+model OfftakeAgreement {
+  id               String       @id @default(uuid())
+  supplierOrgId    String       @map("supplier_org_id")
+  buyerOrgId       String       @map("buyer_org_id")
+  requirementId    String?      @map("requirement_id")
+  material         MaterialType
+  agreedPricePerKg Int          @map("agreed_price_per_kg")
+  startsAt         DateTime     @map("starts_at")
+  endsAt           DateTime?    @map("ends_at")
+
+  supplier    Organization         @relation("AgreementSupplier", fields: [supplierOrgId], references: [id], onDelete: Restrict)
+  buyer       Organization         @relation("AgreementBuyer", fields: [buyerOrgId], references: [id], onDelete: Restrict)
+  requirement BusinessRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+
+  @@map("offtake_agreements")
+}
+
+model MaterialLot {
+  id             String            @id @default(uuid())
+  organizationId String            @map("organization_id")
+  qualitySpecId  String?           @map("quality_spec_id")
+  code           String            @unique @db.VarChar(40)
+  material       MaterialType
+  quantityKg     Decimal           @map("quantity_kg") @db.Decimal(12, 2)
+  availableKg    Decimal           @map("available_kg") @db.Decimal(12, 2)
+  pricePerKg     Int               @map("price_per_kg")
+  status         PublicationStatus @default(DRAFT)
+  hiddenReason   String?           @map("hidden_reason") @db.Text
+  createdAt      DateTime          @default(now()) @map("created_at")
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  qualitySpec  MaterialQualitySpec? @relation(fields: [qualitySpecId], references: [id], onDelete: SetNull)
+  orders       PurchaseOrder[]
+
+  @@index([organizationId, status])
+  @@map("material_lots")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  sellerOrgId String              @map("seller_org_id")
+  buyerOrgId  String              @map("buyer_org_id")
+  lotId       String              @map("lot_id")
+  orderNo     String              @unique @map("order_no") @db.VarChar(40)
+  quantityKg  Decimal             @map("quantity_kg") @db.Decimal(12, 2)
+  pricePerKg  Int                 @map("price_per_kg")
+  totalAmount Int                 @map("total_amount")
+  status      PurchaseOrderStatus @default(RESERVED)
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  seller     Organization     @relation("PurchaseSeller", fields: [sellerOrgId], references: [id], onDelete: Restrict)
+  buyer      Organization     @relation("PurchaseBuyer", fields: [buyerOrgId], references: [id], onDelete: Restrict)
+  lot        MaterialLot      @relation(fields: [lotId], references: [id], onDelete: Restrict)
+  receipt    MaterialReceipt?
+  settlement OrderSettlement?
+
+  @@index([sellerOrgId, status])
+  @@index([buyerOrgId, status])
+  @@map("purchase_orders")
+}
+
+model MaterialReceipt {
+  id              String   @id @default(uuid())
+  purchaseOrderId String   @unique @map("purchase_order_id")
+  receivedKg      Decimal  @map("received_kg") @db.Decimal(12, 2)
+  residueKg       Decimal  @default(0) @map("residue_kg") @db.Decimal(12, 2)
+  note            String?  @db.Text
+  receivedAt      DateTime @default(now()) @map("received_at")
+
+  purchaseOrder    PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  residueTransfers ResidueTransfer[]
+
+  @@map("material_receipts")
+}
+
+model OrderSettlement {
+  id              String   @id @default(uuid())
+  purchaseOrderId String   @unique @map("purchase_order_id")
+  amount          Int
+  reference       String   @unique @db.VarChar(80)
+  settledAt       DateTime @default(now()) @map("settled_at")
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+
+  @@map("order_settlements")
+}
+
+model ResidueTransfer {
+  id                String   @id @default(uuid())
+  materialReceiptId String   @map("material_receipt_id")
+  quantityKg        Decimal  @map("quantity_kg") @db.Decimal(12, 2)
+  destination       String   @db.VarChar(180)
+  transferredAt     DateTime @default(now()) @map("transferred_at")
+
+  materialReceipt MaterialReceipt @relation(fields: [materialReceiptId], references: [id], onDelete: Restrict)
+
+  @@map("residue_transfers")
+}
+
+model Facility {
+  id             String         @id @default(uuid())
+  organizationId String?        @map("organization_id")
+  name           String         @db.VarChar(180)
+  operatorName   String         @map("operator_name") @db.VarChar(180)
+  address        String         @db.VarChar(255)
+  lat            Float
+  lng            Float
+  status         FacilityStatus @default(ACTIVE)
+  sourceUrl      String         @map("source_url") @db.VarChar(500)
+  verifiedAt     DateTime       @map("verified_at")
+  openingNote    String?        @map("opening_note") @db.VarChar(255)
+  demo           Boolean        @default(false)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  organization  Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  materialRules FacilityMaterialRule[]
+  verifications FacilityVerification[]
+
+  @@index([status, verifiedAt])
+  @@map("facilities")
+}
+
+model FacilityMaterialRule {
+  id          String       @id @default(uuid())
+  facilityId  String       @map("facility_id")
+  material    MaterialType
+  accepted    Boolean      @default(true)
+  preparation String?      @db.Text
+  minWeightKg Decimal?     @map("min_weight_kg") @db.Decimal(8, 2)
+
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@unique([facilityId, material])
+  @@map("facility_material_rules")
+}
+
+model FacilityVerification {
+  id         String   @id @default(uuid())
+  facilityId String   @map("facility_id")
+  verifiedBy String?  @map("verified_by")
+  sourceUrl  String   @map("source_url") @db.VarChar(500)
+  note       String?  @db.Text
+  verifiedAt DateTime @default(now()) @map("verified_at")
+
+  facility Facility @relation(fields: [facilityId], references: [id], onDelete: Cascade)
+
+  @@index([facilityId, verifiedAt])
+  @@map("facility_verifications")
+}
+
+model WasteReport {
+  id             String            @id @default(uuid())
+  organizationId String?           @map("organization_id")
+  reporterId     String            @map("reporter_id")
+  status         WasteReportStatus @default(SUBMITTED)
+  description    String            @db.Text
+  address        String            @db.VarChar(255)
+  lat            Float
+  lng            Float
+  photoKey       String?           @map("photo_key") @db.VarChar(500)
+  resolutionNote String?           @map("resolution_note") @db.Text
+  resolvedAt     DateTime?         @map("resolved_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  organization Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  reporter     User               @relation("WasteReportReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  events       WasteReportEvent[]
+
+  @@index([organizationId, status])
+  @@map("waste_reports")
+}
+
+model WasteReportEvent {
+  id        String            @id @default(uuid())
+  reportId  String            @map("report_id")
+  actorId   String?           @map("actor_id")
+  status    WasteReportStatus
+  note      String?           @db.Text
+  createdAt DateTime          @default(now()) @map("created_at")
+
+  report WasteReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  actor  User?       @relation("WasteReportActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([reportId, createdAt])
+  @@map("waste_report_events")
+}
+
+model AuditEvent {
+  id             String   @id @default(uuid())
+  actorId        String?  @map("actor_id")
+  organizationId String?  @map("organization_id")
+  action         String   @db.VarChar(100)
+  resourceType   String   @map("resource_type") @db.VarChar(80)
+  resourceId     String   @map("resource_id")
+  reason         String?  @db.Text
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  actor        User?         @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
+  @@map("audit_events")
 }

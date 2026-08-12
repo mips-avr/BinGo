@@ -26,12 +26,28 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_COST);
 
+    if (
+      (dto.role === 'MANAGER_ADMIN' || dto.role === 'BUSINESS_BUYER') &&
+      !dto.organizationName?.trim()
+    ) {
+      throw new BadRequestException('Nama organisasi wajib diisi');
+    }
+
     const user = await this.users.create({
       name: dto.name.trim(),
       phone,
       passwordHash,
       role: dto.role,
     });
+
+    if (dto.role === 'MANAGER_ADMIN' || dto.role === 'BUSINESS_BUYER') {
+      await this.users.createOrganizationApplicationShell(
+        user.id,
+        dto.organizationName!.trim(),
+        dto.role === 'MANAGER_ADMIN' ? 'MANAGER' : 'BUSINESS',
+        dto.role,
+      );
+    }
 
     return this.buildAuthResponse(user.id, user.role as UserRole, this.users.toProfile(user));
   }
@@ -65,6 +81,9 @@ export class AuthService {
       throw new UnauthorizedException('Nomor telepon atau kata sandi salah');
     }
 
+    if (user.active === false) {
+      throw new UnauthorizedException('Akun dinonaktifkan. Hubungi bantuan BinGo.');
+    }
     return this.buildAuthResponse(user.id, user.role as UserRole, this.users.toProfile(user));
   }
 
@@ -72,12 +91,20 @@ export class AuthService {
    * Dipakai oleh `JwtStrategy.validate()` untuk memastikan user masih ada
    * di database (mencegah token milik akun yang sudah dihapus).
    */
-  async validateJwtPayload(payload: JwtPayload): Promise<{ id: string; role: UserRole }> {
+  async validateJwtPayload(
+    payload: JwtPayload,
+  ): Promise<{ id: string; role: UserRole; platformRoles?: UserRole[] }> {
     const user = await this.users.findById(payload.sub);
     if (!user) {
       throw new UnauthorizedException('Token tidak valid atau sudah kedaluwarsa');
     }
-    return { id: user.id, role: user.role as UserRole };
+    if (user.active === false) throw new UnauthorizedException('Akun dinonaktifkan');
+    const platformRoles = this.users.getPlatformRoles
+      ? await this.users.getPlatformRoles(user.id)
+      : [];
+    return platformRoles.length
+      ? { id: user.id, role: user.role as UserRole, platformRoles }
+      : { id: user.id, role: user.role as UserRole };
   }
 
   private buildAuthResponse(

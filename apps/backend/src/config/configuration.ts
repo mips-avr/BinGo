@@ -1,6 +1,11 @@
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  z.string().min(1).optional(),
+);
+
 /**
  * Secret bawaan untuk pengembangan lokal saja.
  *
@@ -30,6 +35,9 @@ const envSchema = z.object({
   // sebabnya, bukan sekadar "wajib diisi".
   JWT_SECRET: z.string().min(32, 'JWT_SECRET minimal 32 karakter').optional(),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  PUBLIC_BASE_URL: z.string().url('PUBLIC_BASE_URL harus berupa URL yang valid').optional(),
+  BLOB_READ_WRITE_TOKEN: optionalNonEmptyString,
+  VERCEL: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof envSchema> & { JWT_SECRET: string };
@@ -46,6 +54,13 @@ export function validateConfiguration(rawConfig: Record<string, unknown>): AppCo
       .map((i) => ` - ${i.path.join('.')}: ${i.message}`)
       .join('\n');
     throw new Error(`Konfigurasi tidak valid:\n${issues}`);
+  }
+
+  if (parsed.data.VERCEL && !parsed.data.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      'Konfigurasi tidak valid:\n' +
+        ' - BLOB_READ_WRITE_TOKEN: wajib pada Vercel karena filesystem Function tidak permanen.',
+    );
   }
 
   return {

@@ -8,4 +8,6 @@ export * from './weighing';
 export * from './region';
 export * from './drop-point';
 export * from './member-card';
+export * from './collection-schedule';
+export * from './pivot';
 export * from './common';

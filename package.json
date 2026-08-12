@@ -17,6 +17,7 @@
     "backend:prisma:migrate": "pnpm --filter @bingo/backend prisma:migrate",
     "backend:prisma:generate": "pnpm --filter @bingo/backend prisma:generate",
     "backend:prisma:seed": "pnpm --filter @bingo/backend prisma:seed",
+    "pivot:verify": "pnpm shared:build && pnpm --filter @bingo/backend exec prisma format --check && pnpm --filter @bingo/backend exec prisma validate && pnpm --filter @bingo/backend build && pnpm --filter @bingo/backend test --runInBand && pnpm --filter @bingo/backend test:e2e && pnpm --filter @bingo/mobile typecheck && pnpm --filter @bingo/mobile test --runInBand && EXPO_PUBLIC_WEB_BUILD=1 pnpm --filter @bingo/mobile exec expo export --platform web",
     "mobile:start": "pnpm --filter @bingo/mobile start",
     "mobile:android": "pnpm --filter @bingo/mobile android",
     "mobile:ios": "pnpm --filter @bingo/mobile ios",

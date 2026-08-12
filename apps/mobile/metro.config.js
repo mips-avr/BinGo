@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
@@ -15,20 +14,22 @@ const projectRoot = __dirname;
  */
 const config = getDefaultConfig(projectRoot);
 
-// Model TrashScan adalah asset bundle, bukan source module JavaScript.
-config.resolver.assetExts = Array.from(new Set([...config.resolver.assetExts, 'tflite']));
-
 /**
- * Bundling web hanya dipakai oleh perkakas QC tangkapan layar
- * (`tools/qc-screenshots`). Tiga modul native tidak punya implementasi browser
- * yang berguna, jadi ketiganya dialihkan ke shim saat dan hanya saat
- * `BINGO_WEB_QC` diset. Build Android/iOS tidak tersentuh.
+ * Bundling web dipakai oleh perkakas QC dan dashboard produksi. Tiga modul
+ * native tidak punya implementasi browser yang berguna, jadi ketiganya
+ * dialihkan ke shim hanya saat build web. Build Android/iOS tidak tersentuh.
  */
-if (process.env.BINGO_WEB_QC) {
+if (process.env.BINGO_WEB_QC || process.env.EXPO_PUBLIC_WEB_BUILD) {
   const shims = {
     'expo-secure-store': path.resolve(projectRoot, 'tools/qc-web-shims/secure-store.js'),
     'expo-camera': path.resolve(projectRoot, 'tools/qc-web-shims/camera.js'),
     'react-native-nfc-manager': path.resolve(projectRoot, 'tools/qc-web-shims/nfc.js'),
+    // Metro 0.83 memilih kondisi `import` dari exports map Zustand pada web,
+    // lalu memasukkan `import.meta.env` ESM ke dalam bundle script klasik.
+    // Browser menolak seluruh bundle sebelum React sempat dirender. Build CJS
+    // resmi Zustand tidak mengandung import.meta dan tetap identik secara API.
+    zustand: path.resolve(projectRoot, 'node_modules/zustand/index.js'),
+    'zustand/vanilla': path.resolve(projectRoot, 'node_modules/zustand/vanilla.js'),
   };
   const base = config.resolver.resolveRequest;
   config.resolver.resolveRequest = (context, moduleName, platform) => {
