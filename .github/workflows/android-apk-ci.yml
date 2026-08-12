@@ -106,6 +106,7 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:4173/login >/dev/null
+          node apps/mobile/tools/smoke-web.mjs http://127.0.0.1:4173/login
 
       - name: Set CI version code
         run: echo "BINGO_ANDROID_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
