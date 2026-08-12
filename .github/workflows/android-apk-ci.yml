@@ -96,6 +96,17 @@ jobs:
           EXPO_PUBLIC_WEB_BUILD: '1'
         run: pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist/web
 
+      - name: Smoke test web routes
+        run: |
+          pnpm dlx serve@14.2.5 dist/web --single --listen 4173 --no-clipboard &
+          WEB_PID=$!
+          trap 'kill "$WEB_PID"' EXIT
+          for attempt in {1..20}; do
+            curl --fail --silent http://127.0.0.1:4173/login >/dev/null && break
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:4173/login >/dev/null
+
       - name: Set CI version code
         run: echo "BINGO_ANDROID_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
