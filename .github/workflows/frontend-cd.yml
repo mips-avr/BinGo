@@ -93,12 +93,43 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # EXPO_PUBLIC_WEB_BUILD WAJIB diset di sini.
+      #
+      # `metro.config.js` hanya memasang shim web (expo-secure-store,
+      # expo-camera, react-native-nfc-manager, dan terutama zustand) ketika
+      # salah satu dari BINGO_WEB_QC / EXPO_PUBLIC_WEB_BUILD ada. Tanpa itu
+      # Metro memilih kondisi `import` dari exports map zustand, menanam
+      # `import.meta.env` ke dalam bundel script klasik, dan peramban menolak
+      # seluruh bundel sebelum React sempat dirender — halaman putih total.
+      #
+      # Inilah yang terjadi di produksi: perbaikan 78eea00 ada di repo tapi
+      # tidak pernah aktif di CI karena variabelnya tidak diset.
       - name: Build web bundle
         env:
           EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_WEB_BUILD: '1'
         run: |
           pnpm shared:build
           pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist
+
+      # Bukti bahwa bundelnya benar-benar bisa dijalankan peramban. Expo menulis
+      # tag <script defer> klasik, jadi satu `import.meta` saja sudah cukup untuk
+      # membuat setiap halaman putih. Lebih baik gagal di sini daripada
+      # mengirimkan halaman kosong ke juri.
+      - name: Verify bundle is browser-loadable
+        run: |
+          cd apps/mobile/dist
+          if grep -rqF 'import.meta' _expo/static/js/web/*.js; then
+            echo "::error::Bundel memuat import.meta tetapi dimuat lewat <script defer> klasik."
+            echo "Peramban menolaknya dengan \"Cannot use 'import.meta' outside a module\" dan halaman jadi putih."
+            echo "Modul yang memuatnya:"
+            grep -rohE '.{160}import\.meta.{80}' _expo/static/js/web/*.js | head -3
+            exit 1
+          fi
+          if grep -q '<script[^>]*type="module"' index.html; then
+            echo "index.html memakai script module."
+          fi
+          echo "Bundel bersih dari import.meta."
 
       # Bukti bahwa alamat yang benar benar-benar tertanam di bundel. Pemeriksaan
       # di langkah pertama hanya memvalidasi variabelnya; ini memvalidasi

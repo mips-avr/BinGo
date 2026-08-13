@@ -15,11 +15,21 @@ const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
 /**
- * Bundling web dipakai oleh perkakas QC dan dashboard produksi. Tiga modul
- * native tidak punya implementasi browser yang berguna, jadi ketiganya
- * dialihkan ke shim hanya saat build web. Build Android/iOS tidak tersentuh.
+ * Pengalihan modul khusus web.
+ *
+ * Dulu blok ini dipagari `process.env.BINGO_WEB_QC || EXPO_PUBLIC_WEB_BUILD`,
+ * dan pagar itulah yang membuat produksi putih total: CD tidak pernah menyetel
+ * variabelnya, jadi shim zustand tidak terpasang, `import.meta.env` masuk ke
+ * bundel script klasik, dan peramban menolak seluruh bundel sebelum React
+ * sempat dirender. Perbaikannya ada di repo tapi tidak pernah aktif.
+ *
+ * Pagarnya sekarang dihapus karena memang tidak pernah dibutuhkan: penjaga
+ * yang sebenarnya adalah `platform === 'web'` di bawah. Build Android/iOS tidak
+ * pernah melewati cabang itu, sehingga tidak ada satu pun yang berubah bagi
+ * mereka — sementara setiap build web, dari mana pun ia dijalankan, sekarang
+ * mustahil kehilangan shim-nya.
  */
-if (process.env.BINGO_WEB_QC || process.env.EXPO_PUBLIC_WEB_BUILD) {
+{
   const shims = {
     'expo-secure-store': path.resolve(projectRoot, 'tools/qc-web-shims/secure-store.js'),
     'expo-camera': path.resolve(projectRoot, 'tools/qc-web-shims/camera.js'),
