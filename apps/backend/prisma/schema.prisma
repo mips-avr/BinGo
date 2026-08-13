@@ -22,10 +22,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // Runtime memakai koneksi POOLED: fungsi serverless membuka banyak koneksi
   // pendek dan akan menghabiskan kuota koneksi Postgres tanpa pooler.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // Migrasi memakai koneksi LANGSUNG. Prisma Migrate mengambil advisory lock
   // yang tidak didukung PgBouncer, sehingga lewat pooler perintahnya
   // menggantung sampai timeout tanpa pesan yang menjelaskan apa pun.
