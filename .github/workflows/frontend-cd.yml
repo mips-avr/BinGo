@@ -112,43 +112,21 @@ jobs:
           pnpm shared:build
           pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist
 
-      # Bukti bahwa bundelnya benar-benar bisa dijalankan peramban. Expo menulis
-      # tag <script defer> klasik, jadi satu `import.meta` saja sudah cukup untuk
-      # membuat setiap halaman putih. Lebih baik gagal di sini daripada
-      # mengirimkan halaman kosong ke juri.
-      - name: Verify bundle is browser-loadable
-        run: |
-          cd apps/mobile/dist
-          if grep -rqF 'import.meta' _expo/static/js/web/*.js; then
-            echo "::error::Bundel memuat import.meta tetapi dimuat lewat <script defer> klasik."
-            echo "Peramban menolaknya dengan \"Cannot use 'import.meta' outside a module\" dan halaman jadi putih."
-            echo "Modul yang memuatnya:"
-            grep -rohE '.{160}import\.meta.{80}' _expo/static/js/web/*.js | head -3
-            exit 1
-          fi
-          if grep -q '<script[^>]*type="module"' index.html; then
-            echo "index.html memakai script module."
-          fi
-          echo "Bundel bersih dari import.meta."
-
-      # Bukti bahwa alamat yang benar benar-benar tertanam di bundel. Pemeriksaan
-      # di langkah pertama hanya memvalidasi variabelnya; ini memvalidasi
-      # hasilnya — dan keduanya pernah berbeda.
-      - name: Verify baked API URL
+      # Satu pemeriksaan, bukan grep ke seluruh bundel.
+      #
+      # Versi sebelumnya mencari alamat privat di mana pun di dalam bundel, dan
+      # itu menolak bundel yang sehat: axios memuat literal 'http://localhost'
+      # sebagai nilai bawaan `origin` miliknya sendiri. Mencari string di dalam
+      # kode pihak ketiga tidak pernah bisa menjawab pertanyaan yang sebenarnya
+      # diajukan — alamat mana yang akan DIPAKAI aplikasi.
+      #
+      # Skripnya membaca extra.apiBaseUrl dari manifest yang ditanam Expo, dan
+      # sekaligus menolak bundel yang memuat import.meta (penyebab halaman putih).
+      - name: Verify bundle
+        working-directory: apps/mobile
         env:
           API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
-        run: |
-          cd apps/mobile/dist
-          if grep -rqE 'http://(10\.|192\.168\.|127\.|localhost)' _expo/static/js/web/*.js; then
-            echo "::error::Bundel masih memuat alamat HTTP privat:"
-            grep -rohE 'http://(10\.|192\.168\.|127\.|localhost)[^"'"'"']*' _expo/static/js/web/*.js | sort -u | head
-            exit 1
-          fi
-          if ! grep -rqF "$API_BASE_URL" _expo/static/js/web/*.js; then
-            echo "::error::Bundel tidak memuat $API_BASE_URL — variabel tidak terbaca saat build."
-            exit 1
-          fi
-          echo "Bundel memuat $API_BASE_URL"
+        run: node tools/verify-web-bundle.mjs dist "$API_BASE_URL"
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
