@@ -39,10 +39,7 @@ async function createHandler(): Promise<ExpressLike> {
   return app.getHttpAdapter().getInstance() as unknown as ExpressLike;
 }
 
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse,
-): Promise<void> {
+export default async function handler(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (!cached) {
     cached = createHandler().catch((err) => {
       // Jangan biarkan promise yang gagal ter-cache selamanya: satu kegagalan
