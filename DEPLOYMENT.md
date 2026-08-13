@@ -1,102 +1,98 @@
 # Deployment BinGo ke produksi
 
-Tiga bagian yang berdiri sendiri: **database (Neon)**, **API (Vercel)**, dan
-**web (Vercel)**. Kerjakan berurutan — web tidak berguna sebelum API hidup, dan
-API tidak bisa boot sebelum database ada.
+Tiga bagian: **database (Neon)**, **API (Render)**, **web (Vercel)**. Kerjakan
+berurutan — web tidak berguna sebelum API hidup, dan API tidak bisa boot sebelum
+database ada.
 
 ---
 
 ## 0. Kenapa login gagal sebelum ini
 
-Bundel web memuat `EXPO_PUBLIC_API_BASE_URL=http://10.74.181.183:3000`, yaitu
-IP LAN laptop pengembang. Dua kegagalan sekaligus:
+Bundel web memuat `EXPO_PUBLIC_API_BASE_URL=http://10.74.181.183:3000`, yaitu IP
+LAN laptop pengembang. Dua kegagalan sekaligus: halaman HTTPS memanggil HTTP
+(diblokir peramban sebagai mixed content), dan alamat privat yang tidak dapat
+dirutekan dari internet.
 
-1. **Mixed content.** Halaman disajikan lewat HTTPS tetapi memanggil HTTP.
-   Peramban memblokirnya sebelum permintaan dikirim.
-2. **Alamat privat.** `10.x.x.x` tidak dapat dirutekan dari internet.
-
-`EXPO_PUBLIC_*` ditanam saat **build**, bukan dibaca saat runtime — jadi
-mengubah variabel saja tidak cukup, bundelnya harus dibangun ulang. Workflow
-`frontend-cd.yml` sekarang menolak build bila nilainya bukan `https://` atau
-menunjuk alamat privat, lalu memeriksa lagi hasil bundelnya.
+`EXPO_PUBLIC_*` ditanam saat **build**, bukan dibaca saat runtime — mengubah
+variabelnya saja tidak cukup, bundelnya harus dibangun ulang. `frontend-cd.yml`
+sekarang menolak build bila nilainya bukan `https://` atau menunjuk alamat
+privat, lalu memeriksa lagi bundel hasilnya.
 
 ---
 
 ## 1. Database — Neon
 
 1. Buat project di [neon.tech](https://neon.tech), region **Singapore**.
-2. Di SQL Editor, aktifkan PostGIS:
+2. SQL Editor:
 
    ```sql
    CREATE EXTENSION IF NOT EXISTS postgis;
    ```
 
-   > **`postgis_topology` tidak tersedia di Neon** dan tidak dipakai skema ini.
+   > `postgis_topology` **tidak tersedia di Neon** dan tidak dipakai skema ini.
    > Migrasi `20260517000000_init` sudah diubah agar melewatinya bila tidak ada.
 
-3. Salin **dua** connection string dari dashboard:
+3. Salin connection string **tanpa `-pooler`** (koneksi langsung). Render
+   menjalankan satu proses panjang, bukan ratusan fungsi serverless, jadi pooler
+   tidak diperlukan — dan Prisma Migrate memang tidak bisa lewat pooler.
 
-   | Dipakai untuk | Bentuk | Disimpan sebagai |
-   |---|---|---|
-   | Runtime API | yang ber-**`-pooler`** | `DATABASE_URL` (env Vercel) |
-   | Migrasi | yang **tanpa** `-pooler` | `MIGRATE_DATABASE_URL` (secret GitHub) |
-
-   Keduanya berbeda dan tidak bisa saling menggantikan. Runtime serverless
-   membuka banyak koneksi pendek sehingga wajib lewat pooler; sementara Prisma
-   Migrate memakai advisory lock yang tidak didukung PgBouncer, sehingga lewat
-   pooler perintahnya menggantung sampai timeout.
-
-4. Tambahkan `?sslmode=require` bila belum ada.
+4. Pastikan ada `?sslmode=require`.
 
 Isi data awal sekali dari laptop:
 
 ```bash
-DATABASE_URL='<connection string LANGSUNG>' pnpm --filter @bingo/backend exec prisma migrate deploy
-DATABASE_URL='<connection string LANGSUNG>' pnpm --filter @bingo/backend exec ts-node prisma/seed.ts
+DATABASE_URL='<connection string Neon>' pnpm --filter @bingo/backend exec ts-node prisma/seed.ts
 ```
+
+Migrasi tidak perlu dijalankan manual — `render.yaml` menjalankannya di setiap
+build.
 
 ---
 
-## 2. API — Vercel
+## 2. API — Render
 
-Buat project Vercel baru, **Root Directory: `apps/backend`**.
+Dashboard Render → **New** → **Blueprint** → pilih repo ini. Render membaca
+`render.yaml` dan menanyakan variabel yang bertanda `sync: false`:
 
-### Environment Variables (Production)
+| Nama | Nilai |
+|---|---|
+| `DATABASE_URL` | connection string Neon |
+| `DIRECT_URL` | **sama persis** dengan `DATABASE_URL` |
+| `JWT_SECRET` | `openssl rand -base64 48` |
+| `CORS_ORIGINS` | `https://bingo-web-delta.vercel.app` |
+| `BLOB_READ_WRITE_TOKEN` | dari Vercel Blob |
 
-| Nama | Nilai | Catatan |
-|---|---|---|
-| `DATABASE_URL` | connection string **pooled** Neon | |
-| `DIRECT_URL` | connection string **langsung** Neon | dipakai Prisma untuk migrasi |
-| `JWT_SECRET` | `openssl rand -base64 48` | backend menolak boot bila masih nilai bawaan |
-| `JWT_EXPIRES_IN` | `7d` | |
-| `NODE_ENV` | `production` | |
-| `CORS_ORIGINS` | `https://bingo-web-delta.vercel.app` | dipisah koma bila lebih dari satu |
-| `BLOB_READ_WRITE_TOKEN` | dari Vercel Blob | wajib — sistem berkas serverless tidak permanen |
+`DIRECT_URL` diisi sama karena skema Prisma memisahkan keduanya untuk kasus
+serverless; di Render keduanya memang koneksi yang sama. Kalau dikosongkan,
+Prisma gagal boot dengan "Environment variable not found: DIRECT_URL".
 
-**`CORS_ORIGINS` harus tanpa garis miring di akhir** dan harus persis sama
-dengan origin web-nya. Bila dikosongkan, API memantulkan origin mana pun dan
-mencetak peringatan di log.
+`CORS_ORIGINS` **tanpa garis miring di akhir**, dan harus persis sama dengan
+origin web-nya. Kalau dikosongkan, API memantulkan origin mana pun dan mencetak
+peringatan di log.
 
-### Kenapa strukturnya begini
+Setelah blueprint dibuat, Render **auto-deploy setiap push ke `main`**. Tidak
+ada workflow CD untuk backend — `backend-cd.yml` sekarang manual saja dan hanya
+dipakai kalau ingin kembali ke Vercel.
 
-`api/index.js` sengaja JavaScript biasa dan setipis mungkin. Berkas di `api/`
-dikompilasi runtime Vercel sendiri, yang tidak memancarkan metadata dekorator —
-tanpa itu dependency injection NestJS gagal saat runtime dengan pesan yang
-menyesatkan. Jadi seluruh kode Nest dikompilasi lebih dulu oleh `tsc` lewat
-`buildCommand`, dan `api/index.js` hanya memuat hasilnya dari `dist/`.
+### Yang harus diketahui soal free tier
 
-`serverless.ts` memanggil `app.init()`, **bukan** `app.listen()`. Runtime Vercel
-yang menerima koneksi; `listen()` di sini membuat fungsi menggantung sampai
-timeout tanpa pernah menjawab.
+Service **tidur setelah 15 menit tanpa trafik**, dan bangunnya **~50 detik**.
+`keepalive.yml` menyentuh `/health` tiap 10 menit untuk mencegahnya, tetapi cron
+GitHub Actions bisa tertunda 5–15 menit pada jam sibuk — jadi itu mengurangi
+peluang, bukan menghilangkannya.
+
+**Menjelang demo juri, buka `/health` sendiri lima menit sebelum mulai.** Jangan
+menggantungkan momen yang menentukan pada cron.
+
+Kalau nanti butuh kepastian, naik ke plan berbayar ($7/bln) menghapus perilaku
+tidur ini sepenuhnya dan tidak menuntut perubahan kode apa pun.
 
 ---
 
 ## 3. Web — Vercel
 
-Project Vercel terpisah, **Root Directory: `apps/mobile`**.
-
-Deploy dilakukan `frontend-cd.yml` dari artefak `expo export`, jadi build
-setting di dashboard tidak dipakai.
+Project Vercel terpisah, root `apps/mobile`. Deploy dilakukan
+`frontend-cd.yml` dari artefak `expo export`.
 
 ---
 
@@ -107,42 +103,41 @@ setting di dashboard tidak dipakai.
 | Jenis | Nama | Nilai |
 |---|---|---|
 | Secret | `VERCEL_TOKEN` | Account Settings → Tokens |
-| Secret | `VERCEL_ORG_ID` | `.vercel/project.json` setelah `vercel link` |
-| Secret | `VERCEL_BACKEND_PROJECT_ID` | project id API |
+| Secret | `VERCEL_ORG_ID` | dari `apps/mobile/.vercel/project.json` |
 | Secret | `VERCEL_WEB_PROJECT_ID` | project id web |
-| Secret | `MIGRATE_DATABASE_URL` | connection string **langsung** Neon |
-| Variable | `EXPO_PUBLIC_API_BASE_URL` | `https://<domain-api>.vercel.app` |
+| Variable | `EXPO_PUBLIC_API_BASE_URL` | `https://bingo-api.onrender.com` |
 
-> Sebelumnya keduanya memakai satu `VERCEL_PROJECT_ID`, sehingga backend dan web
-> saling menimpa deployment satu sama lain.
+`MIGRATE_DATABASE_URL` dan `VERCEL_BACKEND_PROJECT_ID` hanya dibutuhkan bila
+kembali ke jalur Vercel.
 
 ---
 
 ## 5. Urutan menjalankan pertama kali
 
 ```
-1. Neon dibuat, CREATE EXTENSION postgis, migrate deploy + seed dari laptop
-2. Vercel project API dibuat, env diisi, jalankan Backend CD
-3. curl https://<domain-api>/health   -> harus 200
-4. Set variable EXPO_PUBLIC_API_BASE_URL ke domain itu
-5. Jalankan Frontend CD
-6. Buka /login, masuk dengan akun seed
+1. Neon dibuat, CREATE EXTENSION postgis
+2. Render Blueprint dibuat, env diisi, tunggu deploy pertama selesai
+3. curl https://bingo-api.onrender.com/health   -> harus 200
+4. Seed dari laptop
+5. Set variable EXPO_PUBLIC_API_BASE_URL ke domain Render itu
+6. Jalankan Frontend CD
+7. Buka /login, masuk dengan akun seed
 ```
 
-Langkah 3 tidak boleh dilewati. Web yang menunjuk API mati akan gagal dengan
-cara yang sama persis seperti sebelumnya, dan waktunya habis untuk mencari di
-tempat yang salah.
+Langkah 3 tidak boleh dilewati. Web yang menunjuk API mati gagal dengan cara
+yang sama persis seperti sebelumnya, dan waktunya habis mencari di tempat yang
+salah.
 
 ---
 
-## 6. Batas yang harus diketahui
+## 6. Jalur Vercel sebagai cadangan
 
-- **Rate limiter jadi per-instance.** `ThrottlerGuard` menyimpan hitungan di
-  memori; setiap instance serverless punya hitungannya sendiri, sehingga
-  ambangnya efektif mengendur seiring jumlah instance. Cukup untuk demo lomba,
-  tidak cukup untuk perlindungan sungguhan.
-- **Cold start 1–3 detik** pada permintaan pertama setelah idle. Permintaan
-  berikutnya normal.
-- **Unggahan wajib lewat Vercel Blob.** Tanpa `BLOB_READ_WRITE_TOKEN`, berkas
-  ditulis ke sistem berkas sementara dan hilang begitu instance didaur ulang.
-- **Swagger mati di produksi**, sesuai `NODE_ENV=production`.
+Berkas `apps/backend/{api/index.js,src/serverless.ts,vercel.json}` sengaja
+dipertahankan. Keduanya tidak mengganggu Render — `main.ts` yang dipakai di sana
+— tetapi membuat backend bisa dipindahkan ke Vercel dalam hitungan menit bila
+Render bermasalah di hari-H.
+
+Bedanya: Vercel cold start 1–3 detik (bukan 50), tetapi ThrottlerGuard jadi
+per-instance dan unggahan wajib lewat Blob. Jalankan `backend-cd.yml` secara
+manual, dan isi secret `MIGRATE_DATABASE_URL` serta
+`VERCEL_BACKEND_PROJECT_ID`.

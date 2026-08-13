@@ -1,38 +1,55 @@
-# Backend publik BinGo untuk demo kompetisi.
+# Blueprint Render untuk BinGo API.
 #
-# Web tetap dibangun di Vercel. API ditempatkan di Render karena NestJS perlu
-# proses Node yang hidup dan menerima koneksi pada PORT platform. Rahasia tidak
-# pernah ditulis di berkas ini: Render meminta nilainya saat Blueprint pertama
-# kali dibuat, lalu menyimpannya di dashboard.
+# Dipakai lewat Render Dashboard -> New -> Blueprint, arahkan ke repo ini.
+# Setelah tersambung, Render auto-deploy setiap push ke `main` — tidak perlu
+# workflow CD terpisah untuk backend.
+#
+# Root direktori sengaja akar repo, bukan apps/backend: ini monorepo pnpm dan
+# paket workspace (@bingo/shared-types, @bingo/shared-utils, @bingo/i18n)
+# berada di luar apps/backend. Build dari akar membuat semuanya ikut.
 services:
   - type: web
-    runtime: node
     name: bingo-api
+    runtime: node
     region: singapore
     plan: free
-    buildCommand: >-
-      corepack enable && pnpm install --frozen-lockfile && pnpm shared:build &&
-      pnpm --filter @bingo/backend exec prisma generate &&
+    branch: main
+
+    # pnpm dipasang eksplisit; runtime Node Render memakai npm secara bawaan.
+    #
+    # `prisma migrate deploy` sengaja ada di build, bukan di start. Di start ia
+    # akan jalan pada SETIAP restart — termasuk setiap kali service bangun dari
+    # tidur — dan menambah puluhan detik ke cold start yang sudah lambat.
+    buildCommand: |
+      npm install --global pnpm@10.30.3
+      pnpm install --frozen-lockfile
+      pnpm shared:build
+      pnpm --filter @bingo/backend exec prisma generate
+      pnpm --filter @bingo/backend exec prisma migrate deploy
       pnpm --filter @bingo/backend build
-    # Free Web Service tidak menjalankan preDeployCommand. Migrasi dijalankan
-    # sebelum NestJS agar skema selaras pada setiap deploy.
-    startCommand: >-
-      pnpm --filter @bingo/backend prisma:migrate:deploy &&
-      pnpm --filter @bingo/backend start:prod
+
+    startCommand: node apps/backend/dist/main.js
+
+    # Render menyuntikkan PORT sendiri; main.ts sudah membacanya.
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+
     envVars:
-      - key: NODE_VERSION
-        value: 22.17.0
       - key: NODE_ENV
         value: production
-      - key: JWT_SECRET
-        generateValue: true
-      - key: JWT_EXPIRES_IN
-        value: 7d
+      - key: NODE_VERSION
+        value: "22"
+
+      # sync: false = nilainya diisi manual di dashboard dan TIDAK tersimpan di
+      # repo. Render akan menanyakannya saat blueprint pertama kali dibuat.
       - key: DATABASE_URL
         sync: false
-      # Token ini memakai Vercel Blob yang sudah ada, sehingga foto dan dokumen
-      # tidak hilang ketika instance Free Render berhenti atau redeploy.
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CORS_ORIGINS
+        sync: false
       - key: BLOB_READ_WRITE_TOKEN
         sync: false

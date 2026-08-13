@@ -1,14 +1,16 @@
-name: Backend CD
+name: Backend CD (Vercel — cadangan)
 
+# Backend produksi berjalan di RENDER, yang auto-deploy sendiri setiap push ke
+# main lewat render.yaml. Workflow ini karena itu manual saja.
+#
+# Dipertahankan sebagai jalur pindah cepat: bila Render bermasalah menjelang
+# demo, jalankan workflow ini untuk menaikkan backend yang sama ke Vercel dalam
+# hitungan menit. Kode sudah mendukung keduanya — main.ts mendengarkan port,
+# serverless.ts tidak.
+#
+# Butuh secret tambahan: MIGRATE_DATABASE_URL dan VERCEL_BACKEND_PROJECT_ID.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/backend/**'
-      - 'packages/**'
-      - 'pnpm-lock.yaml'
-      - '.github/workflows/backend-cd.yml'
 
 permissions:
   contents: read
