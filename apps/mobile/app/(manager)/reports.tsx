@@ -3,6 +3,7 @@ import { Alert, Text } from 'react-native';
 import { FormDrawer } from '../../src/components/pivot/FormDrawer';
 import { ManagementPage } from '../../src/components/pivot/ManagementPage';
 import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
+import { ReportPhoto } from '../../src/components/pivot/ReportPhoto';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { useManagerOperations, useUpdateReportStatus } from '../../src/features/pivot/hooks';
@@ -53,6 +54,12 @@ export default function ReportsScreen() {
         onOpen={open}
         columns={[
           {
+            key: 'photo',
+            label: 'Foto',
+            width: 90,
+            render: (item: any) => <ReportPhoto compact uri={item.photoKey} />,
+          },
+          {
             key: 'description',
             label: 'Laporan',
             render: (item: any) => <Text style={masterText.primary}>{item.description}</Text>,
@@ -90,6 +97,7 @@ export default function ReportsScreen() {
         onClose={() => setSelected(null)}
         onSubmit={save}
       >
+        <ReportPhoto uri={selected?.photoKey} />
         <Text style={masterText.secondary}>Pilih tahap penanganan</Text>
         {statuses.map((value) => (
           <Button

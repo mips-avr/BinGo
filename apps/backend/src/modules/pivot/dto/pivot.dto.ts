@@ -127,7 +127,7 @@ export class CreateWasteReportDto {
   @IsString() @Length(5, 255) address!: string;
   @Transform(({ value }) => Number(value)) @IsNumber() lat!: number;
   @Transform(({ value }) => Number(value)) @IsNumber() lng!: number;
-  @IsOptional() @IsString() photoKey?: string;
+  @IsString() @Length(5, 500) photoKey!: string;
 }
 
 export class UpsertFacilityDto {

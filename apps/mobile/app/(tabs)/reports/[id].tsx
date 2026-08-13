@@ -5,9 +5,12 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../../src/components/ui/Button';
 import { Input } from '../../../src/components/ui/Input';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
+import { ReportPhoto } from '../../../src/components/pivot/ReportPhoto';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
 import { SkeletonList } from '../../../src/components/ui/Skeleton';
 import { useHouseholdReportMutation } from '../../../src/features/pivot/hooks';
+import { uploadImage } from '../../../src/features/uploads/api';
+import { pickFromGallery } from '../../../src/lib/image/picker';
 import { api, extractApiErrorMessage } from '../../../src/lib/api/client';
 import { colors, screenStyles, spacing } from '../../../src/theme';
 
@@ -20,7 +23,14 @@ export default function ReportDetail() {
   });
   const report = query.data?.find((item: any) => item.id === id);
   const mutation = useHouseholdReportMutation();
-  const [form, setForm] = useState({ description: '', address: '', lat: '', lng: '' });
+  const [form, setForm] = useState({
+    description: '',
+    address: '',
+    lat: '',
+    lng: '',
+    photoKey: '',
+  });
+  const [replacementPhoto, setReplacementPhoto] = useState('');
   useEffect(() => {
     if (report)
       setForm({
@@ -28,6 +38,7 @@ export default function ReportDetail() {
         address: report.address,
         lat: String(report.lat),
         lng: String(report.lng),
+        photoKey: report.photoKey,
       });
   }, [report]);
   if (query.isLoading)
@@ -45,10 +56,11 @@ export default function ReportDetail() {
   const editable = report.status === 'SUBMITTED';
   async function save() {
     try {
+      const photoKey = replacementPhoto ? (await uploadImage(replacementPhoto)).url : form.photoKey;
       await mutation.mutateAsync({
         action: 'update',
         id,
-        data: { ...form, lat: Number(form.lat), lng: Number(form.lng) },
+        data: { ...form, photoKey, lat: Number(form.lat), lng: Number(form.lng) },
       });
       Alert.alert('Laporan diperbarui');
     } catch (error) {
@@ -72,6 +84,22 @@ export default function ReportDetail() {
           ? 'Laporan masih dapat diperbarui atau ditarik sebelum diverifikasi Pengelola.'
           : 'Laporan telah diproses dan tidak dapat diubah.'}
       </Text>
+      <ReportPhoto uri={replacementPhoto || report.photoKey} />
+      {editable ? (
+        <Button
+          label="Ganti Foto"
+          variant="secondary"
+          style={{ marginBottom: spacing.lg }}
+          onPress={async () => {
+            try {
+              const image = await pickFromGallery();
+              if (image) setReplacementPhoto(image.uri);
+            } catch (error) {
+              Alert.alert('Foto belum dipilih', extractApiErrorMessage(error));
+            }
+          }}
+        />
+      ) : null}
       <Input
         label="Deskripsi"
         value={form.description}

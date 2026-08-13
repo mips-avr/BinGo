@@ -73,6 +73,7 @@ export function ManagementPage<T extends { id: string }>({
   canArchive?: (item: T) => boolean;
   canOpen?: (item: T) => boolean;
 }) {
+  const showActions = Boolean(renderActions || onOpen || onEdit || onArchive || onRestore);
   return (
     <ScrollView
       contentContainerStyle={styles.content}
@@ -155,7 +156,9 @@ export function ManagementPage<T extends { id: string }>({
                   {column.label}
                 </Text>
               ))}
-              <Text style={[styles.headerCell, styles.actionColumn]}>Tindakan</Text>
+              {showActions ? (
+                <Text style={[styles.headerCell, styles.actionColumn]}>Tindakan</Text>
+              ) : null}
             </View>
           ) : null}
           {items.map((item) => (
@@ -172,6 +175,7 @@ export function ManagementPage<T extends { id: string }>({
               canEdit={canEdit(item)}
               canArchive={canArchive(item)}
               canOpen={canOpen(item)}
+              showActions={showActions}
             />
           ))}
         </View>
@@ -215,6 +219,7 @@ function ManagementRow<T extends { id: string }>({
   canEdit,
   canArchive,
   canOpen,
+  showActions,
 }: {
   item: T;
   columns: ManagementColumn<T>[];
@@ -227,6 +232,7 @@ function ManagementRow<T extends { id: string }>({
   canEdit: boolean;
   canArchive: boolean;
   canOpen: boolean;
+  showActions: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -245,19 +251,23 @@ function ManagementRow<T extends { id: string }>({
           {column.render(item)}
         </View>
       ))}
-      <View style={[styles.cell, styles.actionColumn, styles.actions]}>
-        {renderActions?.(item)}
-        {onOpen && canOpen ? <Action icon="eye" label="Buka" onPress={() => onOpen(item)} /> : null}
-        {!archived && onEdit && canEdit ? (
-          <Action icon="edit-2" label="Edit" onPress={() => onEdit(item)} />
-        ) : null}
-        {!archived && onArchive && canArchive ? (
-          <Action icon="archive" label="Arsipkan" onPress={() => onArchive(item)} />
-        ) : null}
-        {archived && onRestore ? (
-          <Action icon="rotate-ccw" label="Pulihkan" onPress={() => onRestore(item)} />
-        ) : null}
-      </View>
+      {showActions ? (
+        <View style={[styles.cell, styles.actionColumn, styles.actions]}>
+          {renderActions?.(item)}
+          {onOpen && canOpen ? (
+            <Action icon="eye" label="Buka" onPress={() => onOpen(item)} />
+          ) : null}
+          {!archived && onEdit && canEdit ? (
+            <Action icon="edit-2" label="Edit" onPress={() => onEdit(item)} />
+          ) : null}
+          {!archived && onArchive && canArchive ? (
+            <Action icon="archive" label="Arsipkan" onPress={() => onArchive(item)} />
+          ) : null}
+          {archived && onRestore ? (
+            <Action icon="rotate-ccw" label="Pulihkan" onPress={() => onRestore(item)} />
+          ) : null}
+        </View>
+      ) : null}
     </Pressable>
   );
 }

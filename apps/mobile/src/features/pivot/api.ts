@@ -281,7 +281,7 @@ export async function createWasteReport(input: {
   address: string;
   lat: number;
   lng: number;
-  photoKey?: string;
+  photoKey: string;
 }) {
   const response = await api.post('/api/v1/pivot/reports', input);
   return response.data;
@@ -295,7 +295,7 @@ export async function updateWasteReportStatus(id: string, status: string, note?:
 }
 export async function updateWasteReport(
   id: string,
-  input: { description: string; address: string; lat: number; lng: number; photoKey?: string },
+  input: { description: string; address: string; lat: number; lng: number; photoKey: string },
 ) {
   return (await api.patch(`/api/v1/pivot/reports/${id}`, input)).data;
 }

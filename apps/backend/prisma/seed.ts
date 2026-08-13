@@ -584,7 +584,10 @@ async function main() {
   }
   const report = await prisma.wasteReport.upsert({
     where: { id: 'demo-waste-report-1' },
-    update: {},
+    update: {
+      photoKey:
+        'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=1200&q=80',
+    },
     create: {
       id: 'demo-waste-report-1',
       organizationId: managerOrg.id,
@@ -594,7 +597,8 @@ async function main() {
       address: 'Jalan Lingkungan RW 08 (Demo)',
       lat: -6.205,
       lng: 106.941,
-      photoKey: 'demo/reports/waste-report-1.jpg',
+      photoKey:
+        'https://images.unsplash.com/photo-1532996122724-e3c354a0b15b?auto=format&fit=crop&w=1200&q=80',
     },
   });
   if ((await prisma.wasteReportEvent.count({ where: { reportId: report.id } })) === 0) {

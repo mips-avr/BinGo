@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Text } from 'react-native';
+import { FormDrawer } from '../../src/components/pivot/FormDrawer';
+import { ManagementPage } from '../../src/components/pivot/ManagementPage';
+import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import {
@@ -8,8 +11,8 @@ import {
   useCreateWeight,
   useManagerOperations,
 } from '../../src/features/pivot/hooks';
+import { extractApiErrorMessage } from '../../src/lib/api/client';
 import { DemoScale, ManualScale } from '../../src/features/weighing/ScaleAdapter';
-import { colors, screenStyles, spacing } from '../../src/theme';
 
 const directions = ['IN', 'SORTED_OUTPUT', 'RESIDUE'] as const;
 
@@ -18,67 +21,131 @@ export default function WeighingScreen() {
   const createBatch = useCreateIntakeBatch();
   const createWeight = useCreateWeight();
   const approve = useApproveBatch();
+  const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [weight, setWeight] = useState('10');
   const [direction, setDirection] = useState<(typeof directions)[number]>('IN');
   const [material, setMaterial] = useState('MIXED');
-  const batches = useMemo(() => query.data?.batches ?? [], [query.data?.batches]);
+  const batches = useMemo(
+    () =>
+      (query.data?.batches ?? []).filter((item: any) =>
+        `${item.batchNo} ${item.status}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [query.data?.batches, search],
+  );
   const selected = useMemo(
-    () => batches.find((item: any) => item.id === selectedId),
-    [batches, selectedId],
+    () => (query.data?.batches ?? []).find((item: any) => item.id === selectedId),
+    [query.data?.batches, selectedId],
   );
 
   async function newBatch() {
-    const batch = await createBatch.mutateAsync({});
-    setSelectedId(batch.id);
-    Alert.alert('Batch dibuat', `${batch.batchNo} siap menerima catatan timbang.`);
+    try {
+      const batch = await createBatch.mutateAsync({});
+      setSelectedId(batch.id);
+      Alert.alert('Batch dibuat', `${batch.batchNo} siap menerima catatan timbang.`);
+    } catch (error) {
+      Alert.alert('Belum berhasil', extractApiErrorMessage(error));
+    }
   }
-
   async function record(source: 'MANUAL' | 'SIMULATOR') {
-    if (!selected) return Alert.alert('Pilih batch', 'Buat batch timbang terlebih dahulu.');
-    const adapter =
-      source === 'SIMULATOR' ? new DemoScale(Number(weight)) : new ManualScale(Number(weight));
-    const reading = await adapter.read();
-    await createWeight.mutateAsync({
-      intakeBatchId: selected.id,
-      deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      direction,
-      material,
-      weightKg: reading.weightKg,
-      source: reading.source,
-    });
-    Alert.alert('Berat tercatat', `${reading.weightKg} kg dicatat sebagai ${reading.source}.`);
+    if (!selected) return;
+    try {
+      const adapter =
+        source === 'SIMULATOR' ? new DemoScale(Number(weight)) : new ManualScale(Number(weight));
+      const reading = await adapter.read();
+      await createWeight.mutateAsync({
+        intakeBatchId: selected.id,
+        deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        direction,
+        material,
+        weightKg: reading.weightKg,
+        source: reading.source,
+      });
+      Alert.alert('Berat tercatat', `${reading.weightKg} kg dicatat sebagai ${reading.source}.`);
+    } catch (error) {
+      Alert.alert('Belum tercatat', extractApiErrorMessage(error));
+    }
   }
-
+  async function approveBatch() {
+    if (!selected) return;
+    try {
+      await approve.mutateAsync(selected.id);
+      setSelectedId('');
+      Alert.alert('Batch disahkan', 'Inventory telah diperbarui.');
+    } catch (error) {
+      Alert.alert('Belum seimbang', extractApiErrorMessage(error));
+    }
+  }
+  const output = selected ? Number(selected.outputKg) : 0;
+  const input = selected ? Number(selected.inputKg) : 0;
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={screenStyles.screenTitle}>Timbang dan Pemilahan</Text>
-      <Text style={styles.subtitle}>
-        Catat input, material terpilah, dan residu. Sahkan hanya ketika neraca massa seimbang.
-      </Text>
-      <Button
-        label="Buat batch baru"
-        onPress={() => newBatch().catch((error) => Alert.alert('Belum berhasil', String(error)))}
-        loading={createBatch.isPending}
+    <>
+      <ManagementPage
+        title="Timbang dan Pemilahan"
+        subtitle="Buka satu batch untuk mencatat input, hasil pemilahan, residu, dan mengesahkan neraca massa."
+        primaryAction={{ label: 'Buat Batch', onPress: newBatch }}
+        query={query}
+        items={batches}
+        search={search}
+        onSearchChange={setSearch}
+        archived={false}
+        onArchivedChange={() => undefined}
+        showArchiveFilter={false}
+        onOpen={(item: any) => setSelectedId(item.id)}
+        columns={[
+          {
+            key: 'batch',
+            label: 'Batch',
+            render: (item: any) => <Text style={masterText.primary}>{item.batchNo}</Text>,
+          },
+          {
+            key: 'created',
+            label: 'Dibuat',
+            render: (item: any) => (
+              <Text style={masterText.secondary}>
+                {new Date(item.createdAt).toLocaleString('id-ID')}
+              </Text>
+            ),
+          },
+          {
+            key: 'input',
+            label: 'Masuk',
+            render: (item: any) => (
+              <Text style={masterText.secondary}>{Number(item.inputKg).toFixed(1)} kg</Text>
+            ),
+          },
+          {
+            key: 'output',
+            label: 'Keluar',
+            render: (item: any) => (
+              <Text style={masterText.secondary}>{Number(item.outputKg).toFixed(1)} kg</Text>
+            ),
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (item: any) => <Text style={masterText.status}>{item.status}</Text>,
+          },
+        ]}
       />
-      <View style={styles.list}>
-        {batches.map((batch: any) => (
-          <Button
-            key={batch.id}
-            label={`${batch.batchNo} • ${batch.status}`}
-            variant={selected?.id === batch.id ? 'primary' : 'secondary'}
-            onPress={() => setSelectedId(batch.id)}
-          />
-        ))}
-      </View>
-      {selected ? (
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>{selected.batchNo}</Text>
-          <Text style={styles.balance}>
-            {Number(selected.inputKg).toFixed(1)} kg masuk • {Number(selected.outputKg).toFixed(1)}{' '}
-            kg keluar
-          </Text>
-          <View style={styles.row}>
+      <FormDrawer
+        visible={Boolean(selected)}
+        title={selected?.batchNo ?? 'Detail Batch'}
+        description={
+          selected ? `${input.toFixed(1)} kg masuk · ${output.toFixed(1)} kg keluar` : undefined
+        }
+        dirty={false}
+        showSubmit={selected?.status !== 'APPROVED'}
+        submitLabel="Sahkan Neraca Massa"
+        loading={approve.isPending}
+        onClose={() => setSelectedId('')}
+        onSubmit={approveBatch}
+      >
+        {selected?.status === 'APPROVED' ? (
+          <Text style={masterText.status}>Batch telah disahkan dan tidak dapat diubah.</Text>
+        ) : (
+          <>
+            <Text style={masterText.secondary}>Jenis pencatatan</Text>
             {directions.map((item) => (
               <Button
                 key={item}
@@ -88,74 +155,32 @@ export default function WeighingScreen() {
                 onPress={() => setDirection(item)}
               />
             ))}
-          </View>
-          <Input
-            label="Kategori material"
-            value={material}
-            onChangeText={(value) => setMaterial(value.toUpperCase())}
-          />
-          <Input
-            label="Berat (kg)"
-            value={weight}
-            keyboardType="decimal-pad"
-            onChangeText={setWeight}
-          />
-          <Button
-            label="Catat manual"
-            onPress={() =>
-              record('MANUAL').catch((error) => Alert.alert('Belum tercatat', String(error)))
-            }
-            loading={createWeight.isPending}
-          />
-          <Button
-            label="Gunakan simulator Demo"
-            variant="secondary"
-            style={{ marginTop: spacing.sm }}
-            onPress={() =>
-              record('SIMULATOR').catch((error) => Alert.alert('Belum tercatat', String(error)))
-            }
-          />
-          <Button
-            label="Sahkan neraca massa"
-            style={{ marginTop: spacing.xl }}
-            disabled={selected.status === 'APPROVED'}
-            loading={approve.isPending}
-            onPress={() =>
-              approve.mutate(selected.id, {
-                onSuccess: () => Alert.alert('Batch disahkan', 'Inventory telah diperbarui.'),
-                onError: (error) => Alert.alert('Belum seimbang', String(error)),
-              })
-            }
-          />
-        </View>
-      ) : null}
-    </ScrollView>
+            <Input
+              label="Kategori material"
+              value={material}
+              onChangeText={(value) => setMaterial(value.toUpperCase())}
+            />
+            <Input
+              label="Berat (kg)"
+              value={weight}
+              keyboardType="decimal-pad"
+              onChangeText={setWeight}
+            />
+            <Button
+              label="Catat Manual"
+              loading={createWeight.isPending}
+              disabled={!Number.isFinite(Number(weight)) || Number(weight) <= 0}
+              onPress={() => record('MANUAL')}
+            />
+            <Button
+              label="Gunakan Simulator Demo"
+              variant="secondary"
+              disabled={!Number.isFinite(Number(weight)) || Number(weight) <= 0}
+              onPress={() => record('SIMULATOR')}
+            />
+          </>
+        )}
+      </FormDrawer>
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 100,
-    maxWidth: 900,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  subtitle: {
-    color: colors.neutral600,
-    fontSize: 15,
-    marginTop: spacing.xs,
-    marginBottom: spacing.xl,
-  },
-  list: { gap: spacing.sm, marginVertical: spacing.xl },
-  panel: {
-    borderWidth: 1,
-    borderColor: colors.neutral200,
-    borderRadius: 16,
-    padding: spacing.xl,
-    backgroundColor: colors.white,
-  },
-  panelTitle: { fontSize: 20, fontWeight: '800', color: colors.neutral900 },
-  balance: { fontSize: 14, color: colors.neutral600, marginTop: 4, marginBottom: spacing.lg },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-});
