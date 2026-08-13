@@ -85,15 +85,17 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
-      # pull/build/deploy --prebuilt, bukan `vercel --cwd apps/backend`.
+      # `--prebuilt` adalah kuncinya, dan itu sekaligus menyelesaikan masalah
+      # monorepo. Build dikerjakan DI SINI, di runner, tempat seluruh repo
+      # sudah ter-checkout — jadi `cd ../..` pada installCommand dan
+      # buildCommand di vercel.json menemukan paket workspace dengan benar.
+      # Yang diunggah ke Vercel hanya .vercel/output yang sudah jadi.
       #
-      # `--cwd` hanya mengunggah isi folder itu, sehingga paket workspace
-      # (@bingo/shared-types, @bingo/shared-utils, @bingo/i18n) yang berada di
-      # luar apps/backend tidak pernah ikut, dan build di Vercel gagal
-      # menemukannya. Dijalankan dari akar repo, seluruh workspace ikut.
-      #
-      # Root Directory proyek Vercel harus diset ke `apps/backend` di dashboard.
+      # Cara lama `vercel --cwd apps/backend` gagal justru karena kebalikannya:
+      # build dikerjakan di Vercel dari isi folder yang diunggah saja, sehingga
+      # @bingo/shared-types dan kawan-kawan tidak pernah ikut terkirim.
       - name: Deploy to Vercel
+        working-directory: apps/backend
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
