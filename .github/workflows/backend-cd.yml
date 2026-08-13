@@ -1,15 +1,27 @@
-name: Backend CD (Vercel — cadangan)
+name: Backend CD (Render)
 
-# Backend produksi berjalan di RENDER, yang auto-deploy sendiri setiap push ke
-# main lewat render.yaml. Workflow ini karena itu manual saja.
+# Render meng-auto-deploy sendiri setiap push ke main lewat render.yaml, jadi
+# workflow ini tidak melakukan deploy. Tugasnya satu: MEMBUKTIKAN bahwa deploy
+# itu berhasil.
 #
-# Dipertahankan sebagai jalur pindah cepat: bila Render bermasalah menjelang
-# demo, jalankan workflow ini untuk menaikkan backend yang sama ke Vercel dalam
-# hitungan menit. Kode sudah mendukung keduanya — main.ts mendengarkan port,
-# serverless.ts tidak.
+# Tanpa ini, "berhasil" hanya berarti GitHub menerima push. Migrasi Prisma bisa
+# gagal, build bisa gagal, service bisa naik tanpa database — dan tidak ada satu
+# pun sinyal merah di repo. Yang terjadi justru sebaliknya: semua centang hijau
+# sementara produksi mati.
 #
-# Butuh secret tambahan: MIGRATE_DATABASE_URL dan VERCEL_BACKEND_PROJECT_ID.
+# Karena itu yang diperiksa bukan "apakah ada backend yang sehat", melainkan
+# apakah backend yang sehat itu berisi commit yang barusan di-push. /health
+# mengembalikan `commit` dari RENDER_GIT_COMMIT untuk keperluan ini.
+
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/backend/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'render.yaml'
+      - '.github/workflows/backend-cd.yml'
   workflow_dispatch:
 
 permissions:
@@ -19,108 +31,149 @@ concurrency:
   group: backend-cd-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
-
 jobs:
-  deploy:
-    name: Deploy backend to Vercel
+  verify:
+    name: Verify Render deploy
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.30.3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      # Dicek lebih dulu supaya kegagalan konfigurasi muncul dalam 20 detik,
-      # bukan setelah lima menit build.
-      - name: Check required secrets
+      # Dua jalur, dan bedanya penting.
+      #
+      # Dengan RENDER_API_KEY, workflow bisa membaca status deploy langsung —
+      # termasuk membedakan "build gagal" dari "sedang berjalan", dan bisa
+      # mengambil log kegagalannya.
+      #
+      # Tanpa kunci itu, satu-satunya yang bisa diamati adalah /health. Itu
+      # masih berguna, tetapi tidak bisa membedakan build gagal dari deploy yang
+      # lambat. Bedanya disebutkan, bukan disamarkan.
+      - name: Detect available signals
+        id: mode
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
         run: |
-          missing=""
-          [ -z "$VERCEL_TOKEN" ]         && missing="$missing VERCEL_TOKEN"
-          [ -z "$VERCEL_ORG_ID" ]        && missing="$missing VERCEL_ORG_ID"
-          [ -z "$VERCEL_PROJECT_ID" ]    && missing="$missing VERCEL_BACKEND_PROJECT_ID"
-          [ -z "$MIGRATE_DATABASE_URL" ] && missing="$missing MIGRATE_DATABASE_URL"
-          if [ -n "$missing" ]; then
-            echo "::error::Secret belum diset:$missing"
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::Repository variable EXPO_PUBLIC_API_BASE_URL belum diset."
+            echo "Settings -> Secrets and variables -> Actions -> Variables."
+            echo "Nilainya: alamat backend Render, contoh https://bingo-api-j4j6.onrender.com"
             exit 1
           fi
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *) echo "::error::EXPO_PUBLIC_API_BASE_URL harus https:// — sekarang: $API_BASE_URL"; exit 1 ;;
+          esac
+          if [ -n "$RENDER_API_KEY" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "Memakai Render API: status deploy dibaca langsung."
+          else
+            echo "api=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::RENDER_API_KEY belum diset. Verifikasi hanya lewat /health, sehingga build yang gagal tidak dapat dibedakan dari deploy yang lambat. Tambahkan di Settings -> Secrets -> Actions."
+          fi
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build (validasi sebelum deploy)
-        run: |
-          pnpm shared:build
-          pnpm --filter @bingo/backend exec prisma generate
-          pnpm --filter @bingo/backend build
-
-      # Migrasi dijalankan SEBELUM deploy, dan memakai koneksi LANGSUNG Neon,
-      # bukan yang pooled. PgBouncer milik Neon tidak mendukung statement
-      # advisory lock yang dipakai Prisma untuk mengunci migrasi, sehingga lewat
-      # koneksi pooled perintah ini menggantung sampai timeout.
-      #
-      # Urutannya juga disengaja: kalau migrasi gagal, kode lama tetap melayani
-      # trafik. Deploy dulu baru migrasi akan membuat kode baru bertemu skema
-      # lama selama beberapa detik.
-      - name: Run database migrations
+      # Render butuh beberapa detik untuk mendaftarkan deploy dari webhook push.
+      # Menanyakannya seketika akan menemukan deploy SEBELUMNYA dan salah
+      # menyimpulkan sudah selesai.
+      - name: Wait for Render deploy to finish
+        if: steps.mode.outputs.api == 'true'
         env:
-          DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
-        run: pnpm --filter @bingo/backend exec prisma migrate deploy
-
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      # `--prebuilt` adalah kuncinya, dan itu sekaligus menyelesaikan masalah
-      # monorepo. Build dikerjakan DI SINI, di runner, tempat seluruh repo
-      # sudah ter-checkout — jadi `cd ../..` pada installCommand dan
-      # buildCommand di vercel.json menemukan paket workspace dengan benar.
-      # Yang diunggah ke Vercel hanya .vercel/output yang sudah jadi.
-      #
-      # Cara lama `vercel --cwd apps/backend` gagal justru karena kebalikannya:
-      # build dikerjakan di Vercel dari isi folder yang diunggah saja, sehingga
-      # @bingo/shared-types dan kawan-kawan tidak pernah ikut terkirim.
-      - name: Deploy to Vercel
-        working-directory: apps/backend
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          SERVICE_NAME: bingo-api
+          SHA: ${{ github.sha }}
         run: |
-          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
-          vercel build --prod --token="$VERCEL_TOKEN"
-          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
-          echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
-          echo "Deployed: $url"
+          set -euo pipefail
+          api=https://api.render.com/v1
+          auth=(-H "Authorization: Bearer $RENDER_API_KEY" -H "Accept: application/json")
 
-      # Deploy yang "berhasil" tetapi menjawab 500 pada permintaan pertama adalah
-      # kegagalan yang paling mahal, karena baru ketahuan saat orang mencoba
-      # masuk. Diperiksa di sini.
-      - name: Smoke test
-        run: |
-          for i in 1 2 3 4 5; do
-            code=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$DEPLOY_URL/health" || echo 000)
-            if [ "$code" = "200" ]; then
-              echo "Health OK: $(cat /tmp/health.txt)"
-              exit 0
-            fi
-            echo "Percobaan $i: HTTP $code — menunggu cold start…"
-            sleep 6
+          sid=$(curl -sS "${auth[@]}" "$api/services?name=$SERVICE_NAME&limit=20" \
+            | jq -r --arg n "$SERVICE_NAME" '[.[].service | select(.name==$n)][0].id // empty')
+          if [ -z "$sid" ]; then
+            echo "::error::Service '$SERVICE_NAME' tidak ada di akun Render ini."
+            curl -sS "${auth[@]}" "$api/services?limit=50" | jq -r '.[].service | "  \(.name)"'
+            exit 1
+          fi
+          echo "Service: $sid"
+
+          echo "Menunggu Render mendaftarkan deploy untuk $SHA"
+          deploy=''
+          for _ in $(seq 1 20); do
+            deploy=$(curl -sS "${auth[@]}" "$api/services/$sid/deploys?limit=20" \
+              | jq -r --arg s "$SHA" '[.[].deploy | select(.commit.id==$s)][0].id // empty')
+            [ -n "$deploy" ] && break
+            sleep 15
           done
-          echo "::error::/health tidak menjawab 200 setelah 5 percobaan. Respons terakhir:"
-          cat /tmp/health.txt || true
+          if [ -z "$deploy" ]; then
+            echo "::error::Render tidak pernah memulai deploy untuk $SHA dalam 5 menit."
+            echo "Kemungkinan besar Auto-Deploy mati, atau service tidak terhubung ke repo/branch ini."
+            echo "Cek: Render Dashboard -> $SERVICE_NAME -> Settings -> Build & Deploy -> Auto-Deploy."
+            exit 1
+          fi
+          echo "Deploy: $deploy"
+
+          # Status akhir Render: live, build_failed, update_failed, canceled,
+          # pre_deploy_failed. Sisanya berarti masih berjalan.
+          for _ in $(seq 1 80); do
+            status=$(curl -sS "${auth[@]}" "$api/services/$sid/deploys/$deploy" | jq -r '.status')
+            echo "  status: $status"
+            case "$status" in
+              live)
+                echo "Deploy $deploy selesai."
+                exit 0
+                ;;
+              build_failed|update_failed|canceled|pre_deploy_failed|deactivated)
+                echo "::error::Deploy Render berakhir dengan status '$status'."
+                echo "Log: https://dashboard.render.com/web/$sid/deploys/$deploy"
+                exit 1
+                ;;
+            esac
+            sleep 15
+          done
+          echo "::error::Deploy $deploy belum selesai setelah 20 menit."
           exit 1
+
+      # Free tier tidur setelah 15 menit menganggur dan bangunnya ~50 detik,
+      # jadi permintaan pertama memang boleh lambat. Yang tidak boleh adalah
+      # gagal. --max-time 90 dan beberapa kali percobaan membedakan keduanya.
+      - name: Smoke test /health
+        env:
+          API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          body=''
+          for attempt in $(seq 1 10); do
+            body=$(curl -sS --max-time 90 "$API_BASE_URL/health" || true)
+            [ -n "$body" ] && break
+            echo "  percobaan $attempt gagal, menunggu"
+            sleep 20
+          done
+          if [ -z "$body" ]; then
+            echo "::error::$API_BASE_URL/health tidak menjawab sama sekali."
+            exit 1
+          fi
+          echo "$body" | jq .
+
+          status=$(echo "$body" | jq -r '.status')
+          db=$(echo "$body" | jq -r '.checks.database')
+          gis=$(echo "$body" | jq -r '.checks.postgis')
+          commit=$(echo "$body" | jq -r '.commit // "unknown"')
+
+          fail=0
+          [ "$status" = "ok" ] || { echo "::error::status=$status"; fail=1; }
+          [ "$db"  = "ok" ]    || { echo "::error::database=$db — DATABASE_URL salah, atau Neon menolak koneksi."; fail=1; }
+          [ "$gis" = "ok" ]    || { echo "::error::postgis=$gis — ekstensi PostGIS belum aktif di database."; fail=1; }
+
+          # Commit yang berjalan dibandingkan dengan commit yang memicu workflow.
+          # Ini yang membedakan "backend sehat" dari "backend sehat berisi kode
+          # yang barusan di-push".
+          if [ "$commit" = "unknown" ]; then
+            echo "::warning::/health tidak melaporkan commit. Backend yang berjalan lebih tua dari perubahan ini, atau RENDER_GIT_COMMIT tidak tersedia."
+          elif [ "$commit" != "$SHA" ]; then
+            echo "::error::Backend menjalankan commit $commit, bukan $SHA. Deploy tidak pernah tergantikan."
+            fail=1
+          else
+            echo "Commit yang berjalan cocok: $commit"
+          fi
+
+          [ "$fail" -eq 0 ] || exit 1
+          echo "Backend sehat di $API_BASE_URL"

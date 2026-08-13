@@ -6,6 +6,15 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 interface HealthResponse {
   status: 'ok' | 'degraded';
+  /**
+   * Commit yang benar-benar sedang berjalan.
+   *
+   * Tanpa ini, CD hanya bisa membuktikan bahwa "ada" backend yang sehat —
+   * bukan bahwa backend yang sehat itu berisi kode yang barusan di-push.
+   * Render menyuntikkan RENDER_GIT_COMMIT ke setiap deploy; di lingkungan lain
+   * nilainya `unknown`, dan itu disebutkan apa adanya alih-alih dikarang.
+   */
+  commit: string;
   uptimeSeconds: number;
   checks: {
     database: 'ok' | 'down';
@@ -13,6 +22,12 @@ interface HealthResponse {
   };
   timestamp: string;
 }
+
+const COMMIT =
+  process.env.RENDER_GIT_COMMIT ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GIT_COMMIT ??
+  'unknown';
 
 @ApiTags('Health')
 @Public()
@@ -46,6 +61,7 @@ export class HealthController {
     const allHealthy = database === 'ok' && postgis === 'ok';
     return {
       status: allHealthy ? 'ok' : 'degraded',
+      commit: COMMIT,
       uptimeSeconds: Math.round(process.uptime()),
       checks: { database, postgis },
       timestamp: new Date().toISOString(),

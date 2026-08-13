@@ -30,6 +30,7 @@ describe('HealthController', () => {
     expect(result.checks.database).toBe('ok');
     expect(result.checks.postgis).toBe('ok');
     expect(typeof result.uptimeSeconds).toBe('number');
+    expect(typeof result.commit).toBe('string');
   });
 
   it('mengembalikan status degraded bila database error', async () => {
