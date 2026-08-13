@@ -146,6 +146,20 @@ export class PivotService {
     return { ...content, mimeType: document.mimeType, label: document.label };
   }
 
+  async removeDocument(userId: string, id: string) {
+    const document = await this.prisma.verificationDocument.findUnique({
+      where: { id },
+      include: { application: true },
+    });
+    if (!document || document.application.applicantId !== userId)
+      throw new NotFoundException('Dokumen tidak ditemukan');
+    if (!['DRAFT', 'CHANGES_REQUESTED'].includes(document.application.status))
+      throw new ConflictException('Dokumen pengajuan yang sudah dikirim tidak dapat dihapus');
+    await this.evidenceStore.remove?.(document.storageKey);
+    await this.prisma.verificationDocument.delete({ where: { id } });
+    return { id, deleted: true };
+  }
+
   async submitMyApplication(userId: string) {
     const application = await this.myApplication(userId);
     if (!['DRAFT', 'CHANGES_REQUESTED'].includes(application.status)) {
@@ -326,6 +340,47 @@ export class PivotService {
     });
   }
 
+  platformFacilities(archived = false) {
+    return this.prisma.facility.findMany({
+      where: { archivedAt: archived ? { not: null } : null },
+      include: {
+        materialRules: true,
+        verifications: { orderBy: { verifiedAt: 'desc' }, take: 1 },
+        organization: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async archivePlatformFacility(actorId: string, id: string, reason: string, restore: boolean) {
+    const facility = await this.prisma.facility.findUnique({ where: { id } });
+    if (!facility) throw new NotFoundException('Fasilitas tidak ditemukan');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.facility.update({
+        where: { id },
+        data: restore
+          ? { status: 'ACTIVE', archivedAt: null, archivedBy: null, archiveReason: null }
+          : {
+              status: 'INACTIVE',
+              archivedAt: new Date(),
+              archivedBy: actorId,
+              archiveReason: reason,
+            },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId,
+          organizationId: facility.organizationId,
+          action: restore ? 'FACILITY_RESTORED' : 'FACILITY_ARCHIVED',
+          resourceType: 'Facility',
+          resourceId: id,
+          reason,
+        },
+      });
+      return updated;
+    });
+  }
+
   async createFacility(actorId: string, dto: UpsertFacilityDto) {
     return this.prisma.$transaction(async (tx) => {
       const facility = await tx.facility.create({
@@ -398,7 +453,12 @@ export class PivotService {
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.facility.update({
         where: { id },
-        data: { sourceUrl: body.sourceUrl, verifiedAt: new Date() },
+        data: {
+          sourceUrl: body.sourceUrl,
+          verifiedAt: new Date(),
+          verificationRequestedAt: null,
+          verificationRequestedBy: null,
+        },
       });
       await tx.facilityVerification.create({
         data: { facilityId: id, verifiedBy: actorId, sourceUrl: body.sourceUrl, note: body.note },
@@ -799,6 +859,7 @@ export class PivotService {
       lots,
       orders,
       reports,
+      subscriptions,
     ] = await Promise.all([
       this.prisma.serviceArea.findMany({
         where: { organizationId: orgId },
@@ -847,6 +908,11 @@ export class PivotService {
         where: { organizationId: orgId },
         orderBy: { createdAt: 'desc' },
       }),
+      this.prisma.subscription.findMany({
+        where: { organizationId: orgId },
+        include: { household: true, servicePlan: true },
+        orderBy: { createdAt: 'desc' },
+      }),
     ]);
     return {
       organization: membership.organization,
@@ -861,8 +927,188 @@ export class PivotService {
       lots,
       orders,
       reports,
+      subscriptions,
       inventoryKg: await this.inventoryBalance(orgId),
     };
+  }
+
+  async updateCollectionRun(
+    userId: string,
+    id: string,
+    body: { scheduledFor?: string; action?: 'cancel'; reason?: string },
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const run = await this.prisma.collectionRun.findFirst({
+      where: { id, organizationId: membership.organizationId },
+    });
+    if (!run) throw new NotFoundException('Tugas pengumpulan tidak ditemukan');
+    if (run.status !== 'PLANNED')
+      throw new ConflictException(
+        'Hanya tugas PLANNED yang dapat dijadwalkan ulang atau dibatalkan',
+      );
+    const data =
+      body.action === 'cancel'
+        ? { status: 'CANCELLED' as const }
+        : body.scheduledFor
+          ? { scheduledFor: new Date(body.scheduledFor) }
+          : null;
+    if (!data) throw new BadRequestException('Perubahan tugas tidak valid');
+    const updated = await this.prisma.collectionRun.update({ where: { id }, data });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: membership.organizationId,
+        action:
+          body.action === 'cancel' ? 'COLLECTION_RUN_CANCELLED' : 'COLLECTION_RUN_RESCHEDULED',
+        resourceType: 'CollectionRun',
+        resourceId: id,
+        reason: body.reason,
+      },
+    });
+    return updated;
+  }
+
+  async createSubscription(
+    userId: string,
+    body: { householdId: string; servicePlanId: string; startsAt?: string },
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const [household, plan] = await Promise.all([
+      this.prisma.household.findFirst({
+        where: { id: body.householdId, organizationId: membership.organizationId, active: true },
+      }),
+      this.prisma.servicePlan.findFirst({
+        where: { id: body.servicePlanId, organizationId: membership.organizationId, active: true },
+      }),
+    ]);
+    if (!household || !plan)
+      throw new NotFoundException('Rumah tangga atau paket layanan tidak ditemukan');
+    const subscription = await this.prisma.subscription.create({
+      data: {
+        organizationId: membership.organizationId,
+        householdId: household.id,
+        servicePlanId: plan.id,
+        startsAt: body.startsAt ? new Date(body.startsAt) : new Date(),
+      },
+    });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: membership.organizationId,
+        action: 'SUBSCRIPTION_CREATED',
+        resourceType: 'Subscription',
+        resourceId: subscription.id,
+      },
+    });
+    return subscription;
+  }
+
+  async updateSubscription(
+    userId: string,
+    id: string,
+    body: { servicePlanId?: string; action?: 'stop'; reason?: string },
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { id, organizationId: membership.organizationId },
+    });
+    if (!subscription) throw new NotFoundException('Langganan tidak ditemukan');
+    if (!subscription.active) throw new ConflictException('Langganan sudah dihentikan');
+    if (body.servicePlanId) {
+      const plan = await this.prisma.servicePlan.findFirst({
+        where: { id: body.servicePlanId, organizationId: membership.organizationId, active: true },
+      });
+      if (!plan) throw new NotFoundException('Paket layanan tidak ditemukan');
+    }
+    const updated = await this.prisma.subscription.update({
+      where: { id },
+      data:
+        body.action === 'stop'
+          ? { active: false, endsAt: new Date() }
+          : { servicePlanId: body.servicePlanId },
+    });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: membership.organizationId,
+        action: body.action === 'stop' ? 'SUBSCRIPTION_STOPPED' : 'SUBSCRIPTION_PLAN_CHANGED',
+        resourceType: 'Subscription',
+        resourceId: id,
+        reason: body.reason,
+      },
+    });
+    return updated;
+  }
+
+  async createInvoice(
+    userId: string,
+    body: { subscriptionId: string; period: string; amount: number; dueAt: string },
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const subscription = await this.prisma.subscription.findFirst({
+      where: { id: body.subscriptionId, organizationId: membership.organizationId, active: true },
+    });
+    if (!subscription) throw new NotFoundException('Langganan aktif tidak ditemukan');
+    const invoice = await this.prisma.invoice.create({
+      data: {
+        organizationId: membership.organizationId,
+        householdId: subscription.householdId,
+        subscriptionId: subscription.id,
+        period: body.period,
+        amount: Number(body.amount),
+        dueAt: new Date(body.dueAt),
+      },
+    });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: membership.organizationId,
+        action: 'INVOICE_GENERATED',
+        resourceType: 'Invoice',
+        resourceId: invoice.id,
+      },
+    });
+    return invoice;
+  }
+
+  async updateInvoice(
+    userId: string,
+    id: string,
+    body: { amount?: number; dueAt?: string; action?: 'void'; reason?: string },
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, organizationId: membership.organizationId },
+    });
+    if (!invoice) throw new NotFoundException('Invoice tidak ditemukan');
+    if (invoice.status !== 'UNPAID')
+      throw new ConflictException('Hanya invoice UNPAID yang dapat diedit atau dibatalkan');
+    const updated = await this.prisma.invoice.update({
+      where: { id },
+      data:
+        body.action === 'void'
+          ? { status: 'VOID' }
+          : {
+              amount: body.amount == null ? undefined : Number(body.amount),
+              dueAt: body.dueAt ? new Date(body.dueAt) : undefined,
+            },
+    });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: membership.organizationId,
+        action: body.action === 'void' ? 'INVOICE_VOIDED' : 'INVOICE_UPDATED',
+        resourceType: 'Invoice',
+        resourceId: id,
+        reason: body.reason,
+      },
+    });
+    return updated;
   }
 
   async createCollectionRoute(userId: string, dto: CreateCollectionRouteDto) {
@@ -1002,18 +1248,57 @@ export class PivotService {
       ? createHash('sha256').update(dto.uidCredential.trim().toUpperCase()).digest('hex')
       : null;
     try {
-      return await this.prisma.collectorCard.create({
-        data: {
-          collectorId,
-          cardNumber: dto.cardNumber.trim().toUpperCase(),
-          uidHash,
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        const card = await tx.collectorCard.create({
+          data: { collectorId, cardNumber: dto.cardNumber.trim().toUpperCase(), uidHash },
+        });
+        await tx.auditEvent.create({
+          data: {
+            actorId: userId,
+            organizationId: membership.organizationId,
+            action: 'COLLECTOR_CARD_ISSUED',
+            resourceType: 'CollectorCard',
+            resourceId: card.id,
+          },
+        });
+        return card;
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')
         throw new ConflictException('Nomor kartu atau UID sudah dipakai');
       throw error;
     }
+  }
+
+  async deactivateCollectorCard(
+    userId: string,
+    collectorId: string,
+    cardId: string,
+    reason: string,
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const card = await this.prisma.collectorCard.findFirst({
+      where: { id: cardId, collectorId, collector: { organizationId: membership.organizationId } },
+    });
+    if (!card) throw new NotFoundException('Kartu Petugas tidak ditemukan');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.collectorCard.update({
+        where: { id: cardId },
+        data: { active: false },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: 'COLLECTOR_CARD_DEACTIVATED',
+          resourceType: 'CollectorCard',
+          resourceId: cardId,
+          reason,
+        },
+      });
+      return updated;
+    });
   }
 
   async createIntakeBatch(userId: string, dto: CreateIntakeBatchDto) {
@@ -1158,7 +1443,7 @@ export class PivotService {
     const membership = await this.membership(userId, ['BUSINESS']);
     this.assertOrganizationActive(membership.organization.status);
     return this.prisma.businessRequirement.create({
-      data: { organizationId: membership.organizationId, ...dto, status: 'PUBLISHED' },
+      data: { organizationId: membership.organizationId, ...dto, status: 'DRAFT' },
     });
   }
 
@@ -1239,7 +1524,96 @@ export class PivotService {
             status: 'RESERVED',
           },
         });
+        await tx.auditEvent.create({
+          data: {
+            actorId: userId,
+            organizationId: membership.organizationId,
+            action: 'PURCHASE_ORDER_CREATED',
+            resourceType: 'PurchaseOrder',
+            resourceId: order.id,
+          },
+        });
         return order;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  async cancelBusinessOrder(userId: string, orderId: string, reason: string) {
+    const membership = await this.membership(userId, ['BUSINESS']);
+    this.assertOrganizationActive(membership.organization.status);
+    return this.changeOrderStatus(
+      userId,
+      membership.organizationId,
+      orderId,
+      'BUYER',
+      'cancel',
+      reason,
+    );
+  }
+
+  async managerOrderAction(
+    userId: string,
+    orderId: string,
+    action: 'confirm' | 'cancel',
+    reason: string,
+  ) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    return this.changeOrderStatus(
+      userId,
+      membership.organizationId,
+      orderId,
+      'SELLER',
+      action,
+      reason,
+    );
+  }
+
+  private async changeOrderStatus(
+    userId: string,
+    organizationId: string,
+    orderId: string,
+    side: 'BUYER' | 'SELLER',
+    action: 'confirm' | 'cancel',
+    reason: string,
+  ) {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const order = await tx.purchaseOrder.findFirst({
+          where: {
+            id: orderId,
+            ...(side === 'BUYER'
+              ? { buyerOrgId: organizationId }
+              : { sellerOrgId: organizationId }),
+          },
+        });
+        if (!order) throw new NotFoundException('Pesanan tidak ditemukan');
+        if (order.status !== 'RESERVED')
+          throw new ConflictException('Hanya pesanan RESERVED yang dapat diubah');
+        if (side === 'BUYER' && action !== 'cancel')
+          throw new ForbiddenException('Business hanya dapat membatalkan reservasi');
+        const status = action === 'confirm' ? 'CONFIRMED' : 'CANCELLED';
+        const updated = await tx.purchaseOrder.update({
+          where: { id: order.id },
+          data: { status },
+        });
+        if (status === 'CANCELLED')
+          await tx.materialLot.update({
+            where: { id: order.lotId },
+            data: { availableKg: { increment: order.quantityKg } },
+          });
+        await tx.auditEvent.create({
+          data: {
+            actorId: userId,
+            organizationId,
+            action: `PURCHASE_ORDER_${status}`,
+            resourceType: 'PurchaseOrder',
+            resourceId: order.id,
+            reason,
+          },
+        });
+        return updated;
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -1255,6 +1629,8 @@ export class PivotService {
     if (!order || order.buyerOrgId !== membership.organizationId)
       throw new NotFoundException('Pesanan tidak ditemukan');
     if (order.receipt) throw new ConflictException('Penerimaan sudah dikonfirmasi');
+    if (order.status !== 'CONFIRMED')
+      throw new ConflictException('Pesanan harus dikonfirmasi Pengelola sebelum penerimaan');
     if (dto.receivedKg > Number(order.quantityKg))
       throw new BadRequestException('Berat diterima melebihi jumlah pesanan');
     return this.prisma.$transaction(async (tx) => {
@@ -1292,6 +1668,15 @@ export class PivotService {
           purchaseOrderId: order.id,
           amount: Math.round(dto.receivedKg * order.pricePerKg),
           reference: `DEMO-SET-${randomUUID().slice(0, 8).toUpperCase()}`,
+        },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: 'MATERIAL_RECEIPT_CREATED',
+          resourceType: 'MaterialReceipt',
+          resourceId: receipt.id,
         },
       });
       return receipt;
@@ -1336,7 +1721,106 @@ export class PivotService {
           note: 'Laporan dibuat warga',
         },
       });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: 'WASTE_REPORT_CREATED',
+          resourceType: 'WasteReport',
+          resourceId: report.id,
+        },
+      });
       return report;
+    });
+  }
+
+  async updateReport(userId: string, id: string, dto: CreateWasteReportDto) {
+    const report = await this.prisma.wasteReport.findFirst({
+      where: { id, reporterId: userId },
+    });
+    if (!report) throw new NotFoundException('Laporan tidak ditemukan');
+    if (report.status !== 'SUBMITTED')
+      throw new ConflictException('Laporan hanya dapat diedit sebelum diverifikasi');
+    const updated = await this.prisma.wasteReport.update({ where: { id }, data: dto });
+    await this.prisma.wasteReportEvent.create({
+      data: {
+        reportId: id,
+        actorId: userId,
+        status: 'SUBMITTED',
+        note: 'Laporan diperbarui warga',
+      },
+    });
+    await this.prisma.auditEvent.create({
+      data: {
+        actorId: userId,
+        organizationId: report.organizationId,
+        action: 'WASTE_REPORT_UPDATED',
+        resourceType: 'WasteReport',
+        resourceId: id,
+      },
+    });
+    return updated;
+  }
+
+  async withdrawReport(userId: string, id: string, reason: string) {
+    const report = await this.prisma.wasteReport.findFirst({ where: { id, reporterId: userId } });
+    if (!report) throw new NotFoundException('Laporan tidak ditemukan');
+    if (report.status !== 'SUBMITTED')
+      throw new ConflictException('Laporan hanya dapat ditarik sebelum diverifikasi');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.wasteReport.update({
+        where: { id },
+        data: { status: 'REJECTED', resolutionNote: reason },
+      });
+      await tx.wasteReportEvent.create({
+        data: { reportId: id, actorId: userId, status: 'REJECTED', note: reason },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: report.organizationId,
+          action: 'WASTE_REPORT_WITHDRAWN',
+          resourceType: 'WasteReport',
+          resourceId: id,
+          reason,
+        },
+      });
+      return updated;
+    });
+  }
+
+  async updateReportStatus(userId: string, id: string, status: string, note?: string) {
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const allowed = ['VERIFIED', 'IN_PROGRESS', 'REJECTED', 'RESOLVED', 'SUBMITTED'];
+    if (!allowed.includes(status)) throw new BadRequestException('Status laporan tidak valid');
+    const report = await this.prisma.wasteReport.findFirst({
+      where: { id, organizationId: membership.organizationId },
+    });
+    if (!report) throw new NotFoundException('Laporan tidak ditemukan');
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.wasteReport.update({
+        where: { id },
+        data: {
+          status: status as never,
+          resolutionNote: note,
+          resolvedAt: status === 'RESOLVED' ? new Date() : null,
+        },
+      });
+      await tx.wasteReportEvent.create({
+        data: { reportId: id, actorId: userId, status: status as never, note },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: userId,
+          organizationId: membership.organizationId,
+          action: `WASTE_REPORT_${status}`,
+          resourceType: 'WasteReport',
+          resourceId: id,
+          reason: note,
+        },
+      });
+      return updated;
     });
   }
 

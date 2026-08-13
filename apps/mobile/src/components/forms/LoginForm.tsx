@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
-import { colors, radius, spacing } from '../../theme';
+import { colors, fonts, radius, spacing } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
@@ -101,6 +101,6 @@ const formS = StyleSheet.create({
     borderColor: colors.red500,
     backgroundColor: colors.red100,
   },
-  errorTitle: { color: colors.red700, fontSize: 14, fontWeight: '800' },
-  errorText: { marginTop: 2, color: colors.red700, fontSize: 13, lineHeight: 18 },
+  errorTitle: { color: colors.red700, fontSize: 14, fontFamily: fonts.bold },
+  errorText: { marginTop: 2, color: colors.red700, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
 });

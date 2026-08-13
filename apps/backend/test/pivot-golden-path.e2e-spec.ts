@@ -17,6 +17,7 @@ describe('Pivot five-role golden path (e2e)', () => {
   let createdRunId = '';
   let createdCollectorUserId = '';
   let createdFacilityId = '';
+  let createdAreaId = '';
 
   async function login(name: string, phone: string) {
     const response = await request(app.getHttpServer())
@@ -34,6 +35,7 @@ describe('Pivot five-role golden path (e2e)', () => {
     await Promise.all([
       login('admin', '+6281100000001'),
       login('manager', '+6281100000002'),
+      login('operator', '+6281100000003'),
       login('collector', '+6281100000004'),
       login('household', '+6281100000006'),
       login('business', '+6281100000007'),
@@ -58,6 +60,7 @@ describe('Pivot five-role golden path (e2e)', () => {
     if (createdCollectorUserId)
       await prisma.user.deleteMany({ where: { id: createdCollectorUserId } });
     if (createdFacilityId) await prisma.facility.deleteMany({ where: { id: createdFacilityId } });
+    if (createdAreaId) await prisma.serviceArea.deleteMany({ where: { id: createdAreaId } });
     await app.close();
   });
 
@@ -150,6 +153,68 @@ describe('Pivot five-role golden path (e2e)', () => {
     await request(app.getHttpServer())
       .get('/api/v1/pivot/manager/operations')
       .set('Authorization', auth('admin'))
+      .expect(403);
+  });
+
+  it('CRUD list-first membatasi tenant, mengarsipkan data, dan mencatat audit', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/v1/manager/resources/service-areas')
+      .set('Authorization', auth('manager'))
+      .send({
+        data: { name: `Wilayah CRUD E2E ${stamp}`, region: 'Jakarta Timur', status: 'ACTIVE' },
+      })
+      .expect(201);
+    createdAreaId = created.body.id;
+
+    await request(app.getHttpServer())
+      .patch(`/api/v1/manager/resources/service-areas/${createdAreaId}`)
+      .set('Authorization', auth('manager'))
+      .send({
+        data: { name: `Wilayah CRUD Diperbarui ${stamp}`, organizationId: 'tidak-boleh-berubah' },
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/api/v1/manager/resources/service-areas/${createdAreaId}/archive`)
+      .set('Authorization', auth('manager'))
+      .send({ reason: 'Uji arsip resource pada E2E' })
+      .expect(201);
+
+    const archived = await request(app.getHttpServer())
+      .get('/api/v1/manager/resources/service-areas?archived=true&search=CRUD&page=1&pageSize=20')
+      .set('Authorization', auth('manager'))
+      .expect(200);
+    expect(archived.body.items.some((item: { id: string }) => item.id === createdAreaId)).toBe(
+      true,
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/v1/manager/resources/service-areas')
+      .set('Authorization', auth('business'))
+      .expect(403);
+
+    const audit = await prisma.auditEvent.findFirst({
+      where: {
+        resourceId: createdAreaId,
+        action: 'RESOURCE_ARCHIVED',
+        resourceType: 'service-areas',
+      },
+    });
+    expect(audit).not.toBeNull();
+  });
+
+  it('MANAGER_OPERATOR tidak dapat membuat akun Petugas', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/manager/resources/collectors')
+      .set('Authorization', auth('operator'))
+      .send({
+        data: {
+          name: 'Petugas Tidak Sah',
+          phone: `+62815${stamp}`,
+          employeeNo: `DENY-${stamp}`,
+          initialPassword: PASSWORD,
+        },
+      })
       .expect(403);
   });
 
@@ -381,6 +446,11 @@ describe('Pivot five-role golden path (e2e)', () => {
       .set('Authorization', auth('businessTwo'))
       .send({ lotId: lot.body.id, quantityKg: 10 })
       .expect(409);
+    await request(app.getHttpServer())
+      .post(`/api/v1/pivot/manager/orders/${order.body.id}/confirm`)
+      .set('Authorization', auth('manager'))
+      .send({ reason: 'Stok E2E telah diverifikasi Pengelola' })
+      .expect(201);
     await request(app.getHttpServer())
       .post(`/api/v1/pivot/business/orders/${order.body.id}/receive`)
       .set('Authorization', auth('business'))

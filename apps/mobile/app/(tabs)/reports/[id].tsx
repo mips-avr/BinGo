@@ -1,136 +1,117 @@
-import { Alert, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams } from 'expo-router';
-import { formatWaktuID } from '@bingo/shared-utils';
+import { useEffect, useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../../src/components/ui/Button';
-import { Card } from '../../../src/components/ui/Card';
-import { StatusBadge } from '../../../src/components/ui/StatusBadge';
+import { Input } from '../../../src/components/ui/Input';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
-import { useReport, useVerifyReport } from '../../../src/features/reports/hooks';
-import { useAuthStore } from '../../../src/store/authStore';
-import { extractApiErrorMessage } from '../../../src/lib/api/client';
 import { ErrorState } from '../../../src/components/ui/ErrorState';
-import { useBottomInset } from '../../../src/hooks/useBottomInset';
-import { colors, radius, spacing, typography } from '../../../src/theme';
-import { t } from '../../../src/i18n';
+import { SkeletonList } from '../../../src/components/ui/Skeleton';
+import { useHouseholdReportMutation } from '../../../src/features/pivot/hooks';
+import { api, extractApiErrorMessage } from '../../../src/lib/api/client';
+import { colors, screenStyles, spacing } from '../../../src/theme';
 
 export default function ReportDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const me = useAuthStore((s) => s.user);
-  const query = useReport(id);
-  const verify = useVerifyReport();
-  const bottomInset = useBottomInset();
-
-  if (query.isLoading) {
+  const router = useRouter();
+  const query = useQuery({
+    queryKey: ['pivot', 'reports'],
+    queryFn: async () => (await api.get('/api/v1/pivot/reports')).data,
+  });
+  const report = query.data?.find((item: any) => item.id === id);
+  const mutation = useHouseholdReportMutation();
+  const [form, setForm] = useState({ description: '', address: '', lat: '', lng: '' });
+  useEffect(() => {
+    if (report)
+      setForm({
+        description: report.description,
+        address: report.address,
+        lat: String(report.lat),
+        lng: String(report.lng),
+      });
+  }, [report]);
+  if (query.isLoading)
     return (
-      <SafeAreaView style={s.center} edges={['top']}>
-        <Text style={s.loadingText}>{t.common.loading}</Text>
-      </SafeAreaView>
+      <ScrollView contentContainerStyle={styles.content}>
+        <SkeletonList count={4} />
+      </ScrollView>
     );
-  }
-
-  if (query.isError || !query.data) {
+  if (query.isError || !report)
     return (
-      <SafeAreaView style={s.safe} edges={['top']}>
-        <ScreenHeader title={t.report.detailTitle} />
-        <ErrorState
-          message={extractApiErrorMessage(query.error, t.common.errorMessage)}
-          onRetry={() => query.refetch()}
-          style={s.stateBlock}
-          testID="report-detail-error"
-        />
-      </SafeAreaView>
+      <ScrollView contentContainerStyle={styles.content}>
+        <ErrorState message="Laporan tidak ditemukan" onRetry={() => query.refetch()} />
+      </ScrollView>
     );
-  }
-
-  const r = query.data;
-  const isOwner = me?.id === r.citizenId;
-  const canVerify = !isOwner && r.status !== 'SELESAI';
-
-  async function onVerify() {
+  const editable = report.status === 'SUBMITTED';
+  async function save() {
     try {
-      await verify.mutateAsync(id);
-    } catch (err) {
-      Alert.alert(t.common.error, extractApiErrorMessage(err, t.common.error));
+      await mutation.mutateAsync({
+        action: 'update',
+        id,
+        data: { ...form, lat: Number(form.lat), lng: Number(form.lng) },
+      });
+      Alert.alert('Laporan diperbarui');
+    } catch (error) {
+      Alert.alert('Belum tersimpan', extractApiErrorMessage(error));
     }
   }
-
+  async function withdraw() {
+    try {
+      await mutation.mutateAsync({ action: 'withdraw', id, reason: 'Laporan ditarik oleh warga' });
+      router.back();
+    } catch (error) {
+      Alert.alert('Belum ditarik', extractApiErrorMessage(error));
+    }
+  }
   return (
-    <SafeAreaView style={s.safe} edges={['top']}>
-      <ScreenHeader title={t.report.detailTitle} />
-      <ScrollView
-        style={s.scroll}
-        contentContainerStyle={[s.scrollContent, { paddingBottom: bottomInset }]}
-      >
-        <Image source={{ uri: r.imageUrl }} style={s.image} resizeMode="cover" />
-
-        <Card style={s.mt12}>
-          <View style={s.row}>
-            <Text style={s.sectionLabel}>{t.report.title}</Text>
-            <StatusBadge status={r.status} />
-          </View>
-          {r.description ? (
-            <Text style={s.descText}>{r.description}</Text>
-          ) : (
-            <Text style={s.noDescText}>{t.common.noDescription}</Text>
-          )}
-          <Text style={s.coordsText}>
-            📍 {r.location.lat.toFixed(5)}, {r.location.lng.toFixed(5)}
-          </Text>
-          <Text style={s.metaText}>
-            {t.report.verifyCount.replace('{count}', String(r.verificationCount))}
-            {' · '}
-            {formatWaktuID(r.createdAt)}
-          </Text>
-        </Card>
-
-        <View style={s.btnWrap}>
-          {canVerify ? (
-            <Button
-              label={t.report.verify}
-              onPress={onVerify}
-              loading={verify.isPending}
-              testID="verify-report"
-            />
-          ) : isOwner ? (
-            <Text style={s.ownText}>{t.report.verifyOwn}</Text>
-          ) : null}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    <ScrollView contentContainerStyle={styles.content}>
+      <ScreenHeader title="Detail Laporan" />
+      <Text style={screenStyles.screenTitle}>{report.status.replaceAll('_', ' ')}</Text>
+      <Text style={styles.help}>
+        {editable
+          ? 'Laporan masih dapat diperbarui atau ditarik sebelum diverifikasi Pengelola.'
+          : 'Laporan telah diproses dan tidak dapat diubah.'}
+      </Text>
+      <Input
+        label="Deskripsi"
+        value={form.description}
+        editable={editable}
+        multiline
+        onChangeText={(value) => setForm((current) => ({ ...current, description: value }))}
+      />
+      <Input
+        label="Alamat"
+        value={form.address}
+        editable={editable}
+        onChangeText={(value) => setForm((current) => ({ ...current, address: value }))}
+      />
+      <Input
+        label="Latitude"
+        value={form.lat}
+        editable={editable}
+        onChangeText={(value) => setForm((current) => ({ ...current, lat: value }))}
+      />
+      <Input
+        label="Longitude"
+        value={form.lng}
+        editable={editable}
+        onChangeText={(value) => setForm((current) => ({ ...current, lng: value }))}
+      />
+      {editable ? (
+        <>
+          <Button label="Simpan Perubahan" loading={mutation.isPending} onPress={save} />
+          <Button
+            label="Tarik Laporan"
+            variant="secondary"
+            onPress={withdraw}
+            style={{ marginTop: spacing.sm }}
+          />
+        </>
+      ) : null}
+    </ScrollView>
   );
 }
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bingo50 },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bingo50,
-  },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: spacing.lg },
-  loadingText: typography.bodyMuted,
-  stateBlock: { marginHorizontal: spacing.lg, marginTop: spacing.md },
-  image: {
-    height: 256,
-    width: '100%',
-    borderRadius: radius.md,
-    backgroundColor: colors.neutral200,
-  },
-  mt12: { marginTop: spacing.sm },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.xs,
-  },
-  sectionLabel: typography.overline,
-  descText: { marginTop: spacing.xs, fontSize: 16, color: colors.neutral900 },
-  noDescText: { marginTop: spacing.xs, fontSize: 16, color: colors.neutral400 },
-  coordsText: { marginTop: spacing.sm, ...typography.body, color: colors.neutral700 },
-  metaText: { marginTop: spacing.xxs, ...typography.caption },
-  btnWrap: { marginTop: spacing.xl },
-  ownText: { textAlign: 'center', ...typography.bodyMuted },
+const styles = StyleSheet.create({
+  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 100, backgroundColor: colors.white },
+  help: { color: colors.neutral600, marginVertical: spacing.md },
 });

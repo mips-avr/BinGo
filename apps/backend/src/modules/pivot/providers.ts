@@ -25,4 +25,5 @@ export interface VerificationEvidenceStore {
     bytes: Buffer;
   }): Promise<{ storageKey: string }>;
   read(storageKey: string): Promise<{ bytes: Buffer; mimeType: string } | null>;
+  remove?(storageKey: string): Promise<void>;
 }

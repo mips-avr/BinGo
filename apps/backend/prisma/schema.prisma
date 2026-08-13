@@ -162,6 +162,13 @@ enum WasteReportStatus {
   REJECTED
 }
 
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  ARCHIVED
+}
+
 enum PickupStatus {
   PENDING
   ACCEPTED
@@ -354,6 +361,9 @@ model User {
   wasteReports             WasteReport[]             @relation("WasteReportReporter")
   wasteReportEvents        WasteReportEvent[]        @relation("WasteReportActor")
   auditEvents              AuditEvent[]              @relation("AuditActor")
+  supportTicketsCreated    SupportTicket[]           @relation("SupportTicketCreator")
+  supportTicketsAssigned   SupportTicket[]           @relation("SupportTicketAssignee")
+  supportMessages          SupportTicketMessage[]
 
   @@index([role])
   @@map("users")
@@ -854,6 +864,7 @@ model Organization {
   facilities             Facility[]
   wasteReports           WasteReport[]
   auditEvents            AuditEvent[]
+  supportTickets         SupportTicket[]
 
   @@index([type, status])
   @@map("organizations")
@@ -950,6 +961,9 @@ model ServiceArea {
   densityLabel   String?           @map("density_label") @db.VarChar(80)
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
+  archivedAt     DateTime?         @map("archived_at")
+  archivedBy     String?           @map("archived_by")
+  archiveReason  String?           @map("archive_reason") @db.Text
 
   organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   households   Household[]
@@ -962,16 +976,19 @@ model ServiceArea {
 }
 
 model Household {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  serviceAreaId  String   @map("service_area_id")
-  userId         String?  @unique @map("user_id")
-  accountNo      String   @map("account_no") @db.VarChar(32)
-  displayAddress String   @map("display_address") @db.VarChar(255)
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  serviceAreaId  String    @map("service_area_id")
+  userId         String?   @unique @map("user_id")
+  accountNo      String    @map("account_no") @db.VarChar(32)
+  displayAddress String    @map("display_address") @db.VarChar(255)
   lat            Float?
   lng            Float?
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  archivedAt     DateTime? @map("archived_at")
+  archivedBy     String?   @map("archived_by")
+  archiveReason  String?   @map("archive_reason") @db.Text
 
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   serviceArea   ServiceArea    @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
@@ -994,6 +1011,9 @@ model ServicePlan {
   collectionDays CollectionDay[] @map("collection_days")
   active         Boolean         @default(true)
   createdAt      DateTime        @default(now()) @map("created_at")
+  archivedAt     DateTime?       @map("archived_at")
+  archivedBy     String?         @map("archived_by")
+  archiveReason  String?         @map("archive_reason") @db.Text
 
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   serviceArea   ServiceArea?   @relation(fields: [serviceAreaId], references: [id], onDelete: SetNull)
@@ -1065,12 +1085,15 @@ model PaymentEvent {
 }
 
 model Collector {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  userId         String   @unique @map("user_id")
-  employeeNo     String   @map("employee_no") @db.VarChar(40)
-  active         Boolean  @default(true)
-  hiredAt        DateTime @map("hired_at")
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  userId         String    @unique @map("user_id")
+  employeeNo     String    @map("employee_no") @db.VarChar(40)
+  active         Boolean   @default(true)
+  hiredAt        DateTime  @map("hired_at")
+  archivedAt     DateTime? @map("archived_at")
+  archivedBy     String?   @map("archived_by")
+  archiveReason  String?   @map("archive_reason") @db.Text
 
   organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1114,12 +1137,15 @@ model CardTapEvent {
 }
 
 model CollectionVehicle {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  label          String   @db.VarChar(100)
-  plateNumber    String?  @map("plate_number") @db.VarChar(20)
-  capacityKg     Decimal? @map("capacity_kg") @db.Decimal(10, 2)
-  active         Boolean  @default(true)
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  label          String    @db.VarChar(100)
+  plateNumber    String?   @map("plate_number") @db.VarChar(20)
+  capacityKg     Decimal?  @map("capacity_kg") @db.Decimal(10, 2)
+  active         Boolean   @default(true)
+  archivedAt     DateTime? @map("archived_at")
+  archivedBy     String?   @map("archived_by")
+  archiveReason  String?   @map("archive_reason") @db.Text
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   runs         CollectionRun[]
@@ -1137,6 +1163,9 @@ model CollectionCalendar {
   endTime        String?         @map("end_time") @db.VarChar(5)
   materials      MaterialType[]
   active         Boolean         @default(true)
+  archivedAt     DateTime?       @map("archived_at")
+  archivedBy     String?         @map("archived_by")
+  archiveReason  String?         @map("archive_reason") @db.Text
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   serviceArea  ServiceArea  @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
@@ -1146,12 +1175,15 @@ model CollectionCalendar {
 }
 
 model CollectionRoute {
-  id             String   @id @default(uuid())
-  organizationId String   @map("organization_id")
-  serviceAreaId  String   @map("service_area_id")
-  name           String   @db.VarChar(120)
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now()) @map("created_at")
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  serviceAreaId  String    @map("service_area_id")
+  name           String    @db.VarChar(120)
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  archivedAt     DateTime? @map("archived_at")
+  archivedBy     String?   @map("archived_by")
+  archiveReason  String?   @map("archive_reason") @db.Text
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   serviceArea  ServiceArea     @relation(fields: [serviceAreaId], references: [id], onDelete: Restrict)
@@ -1216,11 +1248,14 @@ model RouteAssignment {
 }
 
 model WeighStation {
-  id             String  @id @default(uuid())
-  organizationId String  @map("organization_id")
-  name           String  @db.VarChar(140)
-  address        String  @db.VarChar(255)
-  active         Boolean @default(true)
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  name           String    @db.VarChar(140)
+  address        String    @db.VarChar(255)
+  active         Boolean   @default(true)
+  archivedAt     DateTime? @map("archived_at")
+  archivedBy     String?   @map("archived_by")
+  archiveReason  String?   @map("archive_reason") @db.Text
 
   organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   channels      ScaleChannel[]
@@ -1332,6 +1367,9 @@ model BusinessRequirement {
   status         PublicationStatus @default(DRAFT)
   hiddenReason   String?           @map("hidden_reason") @db.Text
   createdAt      DateTime          @default(now()) @map("created_at")
+  archivedAt     DateTime?         @map("archived_at")
+  archivedBy     String?           @map("archived_by")
+  archiveReason  String?           @map("archive_reason") @db.Text
 
   organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   qualitySpecs MaterialQualitySpec[]
@@ -1386,6 +1424,9 @@ model MaterialLot {
   status         PublicationStatus @default(DRAFT)
   hiddenReason   String?           @map("hidden_reason") @db.Text
   createdAt      DateTime          @default(now()) @map("created_at")
+  archivedAt     DateTime?         @map("archived_at")
+  archivedBy     String?           @map("archived_by")
+  archiveReason  String?           @map("archive_reason") @db.Text
 
   organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   qualitySpec  MaterialQualitySpec? @relation(fields: [qualitySpecId], references: [id], onDelete: SetNull)
@@ -1458,20 +1499,25 @@ model ResidueTransfer {
 }
 
 model Facility {
-  id             String         @id @default(uuid())
-  organizationId String?        @map("organization_id")
-  name           String         @db.VarChar(180)
-  operatorName   String         @map("operator_name") @db.VarChar(180)
-  address        String         @db.VarChar(255)
-  lat            Float
-  lng            Float
-  status         FacilityStatus @default(ACTIVE)
-  sourceUrl      String         @map("source_url") @db.VarChar(500)
-  verifiedAt     DateTime       @map("verified_at")
-  openingNote    String?        @map("opening_note") @db.VarChar(255)
-  demo           Boolean        @default(false)
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id                      String         @id @default(uuid())
+  organizationId          String?        @map("organization_id")
+  name                    String         @db.VarChar(180)
+  operatorName            String         @map("operator_name") @db.VarChar(180)
+  address                 String         @db.VarChar(255)
+  lat                     Float
+  lng                     Float
+  status                  FacilityStatus @default(ACTIVE)
+  sourceUrl               String         @map("source_url") @db.VarChar(500)
+  verifiedAt              DateTime       @map("verified_at")
+  openingNote             String?        @map("opening_note") @db.VarChar(255)
+  demo                    Boolean        @default(false)
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  archivedAt              DateTime?      @map("archived_at")
+  archivedBy              String?        @map("archived_by")
+  archiveReason           String?        @map("archive_reason") @db.Text
+  verificationRequestedAt DateTime?      @map("verification_requested_at")
+  verificationRequestedBy String?        @map("verification_requested_by")
 
   organization  Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   materialRules FacilityMaterialRule[]
@@ -1564,4 +1610,55 @@ model AuditEvent {
   @@index([createdAt])
   @@index([organizationId, createdAt])
   @@map("audit_events")
+}
+
+/// Metadata publik untuk enam kode MaterialType yang tetap stabil pada API.
+model MaterialCategoryMetadata {
+  code          MaterialType @id
+  publicName    String       @map("public_name") @db.VarChar(100)
+  description   String       @db.Text
+  preparation   String?      @db.Text
+  icon          String?      @db.VarChar(50)
+  displayOrder  Int          @default(0) @map("display_order")
+  active        Boolean      @default(true)
+  archivedAt    DateTime?    @map("archived_at")
+  archivedBy    String?      @map("archived_by")
+  archiveReason String?      @map("archive_reason") @db.Text
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  @@map("material_category_metadata")
+}
+
+model SupportTicket {
+  id             String              @id @default(uuid())
+  organizationId String?             @map("organization_id")
+  createdById    String              @map("created_by_id")
+  assignedToId   String?             @map("assigned_to_id")
+  subject        String              @db.VarChar(180)
+  description    String              @db.Text
+  status         SupportTicketStatus @default(OPEN)
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
+
+  organization Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  createdBy    User                   @relation("SupportTicketCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  assignedTo   User?                  @relation("SupportTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages     SupportTicketMessage[]
+
+  @@index([status, updatedAt])
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id        String   @id @default(uuid())
+  ticketId  String   @map("ticket_id")
+  authorId  String   @map("author_id")
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId, createdAt])
+  @@map("support_ticket_messages")
 }

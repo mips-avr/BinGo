@@ -64,6 +64,39 @@ export async function createCollectionRun(input: {
 }) {
   return (await api.post('/api/v1/pivot/manager/runs', input)).data;
 }
+export async function updateCollectionRun(
+  id: string,
+  input: { scheduledFor?: string; action?: 'cancel'; reason?: string },
+) {
+  return (await api.patch(`/api/v1/pivot/manager/runs/${id}`, input)).data;
+}
+export async function createSubscription(input: {
+  householdId: string;
+  servicePlanId: string;
+  startsAt?: string;
+}) {
+  return (await api.post('/api/v1/pivot/manager/subscriptions', input)).data;
+}
+export async function updateSubscription(
+  id: string,
+  input: { servicePlanId?: string; action?: 'stop'; reason?: string },
+) {
+  return (await api.patch(`/api/v1/pivot/manager/subscriptions/${id}`, input)).data;
+}
+export async function createInvoice(input: {
+  subscriptionId: string;
+  period: string;
+  amount: number;
+  dueAt: string;
+}) {
+  return (await api.post('/api/v1/pivot/manager/invoices', input)).data;
+}
+export async function updateInvoice(
+  id: string,
+  input: { amount?: number; dueAt?: string; action?: 'void'; reason?: string },
+) {
+  return (await api.patch(`/api/v1/pivot/manager/invoices/${id}`, input)).data;
+}
 
 export async function createCollector(input: {
   name: string;
@@ -81,6 +114,13 @@ export async function issueCollectorCard(input: {
 }) {
   const { collectorId, ...body } = input;
   return (await api.post(`/api/v1/pivot/manager/collectors/${collectorId}/cards`, body)).data;
+}
+export async function deactivateCollectorCard(collectorId: string, cardId: string, reason: string) {
+  return (
+    await api.post(`/api/v1/pivot/manager/collectors/${collectorId}/cards/${cardId}/deactivate`, {
+      reason,
+    })
+  ).data;
 }
 
 export async function fetchBusinessCatalog() {
@@ -124,6 +164,34 @@ export async function createPlatformFacility(input: {
   materials: string[];
 }) {
   return (await api.post('/api/v1/platform/facilities', input)).data;
+}
+
+export async function fetchPlatformFacilities(archived = false) {
+  return (await api.get('/api/v1/platform/facilities', { params: { archived } })).data;
+}
+
+export async function updatePlatformFacility(
+  id: string,
+  input: {
+    name: string;
+    operatorName: string;
+    address: string;
+    lat: number;
+    lng: number;
+    sourceUrl: string;
+    openingNote?: string;
+    materials: string[];
+  },
+) {
+  return (await api.patch(`/api/v1/platform/facilities/${id}`, input)).data;
+}
+
+export async function archivePlatformFacility(id: string, reason: string, restore = false) {
+  return (
+    await api.post(`/api/v1/platform/facilities/${id}/${restore ? 'restore' : 'archive'}`, {
+      reason,
+    })
+  ).data;
 }
 
 export async function verifyPlatformFacility(input: {
@@ -222,6 +290,18 @@ export async function createWasteReport(input: {
 export async function resolveWasteReport(id: string, note: string) {
   return (await api.post(`/api/v1/pivot/reports/${id}/resolve`, { note })).data;
 }
+export async function updateWasteReportStatus(id: string, status: string, note?: string) {
+  return (await api.post(`/api/v1/pivot/reports/${id}/status`, { status, note })).data;
+}
+export async function updateWasteReport(
+  id: string,
+  input: { description: string; address: string; lat: number; lng: number; photoKey?: string },
+) {
+  return (await api.patch(`/api/v1/pivot/reports/${id}`, input)).data;
+}
+export async function withdrawWasteReport(id: string, reason: string) {
+  return (await api.post(`/api/v1/pivot/reports/${id}/withdraw`, { reason })).data;
+}
 
 export async function createLot(input: {
   material: string;
@@ -245,6 +325,12 @@ export async function createOrder(input: { lotId: string; quantityKg: number }) 
   const response = await api.post('/api/v1/pivot/business/orders', input);
   return response.data;
 }
+export async function cancelBusinessOrder(id: string, reason: string) {
+  return (await api.post(`/api/v1/pivot/business/orders/${id}/cancel`, { reason })).data;
+}
+export async function managerOrderAction(id: string, action: 'confirm' | 'cancel', reason: string) {
+  return (await api.post(`/api/v1/pivot/manager/orders/${id}/${action}`, { reason })).data;
+}
 export async function receiveOrder(
   id: string,
   input: { receivedKg: number; residueKg?: number; note?: string },
@@ -263,6 +349,86 @@ export async function createIntakeBatch(input: { batchNo?: string } = {}) {
 export async function approveBatch(id: string) {
   const response = await api.post(`/api/v1/pivot/intake-batches/${id}/approve`);
   return response.data;
+}
+
+export interface CrudListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  sort?: 'asc' | 'desc';
+  archived?: boolean;
+}
+
+export async function fetchManagerResource(resource: string, params: CrudListParams = {}) {
+  return (await api.get(`/api/v1/manager/resources/${resource}`, { params })).data;
+}
+export async function createManagerResource(resource: string, data: Record<string, unknown>) {
+  return (await api.post(`/api/v1/manager/resources/${resource}`, { data })).data;
+}
+export async function updateManagerResource(
+  resource: string,
+  id: string,
+  data: Record<string, unknown>,
+) {
+  return (await api.patch(`/api/v1/manager/resources/${resource}/${id}`, { data })).data;
+}
+export async function archiveManagerResource(
+  resource: string,
+  id: string,
+  reason: string,
+  restore = false,
+) {
+  return (
+    await api.post(
+      `/api/v1/manager/resources/${resource}/${id}/${restore ? 'restore' : 'archive'}`,
+      { reason },
+    )
+  ).data;
+}
+export async function managerResourceAction(
+  resource: string,
+  id: string,
+  action: string,
+  reason?: string,
+) {
+  return (await api.post(`/api/v1/manager/resources/${resource}/${id}/action`, { action, reason }))
+    .data;
+}
+export async function fetchBusinessRequirements(params: CrudListParams = {}) {
+  return (await api.get('/api/v1/business/resources/requirements', { params })).data;
+}
+export async function updateBusinessRequirement(id: string, data: Record<string, unknown>) {
+  return (await api.patch(`/api/v1/business/resources/requirements/${id}`, { data })).data;
+}
+export async function businessRequirementAction(id: string, action: string, reason?: string) {
+  return (
+    await api.post(`/api/v1/business/resources/requirements/${id}/action`, { action, reason })
+  ).data;
+}
+export async function fetchMaterialCategories() {
+  return (await api.get('/api/v1/platform-management/material-categories')).data;
+}
+export async function updateMaterialCategory(code: string, data: Record<string, unknown>) {
+  return (await api.patch(`/api/v1/platform-management/material-categories/${code}`, data)).data;
+}
+export async function archiveMaterialCategory(code: string, reason: string, restore = false) {
+  return (
+    await api.post(
+      `/api/v1/platform-management/material-categories/${code}/${restore ? 'restore' : 'archive'}`,
+      { reason },
+    )
+  ).data;
+}
+export async function fetchSupportTickets(platform = false) {
+  return (await api.get(`/api/v1/platform-management/support-tickets${platform ? '' : '/mine'}`))
+    .data;
+}
+export async function createSupportTicket(input: { subject: string; description: string }) {
+  return (await api.post('/api/v1/platform-management/support-tickets', input)).data;
+}
+export async function updateSupportTicket(id: string, input: Record<string, unknown>) {
+  return (await api.patch(`/api/v1/platform-management/support-tickets/${id}`, input)).data;
 }
 
 export async function syncQueuedDeviceEvent(event: {

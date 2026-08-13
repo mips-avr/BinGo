@@ -8,7 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { colors, radius, spacing, touch } from '../../theme';
+import { colors, fonts, radius, spacing, touch } from '../../theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
 type Size = 'md' | 'sm';
@@ -34,10 +34,13 @@ export function Button({
   accessibilityLabel,
   onHoverIn,
   onHoverOut,
+  onFocus,
+  onBlur,
   ...rest
 }: ButtonProps) {
   const isDisabled = Boolean(disabled || loading);
   const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const containerStyle =
     variant === 'primary'
       ? buttonStyles.primary
@@ -60,12 +63,25 @@ export function Button({
         setHovered(false);
         onHoverOut?.(event);
       }}
+      onFocus={(event) => {
+        setFocused(true);
+        onFocus?.(event);
+      }}
+      onBlur={(event) => {
+        setFocused(false);
+        onBlur?.(event);
+      }}
       style={({ pressed }) => [
         buttonStyles.base,
         size === 'sm' ? buttonStyles.sizeSm : buttonStyles.sizeMd,
         containerStyle,
         isDisabled ? buttonStyles.disabled : null,
-        hovered && !isDisabled ? buttonStyles.hovered : null,
+        hovered && !isDisabled
+          ? variant === 'primary'
+            ? buttonStyles.primaryHovered
+            : buttonStyles.lightHovered
+          : null,
+        focused && !isDisabled ? buttonStyles.focused : null,
         pressed && !isDisabled ? buttonStyles.pressed : null,
         style,
       ]}
@@ -123,9 +139,11 @@ const buttonStyles = StyleSheet.create({
   },
   ghost: { backgroundColor: 'transparent' },
   pressed: { opacity: 0.88 },
-  hovered: { opacity: 0.94, transform: [{ translateY: -1 }], cursor: 'pointer' },
+  primaryHovered: { backgroundColor: colors.bingo700, transform: [{ translateY: -1 }], cursor: 'pointer' },
+  lightHovered: { backgroundColor: colors.bingo100, transform: [{ translateY: -1 }], cursor: 'pointer' },
+  focused: { boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.22)' },
   disabled: { opacity: 0.55 },
-  label: { fontSize: 16, fontWeight: '700' },
+  label: { fontSize: 16, fontFamily: fonts.bold },
   labelSm: { fontSize: 14 },
   labelOnPrimary: { color: colors.white },
   labelOnLight: { color: colors.bingo700 },

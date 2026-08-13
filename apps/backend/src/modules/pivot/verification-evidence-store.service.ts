@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { get, put } from '@vercel/blob';
+import { del, get, put } from '@vercel/blob';
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 import type { VerificationEvidenceStore } from './providers';
 
@@ -66,5 +66,17 @@ export class PrivateVerificationEvidenceStore implements VerificationEvidenceSto
     if (!result || result.statusCode !== 200) return null;
     const bytes = Buffer.from(await new Response(result.stream).arrayBuffer());
     return { bytes, mimeType: result.blob.contentType };
+  }
+
+  async remove(storageKey: string): Promise<void> {
+    if (storageKey.startsWith(LOCAL_PREFIX)) {
+      const name = basename(storageKey.slice(LOCAL_PREFIX.length));
+      if (!name) return;
+      await unlink(resolve(localDirectory(), name)).catch(() => undefined);
+      return;
+    }
+    if (storageKey.startsWith(`${PRIVATE_PREFIX}/`) && process.env.BLOB_READ_WRITE_TOKEN) {
+      await del(storageKey, { token: process.env.BLOB_READ_WRITE_TOKEN });
+    }
   }
 }

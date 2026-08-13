@@ -39,6 +39,34 @@ import {
   fetchPlatformAudit,
   createPlatformFacility,
   verifyPlatformFacility,
+  archiveManagerResource,
+  archiveMaterialCategory,
+  businessRequirementAction,
+  createManagerResource,
+  createSupportTicket,
+  fetchBusinessRequirements,
+  fetchManagerResource,
+  fetchMaterialCategories,
+  fetchSupportTickets,
+  updateBusinessRequirement,
+  updateManagerResource,
+  updateMaterialCategory,
+  updateSupportTicket,
+  updateWasteReportStatus,
+  fetchPlatformFacilities,
+  updatePlatformFacility,
+  archivePlatformFacility,
+  managerResourceAction,
+  updateWasteReport,
+  withdrawWasteReport,
+  deactivateCollectorCard,
+  updateCollectionRun,
+  createSubscription,
+  updateSubscription,
+  createInvoice,
+  updateInvoice,
+  cancelBusinessOrder,
+  managerOrderAction,
 } from './api';
 
 export const pivotKeys = {
@@ -54,6 +82,117 @@ export const pivotKeys = {
   moderation: ['pivot', 'platform-moderation'] as const,
   audit: ['pivot', 'platform-audit'] as const,
 };
+
+export function useManagerResource(resource: string, params: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['pivot', 'manager-resource', resource, params],
+    queryFn: () => fetchManagerResource(resource, params),
+  });
+}
+export function useManagerResourceMutation(resource: string) {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      action,
+      id,
+      data,
+      reason,
+    }: {
+      action:
+        | 'create'
+        | 'update'
+        | 'archive'
+        | 'restore'
+        | 'publish'
+        | 'close'
+        | 'duplicate'
+        | 'request-verification';
+      id?: string;
+      data?: Record<string, unknown>;
+      reason?: string;
+    }) =>
+      action === 'create'
+        ? createManagerResource(resource, data ?? {})
+        : action === 'update'
+          ? updateManagerResource(resource, String(id), data ?? {})
+          : ['archive', 'restore'].includes(action)
+            ? archiveManagerResource(
+                resource,
+                String(id),
+                reason ?? 'Diarsipkan melalui dashboard',
+                action === 'restore',
+              )
+            : managerResourceAction(resource, String(id), action, reason),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'manager-resource', resource] }),
+  });
+}
+export function useBusinessRequirements(params: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ['pivot', 'business-requirements', params],
+    queryFn: () => fetchBusinessRequirements(params),
+  });
+}
+export function useBusinessRequirementMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      action,
+      id,
+      data,
+      reason,
+    }: {
+      action: 'update' | 'publish' | 'unpublish' | 'close' | 'archive' | 'restore' | 'delete';
+      id: string;
+      data?: Record<string, unknown>;
+      reason?: string;
+    }) =>
+      action === 'update'
+        ? updateBusinessRequirement(id, data ?? {})
+        : businessRequirementAction(id, action, reason),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'business-requirements'] }),
+  });
+}
+export const useMaterialCategories = () =>
+  useQuery({ queryKey: ['pivot', 'material-categories'], queryFn: fetchMaterialCategories });
+export function useMaterialCategoryMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      code,
+      action,
+      data,
+      reason,
+    }: {
+      code: string;
+      action: 'update' | 'archive' | 'restore';
+      data?: Record<string, unknown>;
+      reason?: string;
+    }) =>
+      action === 'update'
+        ? updateMaterialCategory(code, data ?? {})
+        : archiveMaterialCategory(
+            code,
+            reason ?? 'Dinonaktifkan oleh Admin BinGo',
+            action === 'restore',
+          ),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'material-categories'] }),
+  });
+}
+export const useSupportTickets = (platform = false) =>
+  useQuery({
+    queryKey: ['pivot', 'support-tickets', platform],
+    queryFn: () => fetchSupportTickets(platform),
+  });
+export function useSupportTicketMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: Record<string, unknown> }) =>
+      id
+        ? updateSupportTicket(id, data)
+        : createSupportTicket(data as { subject: string; description: string }),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'support-tickets'] }),
+  });
+}
 
 export const useRoleDashboard = () =>
   useQuery({ queryKey: pivotKeys.dashboard, queryFn: fetchRoleDashboard });
@@ -83,6 +222,37 @@ export function useCreatePlatformFacility() {
   return useMutation({
     mutationFn: createPlatformFacility,
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.facilities }),
+  });
+}
+export const usePlatformFacilities = (archived = false) =>
+  useQuery({
+    queryKey: ['pivot', 'platform-facilities', archived],
+    queryFn: () => fetchPlatformFacilities(archived),
+  });
+export function usePlatformFacilityMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      action,
+      id,
+      data,
+      reason,
+    }: {
+      action: 'create' | 'update' | 'archive' | 'restore';
+      id?: string;
+      data?: any;
+      reason?: string;
+    }) =>
+      action === 'create'
+        ? createPlatformFacility(data)
+        : action === 'update'
+          ? updatePlatformFacility(String(id), data)
+          : archivePlatformFacility(
+              String(id),
+              reason ?? 'Tidak lagi ditampilkan pada direktori',
+              action === 'restore',
+            ),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'platform-facilities'] }),
   });
 }
 export function useVerifyPlatformFacility() {
@@ -234,6 +404,34 @@ export function useResolveReport() {
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
   });
 }
+export function useUpdateReportStatus() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status, note }: { id: string; status: string; note?: string }) =>
+      updateWasteReportStatus(id, status, note),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useHouseholdReportMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      action,
+      id,
+      data,
+      reason,
+    }: {
+      action: 'update' | 'withdraw';
+      id: string;
+      data?: any;
+      reason?: string;
+    }) =>
+      action === 'update'
+        ? updateWasteReport(id, data)
+        : withdrawWasteReport(id, reason ?? 'Ditarik oleh pelapor'),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'reports'] }),
+  });
+}
 export function useCreateCollectionRoute() {
   const q = useQueryClient();
   return useMutation({
@@ -248,6 +446,29 @@ export function useCreateCollectionRun() {
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
   });
 }
+export function useCollectionRunMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => updateCollectionRun(id, data),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useSubscriptionMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: any }) =>
+      id ? updateSubscription(id, data) : createSubscription(data),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useInvoiceMutation() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id?: string; data: any }) =>
+      id ? updateInvoice(id, data) : createInvoice(data),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
 export function useCreateCollector() {
   const q = useQueryClient();
   return useMutation({
@@ -259,7 +480,26 @@ export function useIssueCollectorCard() {
   const q = useQueryClient();
   return useMutation({
     mutationFn: issueCollectorCard,
-    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+    onSuccess: () =>
+      Promise.all([
+        q.invalidateQueries({ queryKey: pivotKeys.manager }),
+        q.invalidateQueries({ queryKey: ['pivot', 'manager-resource', 'collectors'] }),
+      ]),
+  });
+}
+export function useDeactivateCollectorCard() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      collectorId,
+      cardId,
+      reason,
+    }: {
+      collectorId: string;
+      cardId: string;
+      reason: string;
+    }) => deactivateCollectorCard(collectorId, cardId, reason),
+    onSuccess: () => q.invalidateQueries({ queryKey: ['pivot', 'manager-resource', 'collectors'] }),
   });
 }
 export function useCreateLot() {
@@ -281,6 +521,28 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: createOrder,
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.business }),
+  });
+}
+export function useBusinessOrderAction() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => cancelBusinessOrder(id, reason),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.business }),
+  });
+}
+export function useManagerOrderAction() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      reason,
+    }: {
+      id: string;
+      action: 'confirm' | 'cancel';
+      reason: string;
+    }) => managerOrderAction(id, action, reason),
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
   });
 }
 export function useReceiveOrder() {

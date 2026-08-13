@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { colors, radius, spacing, shadow } from './tokens';
+import { fonts } from './fonts';
 import { typography } from './typography';
 
 /** Gaya layar bersama (auth, splash, pemilihan peran). */
@@ -32,13 +33,13 @@ export const screenStyles = StyleSheet.create({
   },
   brandTitle: {
     fontSize: 32,
-    fontWeight: '700',
+    fontFamily: fonts.extraBold,
     color: colors.bingo800,
   },
   brandTagline: {
     marginTop: spacing.xxs,
     ...typography.body,
-    fontWeight: '500',
+    fontFamily: fonts.medium,
     color: colors.bingo700,
   },
   screenTitle: {
@@ -48,7 +49,7 @@ export const screenStyles = StyleSheet.create({
   screenSubtitle: {
     marginBottom: spacing.lg,
     ...typography.body,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.bingo700,
   },
   bodyMuted: {
@@ -69,7 +70,7 @@ export const screenStyles = StyleSheet.create({
   },
   footerLink: {
     ...typography.body,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.bingo700,
     textDecorationLine: 'underline',
   },
@@ -84,7 +85,7 @@ export const screenStyles = StyleSheet.create({
   backText: {
     marginLeft: spacing.xxs,
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     color: colors.bingo700,
   },
   roleList: {
@@ -113,6 +114,7 @@ export const screenStyles = StyleSheet.create({
   roleCardDesc: {
     marginTop: spacing.xxs,
     fontSize: 13,
+    fontFamily: fonts.regular,
     color: colors.neutral700,
     lineHeight: 18,
   },

@@ -5,7 +5,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import type { UserRole } from '@bingo/shared-types';
 import { AppSplash } from '../ui/AppSplash';
 import { useAuthStore } from '../../store/authStore';
-import { colors, radius, spacing } from '../../theme';
+import { colors, fonts, radius, spacing } from '../../theme';
 import { getAuthenticatedHome } from '../../lib/navigation/role-routes';
 
 export interface NavItem {
@@ -157,26 +157,26 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: 'row', alignItems: 'center' },
   logoMark: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: colors.bingo100, alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs },
   logoMarkText: { fontSize: 20 },
-  logo: { fontSize: 24, fontWeight: '900', color: colors.bingo800 },
-  demo: { marginLeft: spacing.xs, fontSize: 10, fontWeight: '900', backgroundColor: colors.amber100, color: colors.amber800, borderRadius: radius.xs, paddingHorizontal: 7, paddingVertical: 4 },
-  workspace: { marginTop: spacing.sm, marginBottom: spacing.lg, color: colors.neutral500, fontSize: 13, lineHeight: 18 },
+  logo: { fontSize: 24, fontFamily: fonts.extraBold, color: colors.bingo800 },
+  demo: { marginLeft: spacing.xs, fontSize: 10, fontFamily: fonts.extraBold, backgroundColor: colors.amber100, color: colors.amber800, borderRadius: radius.xs, paddingHorizontal: 7, paddingVertical: 4 },
+  workspace: { marginTop: spacing.sm, marginBottom: spacing.lg, color: colors.neutral500, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
   navScroll: { flex: 1 },
   navContent: { paddingBottom: spacing.md },
   nav: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.sm, marginBottom: 4, cursor: 'pointer' },
   navHovered: { backgroundColor: colors.neutral100 },
   navActive: { backgroundColor: colors.bingo100 },
   navDisabled: { opacity: 0.55 },
-  navText: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.neutral600 },
-  navTextActive: { color: colors.bingo800, fontWeight: '800' },
+  navText: { flex: 1, fontSize: 14, fontFamily: fonts.semiBold, color: colors.neutral600 },
+  navTextActive: { color: colors.bingo800, fontFamily: fonts.bold },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.bingo600 },
   contentColumn: { flex: 1, minWidth: 0 },
   topbar: { minHeight: 76, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: colors.neutral200, backgroundColor: colors.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  topbarContext: { color: colors.neutral500, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  topbarTitle: { marginTop: 2, color: colors.neutral900, fontSize: 20, fontWeight: '800' },
+  topbarContext: { color: colors.neutral500, fontSize: 11, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  topbarTitle: { marginTop: 2, color: colors.neutral900, fontSize: 20, fontFamily: fonts.bold },
   userBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo100 },
-  avatarText: { color: colors.bingo800, fontSize: 12, fontWeight: '900' },
-  userName: { color: colors.neutral900, fontSize: 13, fontWeight: '800' },
-  userRole: { marginTop: 2, color: colors.neutral500, fontSize: 11 },
+  avatarText: { color: colors.bingo800, fontSize: 12, fontFamily: fonts.extraBold },
+  userName: { color: colors.neutral900, fontSize: 13, fontFamily: fonts.bold },
+  userRole: { marginTop: 2, color: colors.neutral500, fontSize: 11, fontFamily: fonts.regular },
   main: { flex: 1, minWidth: 0 },
 });

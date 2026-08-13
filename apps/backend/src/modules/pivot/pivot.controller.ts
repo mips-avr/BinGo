@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseFilePipe,
@@ -108,6 +109,11 @@ export class ApplicationsController {
     return new StreamableFile(document.bytes);
   }
 
+  @Delete('mine/documents/:id')
+  removeDocument(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.service.removeDocument(user.id, id);
+  }
+
   @Post('mine/submit')
   submit(@CurrentUser() user: AuthenticatedUser) {
     return this.service.submitMyApplication(user.id);
@@ -168,8 +174,8 @@ export class PlatformController {
   ) {
     return this.service.setSuspension(u.id, id, false, dto.reason);
   }
-  @Get('facilities') facilities() {
-    return this.service.facilities();
+  @Get('facilities') facilities(@Query('archived') archived?: string) {
+    return this.service.platformFacilities(archived === 'true');
   }
   @Post('facilities') createFacility(
     @CurrentUser() u: AuthenticatedUser,
@@ -190,6 +196,20 @@ export class PlatformController {
     @Body() body: { sourceUrl: string; note?: string },
   ) {
     return this.service.verifyFacility(u.id, id, body);
+  }
+  @Post('facilities/:id/archive') archiveFacility(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.archivePlatformFacility(u.id, id, dto.reason, false);
+  }
+  @Post('facilities/:id/restore') restoreFacility(
+    @CurrentUser() u: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.archivePlatformFacility(u.id, id, dto.reason, true);
   }
   @Get('moderation') moderation() {
     return this.service.moderationQueue();
@@ -268,6 +288,41 @@ export class PivotOperationsController {
   ) {
     return this.service.createCollectionRun(user.id, dto);
   }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Patch('manager/runs/:id') updateRun(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { scheduledFor?: string; action?: 'cancel'; reason?: string },
+  ) {
+    return this.service.updateCollectionRun(user.id, id, body);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('manager/subscriptions') createSubscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { householdId: string; servicePlanId: string; startsAt?: string },
+  ) {
+    return this.service.createSubscription(user.id, body);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR')
+  @Patch('manager/subscriptions/:id')
+  updateSubscription(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { servicePlanId?: string; action?: 'stop'; reason?: string },
+  ) {
+    return this.service.updateSubscription(user.id, id, body);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('manager/invoices') createInvoice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { subscriptionId: string; period: string; amount: number; dueAt: string },
+  ) {
+    return this.service.createInvoice(user.id, body);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Patch('manager/invoices/:id') updateInvoice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { amount?: number; dueAt?: string; action?: 'void'; reason?: string },
+  ) {
+    return this.service.updateInvoice(user.id, id, body);
+  }
   @Roles('MANAGER_ADMIN') @Post('manager/collectors') createCollector(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateCollectorDto,
@@ -280,6 +335,16 @@ export class PivotOperationsController {
     @Body() dto: IssueCollectorCardDto,
   ) {
     return this.service.issueCollectorCard(user.id, id, dto);
+  }
+  @Roles('MANAGER_ADMIN')
+  @Post('manager/collectors/:collectorId/cards/:cardId/deactivate')
+  deactivateCollectorCard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('collectorId') collectorId: string,
+    @Param('cardId') cardId: string,
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.deactivateCollectorCard(user.id, collectorId, cardId, dto.reason);
   }
   @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('weight-events') weight(
     @CurrentUser() user: AuthenticatedUser,
@@ -322,6 +387,23 @@ export class PivotOperationsController {
   ) {
     return this.service.createOrder(user.id, dto);
   }
+  @Roles('BUSINESS_BUYER') @Post('business/orders/:id/cancel') cancelBusinessOrder(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.cancelBusinessOrder(user.id, id, dto.reason);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR')
+  @Post('manager/orders/:id/:action')
+  managerOrderAction(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('action') action: 'confirm' | 'cancel',
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.managerOrderAction(user.id, id, action, dto.reason);
+  }
   @Roles('BUSINESS_BUYER') @Post('business/orders/:id/receive') receive(
     @CurrentUser() user: AuthenticatedUser,
     @Param('id') id: string,
@@ -340,6 +422,27 @@ export class PivotOperationsController {
     @Body() dto: CreateWasteReportDto,
   ) {
     return this.service.createReport(user.id, dto);
+  }
+  @Roles('HOUSEHOLD') @Patch('reports/:id') updateReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: CreateWasteReportDto,
+  ) {
+    return this.service.updateReport(user.id, id, dto);
+  }
+  @Roles('HOUSEHOLD') @Post('reports/:id/withdraw') withdrawReport(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() dto: ReviewReasonDto,
+  ) {
+    return this.service.withdrawReport(user.id, id, dto.reason);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('reports/:id/status') reportStatus(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: { status: string; note?: string },
+  ) {
+    return this.service.updateReportStatus(user.id, id, body.status, body.note);
   }
   @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('reports/:id/resolve') resolve(
     @CurrentUser() user: AuthenticatedUser,

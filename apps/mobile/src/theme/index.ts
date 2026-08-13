@@ -4,5 +4,6 @@
  * `import { colors, spacing, radius, typography, touch, shadow } from '../../theme'`
  */
 export * from './tokens';
+export * from './fonts';
 export * from './typography';
 export * from './screenStyles';

@@ -712,6 +712,69 @@ flowchart TB
 - Pengujian manual dapat memetakan setiap langkah Diagram 8 ke `FUNCTIONAL-TESTING-MVP-5-ROLE.md`.
 - Jika domain atau endpoint berubah, perbarui diagram dan functional testing dalam commit yang sama.
 
+## 10. Lifecycle CRUD dan List-First
+
+```mermaid
+flowchart LR
+  L["Halaman daftar"] --> S["Cari, filter, urutkan"]
+  L --> C["Tekan Tambah"]
+  L --> E["Pilih Edit"]
+  L --> D["Buka detail"]
+  C --> F["Drawer form kosong"]
+  E --> G["Drawer berisi data"]
+  F --> M["Mutation tenant-scoped"]
+  G --> M
+  M --> A["AuditEvent"]
+  M --> R["Invalidate query dan refresh daftar"]
+  D --> W["Workflow lifecycle kontekstual"]
+```
+
+```mermaid
+stateDiagram-v2
+  [*] --> DRAFT
+  DRAFT --> PUBLISHED: Publish
+  PUBLISHED --> DRAFT: Unpublish
+  PUBLISHED --> CLOSED: Close
+  DRAFT --> ARCHIVED: Archive
+  PUBLISHED --> ARCHIVED: Archive
+  ARCHIVED --> DRAFT: Restore
+  DRAFT --> [*]: Delete jika tanpa relasi
+```
+
+```mermaid
+sequenceDiagram
+  actor User as Pengguna Tenant
+  participant UI as Dashboard BinGo
+  participant API as Resource API
+  participant DB as PostgreSQL
+  User->>UI: Tekan Arsipkan
+  UI->>User: Konfirmasi nama dan dampak
+  User->>UI: Isi alasan
+  UI->>API: POST /resource/:id/archive
+  API->>DB: Verifikasi membership dan ownership
+  API->>DB: Set archivedAt, archivedBy, reason
+  API->>DB: Append AuditEvent
+  API-->>UI: Berhasil
+  UI->>API: Muat ulang daftar aktif
+  API-->>UI: Resource tidak lagi berada di daftar aktif
+```
+
+```mermaid
+sequenceDiagram
+  actor Manager as Pengelola
+  participant UI as Fasilitas BinGo
+  participant API as Manager Resource API
+  participant Admin as Admin BinGo
+  participant Audit as AuditEvent
+  Manager->>UI: Tekan Ajukan verifikasi
+  UI->>API: action request-verification
+  API->>Audit: Catat pemohon dan waktu
+  API-->>UI: Pengajuan menunggu tinjauan
+  Admin->>API: Verifikasi fasilitas dan sumber
+  API->>Audit: Catat keputusan Admin
+  API-->>UI: Status verifikasi diperbarui
+```
+
 ## Sumber Implementasi
 
 - `apps/mobile/app`: route dan pengalaman lima role.

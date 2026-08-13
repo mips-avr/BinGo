@@ -1,73 +1,73 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
-import { DataCard } from '../../src/components/pivot/DataListView';
+import { Alert, Text } from 'react-native';
+import { DataCard, DataListView } from '../../src/components/pivot/DataListView';
+import { FormDrawer } from '../../src/components/pivot/FormDrawer';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { useBusinessCatalog, useCreateOrder } from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
-import { colors, screenStyles, spacing } from '../../src/theme';
-
 export default function SupplyScreen() {
   const query = useBusinessCatalog();
   const order = useCreateOrder();
-  const [lotId, setLotId] = useState('');
-  const [quantityKg, setQuantity] = useState('50');
-  const selected = query.data?.lots?.find((lot: any) => lot.id === lotId) ?? query.data?.lots?.[0];
+  const [selected, setSelected] = useState<any>(null);
+  const [quantity, setQuantity] = useState('');
   async function submit() {
-    if (!selected) return Alert.alert('Pasokan kosong', 'Belum ada lot yang dapat dipesan.');
-    const result = await order.mutateAsync({ lotId: selected.id, quantityKg: Number(quantityKg) });
-    Alert.alert('Pesanan dibuat', `${result.orderNo} telah mereservasi material.`);
+    try {
+      await order.mutateAsync({ lotId: selected.id, quantityKg: Number(quantity) });
+      setSelected(null);
+    } catch (error) {
+      Alert.alert('Belum dipesan', extractApiErrorMessage(error));
+    }
   }
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={screenStyles.screenTitle}>Pasokan Material</Text>
-      <Text style={styles.subtitle}>Pilih lot tersedia dan tentukan jumlah pesanan.</Text>
-      {query.data?.lots?.map((lot: any) => (
-        <DataCard
-          key={lot.id}
-          title={`${lot.material} • ${lot.code}`}
-          detail={`${Number(lot.availableKg).toLocaleString('id-ID')} kg • Rp${Number(lot.pricePerKg).toLocaleString('id-ID')}/kg`}
-          meta={lot.organization.name}
-          trailing={
-            <Button
-              size="sm"
-              label={selected?.id === lot.id ? 'Dipilih' : 'Pilih'}
-              variant={selected?.id === lot.id ? 'primary' : 'secondary'}
-              onPress={() => setLotId(lot.id)}
+    <>
+      <DataListView
+        title="Pasokan Material"
+        subtitle="Bandingkan lot yang tersedia, lalu tekan Pesan pada material yang sesuai."
+        query={query}
+        renderItems={(data) =>
+          data.lots.map((lot: any) => (
+            <DataCard
+              key={lot.id}
+              title={`${lot.material} • ${lot.code}`}
+              detail={`${Number(lot.availableKg).toLocaleString('id-ID')} kg • Rp${Number(lot.pricePerKg).toLocaleString('id-ID')}/kg`}
+              meta={lot.organization.name}
+              trailing={
+                <Button
+                  size="sm"
+                  label="Pesan"
+                  onPress={() => {
+                    setSelected(lot);
+                    setQuantity('');
+                  }}
+                />
+              }
             />
-          }
+          ))
+        }
+      />
+      <FormDrawer
+        visible={Boolean(selected)}
+        title="Pesan Material"
+        description={
+          selected ? `${selected.material} dari ${selected.organization.name}` : undefined
+        }
+        loading={order.isPending}
+        dirty={Boolean(quantity)}
+        submitLabel="Buat Pesanan"
+        onClose={() => setSelected(null)}
+        onSubmit={submit}
+      >
+        {selected ? (
+          <Text>{Number(selected.availableKg).toLocaleString('id-ID')} kg tersedia</Text>
+        ) : null}
+        <Input
+          label="Jumlah pesanan (kg)"
+          value={quantity}
+          keyboardType="decimal-pad"
+          onChangeText={setQuantity}
         />
-      ))}
-      {selected ? (
-        <>
-          <Input
-            label="Jumlah pesanan (kg)"
-            keyboardType="decimal-pad"
-            value={quantityKg}
-            onChangeText={setQuantity}
-          />
-          <Button
-            label="Pesan material"
-            loading={order.isPending}
-            onPress={() =>
-              submit().catch((error) => Alert.alert('Belum dipesan', extractApiErrorMessage(error)))
-            }
-          />
-        </>
-      ) : (
-        <Text style={styles.empty}>Belum ada pasokan aktif.</Text>
-      )}
-    </ScrollView>
+      </FormDrawer>
+    </>
   );
 }
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 100,
-    maxWidth: 900,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  subtitle: { color: colors.neutral600, marginTop: spacing.xs, marginBottom: spacing.xl },
-  empty: { color: colors.neutral600 },
-});

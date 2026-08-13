@@ -181,7 +181,34 @@ Uji pada lebar 360, 768, 1280, dan 1440 piksel.
 | UX-09 | Semua | Periksa empty/error/retry | Tidak ada layar kosong tanpa penjelasan atau tindakan |  |  |
 | UX-10 | Web | Tekan konfirmasi Suspend, Moderasi, Batalkan, dan Keluar | Dialog bekerja tanpa bergantung pada Alert native |  |  |
 
-## 12. Regresi Otomatis Sebelum Sign-off
+## 12. CRUD dan Pola List-First
+
+| ID | Kanal | Langkah | Hasil yang diharapkan | Hasil | Catatan |
+| --- | --- | --- | --- | --- | --- |
+| CRUD-01 | Web Pengelola | Buka Wilayah dan Pelanggan | Daftar tampil; form Tambah tidak terlihat |  |  |
+| CRUD-02 | Web Pengelola | Tekan Tambah Wilayah, isi, lalu Batal | Drawer terbuka; Batal tidak menyimpan |  |  |
+| CRUD-03 | Web Pengelola | Edit satu wilayah dan simpan | Daftar diperbarui tanpa reload penuh |  |  |
+| CRUD-04 | Web Pengelola | Arsipkan wilayah Demo dengan alasan | Hilang dari Aktif dan muncul pada Diarsipkan |  |  |
+| CRUD-05 | Web Pengelola | Pulihkan wilayah dari Diarsipkan | Kembali ke daftar Aktif dan audit bertambah |  |  |
+| CRUD-06 | Web | Ubah isi drawer lalu tekan Escape | Konfirmasi perubahan belum disimpan tampil |  |  |
+| CRUD-07 | Web | Cari resource lalu pindah halaman | Filter dan pagination memuat hasil yang sesuai |  |  |
+| CRUD-08 | Web Operator | Coba membuat Petugas | Ditolak karena hanya Admin Pengelola yang berwenang |  |  |
+| CRUD-09 | Web Pengelola | Edit rute yang sudah pernah dijalankan, lalu pilih Buat Revisi | Edit ditolak; revisi baru dibuat tanpa mengubah riwayat |  |  |
+| CRUD-10 | Web Business | Buat kebutuhan material | Status awal `DRAFT`; belum tampil sebagai publikasi aktif |  |  |
+| CRUD-11 | Web Business | Publikasikan lalu tutup kebutuhan | Status berurutan `PUBLISHED` lalu `CLOSED` |  |  |
+| CRUD-12 | Web Pengelola | Buat lot lalu Terbitkan | Lot berawal `DRAFT` dan baru tampil pada Pasokan setelah diterbitkan |  |  |
+| CRUD-13 | Web Admin | Edit nama publik kategori, arsipkan, lalu pulihkan | Kode sistem tetap; metadata dan status berubah |  |  |
+| CRUD-14 | Web Admin | Buka tiket bantuan, balas, Resolve, lalu Reopen | Pesan dan lifecycle tersimpan pada tiket yang sama |  |  |
+| CRUD-15 | APK Warga | Edit lalu tarik laporan berstatus `SUBMITTED` | Edit tersimpan; laporan dapat ditarik sebelum verifikasi |  |  |
+| CRUD-16 | APK Warga | Coba edit laporan yang sudah diverifikasi | Form read-only dan API menolak mutasi |  |  |
+| CRUD-17 | Web Business | Buka Penerimaan | Form berat tidak tampil sebelum satu pesanan dibuka |  |  |
+| CRUD-18 | Web Admin | Buka Fasilitas | Daftar tampil; Tambah, Edit, Verifikasi, Arsip, dan Restore bersifat kontekstual |  |  |
+| CRUD-19 | Web Pengelola | Edit Rumah Tangga dan isi nomor akun Warga | Akun tertaut; nomor yang telah dipakai rumah tangga lain ditolak |  |  |
+| CRUD-20 | Web Pengelola | Edit daftar kanal pada Stasiun Timbang | Kanal baru ditambah; kanal yang dihapus dari form menjadi nonaktif tanpa menghapus weight event lama |  |  |
+| CRUD-21 | Web Pengelola | Tekan Ajukan verifikasi pada Fasilitas | Status pengajuan terlihat dan tombol tidak dapat dikirim berulang sebelum ditinjau Admin |  |  |
+| CRUD-22 | APK Warga dan Web tenant | Buat tiket melalui halaman Bantuan, lalu buka ulang | Tiket dan balasan Admin tetap tersedia setelah reload atau login ulang |  |  |
+
+## 13. Regresi Otomatis Sebelum Sign-off
 
 Jalankan dari root repository:
 
@@ -212,7 +239,7 @@ pnpm --filter @bingo/mobile exec expo export --clear --platform web
 | Expo web export |  |  |
 | APK build dan signature verification |  |  |
 
-## 13. Temuan
+## 14. Temuan
 
 | Bug ID | Test ID | Severity | Kanal | Langkah reproduksi | Aktual | Harapan | Bukti | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -225,7 +252,7 @@ Severity:
 - `S3`: masalah UX atau validasi tanpa kehilangan data.
 - `S4`: kosmetik.
 
-## 14. Sign-off
+## 15. Sign-off
 
 | Peran | Nama | Keputusan | Tanggal | Catatan |
 | --- | --- | --- | --- | --- |

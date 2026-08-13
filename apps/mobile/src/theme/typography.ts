@@ -1,5 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { colors, fontSize } from './tokens';
+import { fonts } from './fonts';
 
 /**
  * Skala tipografi bernama.
@@ -13,42 +14,45 @@ export const typography = StyleSheet.create({
   /** Judul utama sebuah layar penuh (mis. "Papan harga"). */
   screenTitle: {
     fontSize: fontSize.screenTitle,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.neutral900,
   },
   /** Judul pada header daftar/tab (lebih ringkas dari `screenTitle`). */
   headerTitle: {
     fontSize: fontSize.headerTitle,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.neutral900,
   },
   /** Judul bagian di dalam layar. */
   sectionTitle: {
     fontSize: fontSize.sectionTitle,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.neutral900,
   },
   /** Judul di dalam kartu. */
   cardTitle: {
     fontSize: fontSize.cardTitle,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.neutral900,
   },
   /** Teks isi biasa. */
   body: {
     fontSize: fontSize.body,
+    fontFamily: fonts.regular,
     color: colors.neutral800,
     lineHeight: 20,
   },
   /** Teks isi sekunder / penjelas. */
   bodyMuted: {
     fontSize: fontSize.body,
+    fontFamily: fonts.regular,
     color: colors.neutral600,
     lineHeight: 20,
   },
   /** Keterangan kecil, meta data, stempel waktu. */
   caption: {
     fontSize: fontSize.caption,
+    fontFamily: fonts.regular,
     color: colors.neutral600,
     lineHeight: 17,
   },
@@ -58,14 +62,14 @@ export const typography = StyleSheet.create({
    */
   numeric: {
     fontSize: fontSize.bodyLarge,
-    fontWeight: '700',
+    fontFamily: fonts.bold,
     color: colors.neutral900,
     fontVariant: ['tabular-nums'],
   },
   /** Label kecil huruf besar di atas nilai (mis. "MIN. PESANAN"). */
   overline: {
     fontSize: fontSize.caption,
-    fontWeight: '600',
+    fontFamily: fonts.semiBold,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
     color: colors.neutral600,
@@ -73,6 +77,7 @@ export const typography = StyleSheet.create({
   /** Pesan galat sebaris di bawah input. */
   error: {
     fontSize: fontSize.caption,
+    fontFamily: fonts.regular,
     color: colors.red600,
     lineHeight: 17,
   },

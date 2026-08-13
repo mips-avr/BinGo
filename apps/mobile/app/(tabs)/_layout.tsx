@@ -49,6 +49,7 @@ export default function HouseholdTabsLayout() {
       <Tabs.Screen name="reports" options={{ title: 'Laporan' }} />
       <Tabs.Screen name="profile" options={{ title: 'Akun' }} />
       <Tabs.Screen name="pickups" options={{ href: null }} />
+      <Tabs.Screen name="help" options={{ href: null }} />
     </Tabs>
   );
 }

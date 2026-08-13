@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAvoider } from '../ui/KeyboardAvoider';
-import { colors, radius, spacing } from '../../theme';
+import { colors, fonts, radius, spacing } from '../../theme';
 
 interface AuthPageProps {
   children: ReactNode;
@@ -102,17 +102,17 @@ const styles = StyleSheet.create({
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   brandMark: { fontSize: 34 },
-  brandName: { color: colors.white, fontSize: 29, fontWeight: '900' },
+  brandName: { color: colors.white, fontSize: 29, fontFamily: fonts.extraBold },
   introBody: { maxWidth: 460 },
-  eyebrow: { color: colors.bingo200, fontSize: 12, fontWeight: '800', letterSpacing: 1.1 },
+  eyebrow: { color: colors.bingo200, fontSize: 12, fontFamily: fonts.bold, letterSpacing: 1.1 },
   headline: {
     marginTop: spacing.md,
     color: colors.white,
     fontSize: 38,
     lineHeight: 46,
-    fontWeight: '900',
+    fontFamily: fonts.extraBold,
   },
-  introCopy: { marginTop: spacing.md, color: colors.whiteAlpha85, fontSize: 16, lineHeight: 25 },
+  introCopy: { marginTop: spacing.md, color: colors.whiteAlpha85, fontSize: 16, lineHeight: 25, fontFamily: fonts.regular },
   featureList: { marginTop: spacing.xxl, gap: spacing.md },
   feature: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   featureIcon: {
@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  featureIconText: { color: colors.white, fontSize: 11, fontWeight: '900' },
-  featureText: { flex: 1, color: colors.whiteAlpha90, fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  demoLabel: { color: colors.bingo200, fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  featureIconText: { color: colors.white, fontSize: 11, fontFamily: fonts.extraBold },
+  featureText: { flex: 1, color: colors.whiteAlpha90, fontSize: 14, lineHeight: 20, fontFamily: fonts.semiBold },
+  demoLabel: { color: colors.bingo200, fontSize: 11, fontFamily: fonts.bold, letterSpacing: 0.8 },
   formRegion: { flex: 1 },
   scroll: { flexGrow: 1, width: '100%' },
   scrollDesktop: { padding: 48, justifyContent: 'center', alignItems: 'center' },
@@ -141,6 +141,6 @@ const styles = StyleSheet.create({
   },
   mobileBrand: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xxl },
   mobileMark: { fontSize: 40 },
-  mobileName: { color: colors.bingo800, fontSize: 28, fontWeight: '900' },
-  mobileTagline: { marginTop: 2, color: colors.neutral600, fontSize: 13 },
+  mobileName: { color: colors.bingo800, fontSize: 28, fontFamily: fonts.extraBold },
+  mobileTagline: { marginTop: 2, color: colors.neutral600, fontSize: 13, fontFamily: fonts.regular },
 });

@@ -1,112 +1,204 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { DataCard } from '../../src/components/pivot/DataListView';
+import { useMemo, useState } from 'react';
+import { Alert, Text } from 'react-native';
+import { FormDrawer } from '../../src/components/pivot/FormDrawer';
+import { ManagementPage } from '../../src/components/pivot/ManagementPage';
+import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
 import { Button } from '../../src/components/ui/Button';
-import { Card } from '../../src/components/ui/Card';
 import { Input } from '../../src/components/ui/Input';
 import {
-  useCreatePlatformFacility,
-  useFacilities,
+  usePlatformFacilities,
+  usePlatformFacilityMutation,
   useVerifyPlatformFacility,
 } from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
-import { colors, screenStyles, spacing } from '../../src/theme';
 
+const empty = {
+  name: '',
+  operatorName: '',
+  address: '',
+  lat: '-6.225',
+  lng: '106.9',
+  sourceUrl: '',
+  openingNote: '',
+  materials: 'ORGANIC, PAPER, PET',
+};
 export default function FacilitiesScreen() {
-  const query = useFacilities();
-  const create = useCreatePlatformFacility();
+  const [search, setSearch] = useState('');
+  const [archived, setArchived] = useState(false);
+  const query = usePlatformFacilities(archived);
+  const mutation = usePlatformFacilityMutation();
   const verify = useVerifyPlatformFacility();
-  const [name, setName] = useState('Titik Setor Demo Baru');
-  const [operatorName, setOperator] = useState('Operator Komunitas Demo');
-  const [address, setAddress] = useState('Jakarta Timur');
-  const [sourceUrl, setSource] = useState('https://lingkunganhidup.jakarta.go.id/');
-  const [selectedId, setSelectedId] = useState('');
-  async function submit() {
-    await create.mutateAsync({
-      name,
-      operatorName,
-      address,
-      lat: -6.225,
-      lng: 106.9,
-      sourceUrl,
-      openingNote: 'Konfirmasi jadwal sebelum berangkat',
-      materials: ['ORGANIC', 'PAPER', 'PET'],
-    });
-    Alert.alert('Fasilitas dibuat', 'Entri baru sudah berlabel sumber dan tanggal verifikasi.');
+  const [mode, setMode] = useState<'form' | 'verify' | null>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [form, setForm] = useState(empty);
+  const [verificationNote, setVerificationNote] = useState('');
+  const items = useMemo(
+    () =>
+      (query.data ?? []).filter((item: any) =>
+        `${item.name} ${item.operatorName} ${item.address}`
+          .toLowerCase()
+          .includes(search.toLowerCase()),
+      ),
+    [query.data, search],
+  );
+  function openForm(item?: any) {
+    setSelected(item ?? null);
+    setForm(
+      item
+        ? {
+            name: item.name,
+            operatorName: item.operatorName,
+            address: item.address,
+            lat: String(item.lat),
+            lng: String(item.lng),
+            sourceUrl: item.sourceUrl,
+            openingNote: item.openingNote ?? '',
+            materials: item.materialRules?.map((rule: any) => rule.material).join(', ') ?? '',
+          }
+        : empty,
+    );
+    setMode('form');
   }
-  async function submitVerification() {
-    if (!selectedId) return Alert.alert('Pilih fasilitas', 'Pilih fasilitas yang sudah diperiksa.');
-    await verify.mutateAsync({
-      id: selectedId,
-      sourceUrl,
-      note: 'Diperiksa kembali oleh Admin BinGo Demo',
-    });
-    Alert.alert('Verifikasi diperbarui', 'Sumber dan waktu pemeriksaan terbaru telah disimpan.');
+  async function save() {
+    const data = {
+      ...form,
+      lat: Number(form.lat),
+      lng: Number(form.lng),
+      materials: form.materials
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    };
+    try {
+      await mutation.mutateAsync({
+        action: selected ? 'update' : 'create',
+        id: selected?.id,
+        data,
+      });
+      setMode(null);
+    } catch (error) {
+      Alert.alert('Belum tersimpan', extractApiErrorMessage(error));
+    }
+  }
+  async function saveVerification() {
+    try {
+      await verify.mutateAsync({
+        id: selected.id,
+        sourceUrl: selected.sourceUrl,
+        note: verificationNote,
+      });
+      setMode(null);
+    } catch (error) {
+      Alert.alert('Belum diverifikasi', extractApiErrorMessage(error));
+    }
   }
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={screenStyles.screenTitle}>Fasilitas</Text>
-      <Text style={styles.subtitle}>
-        Kelola direktori lintas Pengelola dengan sumber dan tanggal pemeriksaan yang jelas.
-      </Text>
-      <Card style={styles.panel}>
-        <Text style={styles.heading}>Tambah fasilitas</Text>
-        <Input label="Nama fasilitas" value={name} onChangeText={setName} />
-        <Input label="Operator" value={operatorName} onChangeText={setOperator} />
-        <Input label="Alamat" value={address} onChangeText={setAddress} />
-        <Input label="Sumber data" value={sourceUrl} keyboardType="url" onChangeText={setSource} />
-        <Button
-          label="Simpan fasilitas"
-          loading={create.isPending}
-          onPress={() =>
-            submit().catch((error) => Alert.alert('Belum disimpan', extractApiErrorMessage(error)))
-          }
-        />
-      </Card>
-      <View style={styles.choices}>
-        {query.data?.map((facility: any) => (
-          <Button
-            key={facility.id}
-            size="sm"
-            label={facility.name}
-            variant={selectedId === facility.id ? 'primary' : 'secondary'}
-            onPress={() => setSelectedId(facility.id)}
+    <>
+      <ManagementPage
+        title="Fasilitas"
+        subtitle="Kelola direktori lintas organisasi serta tanggal verifikasi sumbernya."
+        primaryAction={{ label: 'Tambah Fasilitas', onPress: () => openForm() }}
+        query={query}
+        items={items}
+        search={search}
+        onSearchChange={setSearch}
+        archived={archived}
+        onArchivedChange={setArchived}
+        onEdit={openForm}
+        onArchive={(item) =>
+          mutation.mutate({
+            action: 'archive',
+            id: item.id,
+            reason: 'Entri tidak lagi layak ditampilkan',
+          })
+        }
+        onRestore={(item) => mutation.mutate({ action: 'restore', id: item.id })}
+        renderActions={
+          !archived
+            ? (item) => (
+                <Button
+                  size="sm"
+                  label="Verifikasi"
+                  variant="ghost"
+                  onPress={() => {
+                    setSelected(item);
+                    setVerificationNote('');
+                    setMode('verify');
+                  }}
+                />
+              )
+            : undefined
+        }
+        columns={[
+          {
+            key: 'name',
+            label: 'Fasilitas',
+            render: (item: any) => <Text style={masterText.primary}>{item.name}</Text>,
+          },
+          {
+            key: 'operator',
+            label: 'Operator',
+            render: (item: any) => <Text style={masterText.secondary}>{item.operatorName}</Text>,
+          },
+          {
+            key: 'address',
+            label: 'Alamat',
+            render: (item: any) => <Text style={masterText.secondary}>{item.address}</Text>,
+          },
+          {
+            key: 'verified',
+            label: 'Verifikasi',
+            render: (item: any) => (
+              <Text style={masterText.status}>
+                {new Date(item.verifiedAt).toLocaleDateString('id-ID')}
+              </Text>
+            ),
+          },
+        ]}
+      />
+      <FormDrawer
+        visible={mode === 'form'}
+        title={selected ? 'Edit Fasilitas' : 'Tambah Fasilitas'}
+        dirty
+        loading={mutation.isPending}
+        onClose={() => setMode(null)}
+        onSubmit={save}
+      >
+        {Object.entries({
+          name: 'Nama fasilitas',
+          operatorName: 'Operator',
+          address: 'Alamat',
+          lat: 'Latitude',
+          lng: 'Longitude',
+          sourceUrl: 'Sumber data',
+          openingNote: 'Catatan operasional',
+          materials: 'Material diterima, pisahkan dengan koma',
+        }).map(([key, label]) => (
+          <Input
+            key={key}
+            label={label}
+            value={form[key as keyof typeof form]}
+            onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))}
           />
         ))}
-      </View>
-      {selectedId ? (
-        <Button
-          label="Verifikasi fasilitas terpilih"
-          loading={verify.isPending}
-          onPress={() =>
-            submitVerification().catch((error) =>
-              Alert.alert('Belum diverifikasi', extractApiErrorMessage(error)),
-            )
-          }
+      </FormDrawer>
+      <FormDrawer
+        visible={mode === 'verify'}
+        title="Verifikasi Fasilitas"
+        description={selected?.name}
+        loading={verify.isPending}
+        submitLabel="Simpan Verifikasi"
+        onClose={() => setMode(null)}
+        onSubmit={saveVerification}
+      >
+        <Input label="Sumber verifikasi" value={selected?.sourceUrl ?? ''} editable={false} />
+        <Input
+          label="Catatan pemeriksaan"
+          value={verificationNote}
+          multiline
+          onChangeText={setVerificationNote}
         />
-      ) : null}
-      <Text style={[styles.heading, { marginTop: spacing.xl }]}>Direktori aktif</Text>
-      {query.data?.map((facility: any) => (
-        <DataCard
-          key={facility.id}
-          title={facility.name}
-          detail={facility.operatorName}
-          meta={`Verifikasi ${new Date(facility.verifiedAt).toLocaleDateString('id-ID')}`}
-        />
-      ))}
-    </ScrollView>
+      </FormDrawer>
+    </>
   );
 }
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 100,
-    maxWidth: 960,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  subtitle: { color: colors.neutral600, marginTop: spacing.xs, marginBottom: spacing.xl },
-  panel: { marginBottom: spacing.xl },
-  heading: { fontSize: 18, fontWeight: '800', color: colors.neutral900, marginBottom: spacing.md },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-});

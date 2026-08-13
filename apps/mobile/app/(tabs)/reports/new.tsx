@@ -1,1 +1,59 @@
-import{Alert,ScrollView,StyleSheet,Text}from'react-native';import{SafeAreaView}from'react-native-safe-area-context';import{useState}from'react';import{useRouter}from'expo-router';import{Input}from'../../../src/components/ui/Input';import{Button}from'../../../src/components/ui/Button';import{useCreateReport}from'../../../src/features/pivot/hooks';import{screenStyles,spacing}from'../../../src/theme';export default function Screen(){const[description,setDescription]=useState(''),[address,setAddress]=useState(''),m=useCreateReport(),r=useRouter();return <SafeAreaView style={s.root}><ScrollView contentContainerStyle={s.content}><Text style={screenStyles.screenTitle}>Buat Laporan</Text><Text style={s.lead}>Sertakan lokasi dan kondisi yang mudah dikenali Pengelola.</Text><Input label="Kondisi di lokasi" value={description} onChangeText={setDescription} multiline/><Input label="Alamat atau patokan" value={address} onChangeText={setAddress}/><Button label="Kirim Laporan" loading={m.isPending} disabled={description.length<5||address.length<5} onPress={()=>m.mutate({description,address,lat:-6.205,lng:106.941,photoKey:'demo/reports/mobile-demo.jpg'},{onSuccess:()=>{Alert.alert('Laporan terkirim','Pengelola dapat memantau dan menindaklanjuti laporan ini.');r.back()}})}/></ScrollView></SafeAreaView>}const s=StyleSheet.create({root:{flex:1},content:{padding:spacing.lg},lead:{marginVertical:spacing.md,fontSize:15,lineHeight:22}})
+import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { Input } from '../../../src/components/ui/Input';
+import { Button } from '../../../src/components/ui/Button';
+import { useCreateReport } from '../../../src/features/pivot/hooks';
+import { screenStyles, spacing } from '../../../src/theme';
+export default function Screen() {
+  const [description, setDescription] = useState(''),
+    [address, setAddress] = useState(''),
+    m = useCreateReport(),
+    r = useRouter();
+  return (
+    <SafeAreaView style={s.root}>
+      <ScrollView contentContainerStyle={s.content}>
+        <Text style={screenStyles.screenTitle}>Buat Laporan</Text>
+        <Text style={s.lead}>Sertakan lokasi dan kondisi yang mudah dikenali Pengelola.</Text>
+        <Input
+          label="Kondisi di lokasi"
+          value={description}
+          onChangeText={setDescription}
+          multiline
+        />
+        <Input label="Alamat atau patokan" value={address} onChangeText={setAddress} />
+        <Button
+          label="Kirim Laporan"
+          loading={m.isPending}
+          disabled={description.length < 5 || address.length < 5}
+          onPress={() =>
+            m.mutate(
+              {
+                description,
+                address,
+                lat: -6.205,
+                lng: 106.941,
+                photoKey: 'demo/reports/mobile-demo.jpg',
+              },
+              {
+                onSuccess: () => {
+                  Alert.alert(
+                    'Laporan terkirim',
+                    'Pengelola dapat memantau dan menindaklanjuti laporan ini.',
+                  );
+                  r.back();
+                },
+              },
+            )
+          }
+        />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+const s = StyleSheet.create({
+  root: { flex: 1 },
+  content: { padding: spacing.lg },
+  lead: { marginVertical: spacing.md, fontSize: 15, lineHeight: 22 },
+});

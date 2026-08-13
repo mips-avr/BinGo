@@ -1,76 +1,122 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
-import { DataCard } from '../../src/components/pivot/DataListView';
-import { Button } from '../../src/components/ui/Button';
+import { useMemo, useState } from 'react';
+import { Alert, Text } from 'react-native';
+import { FormDrawer } from '../../src/components/pivot/FormDrawer';
+import { ManagementPage } from '../../src/components/pivot/ManagementPage';
+import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
 import { Input } from '../../src/components/ui/Input';
 import { useBusinessCatalog, useReceiveOrder } from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
-import { colors, screenStyles, spacing } from '../../src/theme';
 
 export default function ReceiptsScreen() {
   const query = useBusinessCatalog();
   const receive = useReceiveOrder();
-  const [weights, setWeights] = useState<Record<string, string>>({});
-  const pending = query.data?.orders?.filter((order: any) => !order.receipt) ?? [];
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<any>(null);
+  const [receivedKg, setReceivedKg] = useState('');
+  const [residueKg, setResidueKg] = useState('0');
+  const [note, setNote] = useState('');
+  const pending = useMemo(
+    () =>
+      (query.data?.orders ?? []).filter(
+        (order: any) =>
+          !order.receipt &&
+          `${order.orderNo} ${order.seller?.name}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [query.data?.orders, search],
+  );
+  function open(order: any) {
+    setSelected(order);
+    setReceivedKg(String(Number(order.quantityKg)));
+    setResidueKg('0');
+    setNote('');
+  }
+  async function save() {
+    try {
+      await receive.mutateAsync({
+        id: selected.id,
+        receivedKg: Number(receivedKg),
+        residueKg: Number(residueKg || 0),
+        note,
+      });
+      setSelected(null);
+      Alert.alert(
+        'Penerimaan tercatat',
+        'Berat diterima dan dampak terverifikasi telah diperbarui.',
+      );
+    } catch (error) {
+      Alert.alert('Belum dikonfirmasi', extractApiErrorMessage(error));
+    }
+  }
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={screenStyles.screenTitle}>Penerimaan</Text>
-      <Text style={styles.subtitle}>
-        Konfirmasi berat aktual agar pengalihan sampah tercatat terverifikasi.
-      </Text>
-      {pending.map((order: any) => (
-        <DataCard
-          key={order.id}
-          title={order.orderNo}
-          detail={`${Number(order.quantityKg).toLocaleString('id-ID')} kg ${order.lot.material}`}
-          meta={order.seller.name}
-        />
-      ))}
-      {pending.map((order: any) => (
+    <>
+      <ManagementPage
+        title="Penerimaan"
+        subtitle="Buka pesanan yang tiba untuk mencatat berat aktual satu kali."
+        query={query}
+        items={pending}
+        search={search}
+        onSearchChange={setSearch}
+        archived={false}
+        onArchivedChange={() => undefined}
+        showArchiveFilter={false}
+        onOpen={open}
+        columns={[
+          {
+            key: 'order',
+            label: 'Pesanan',
+            render: (item: any) => <Text style={masterText.primary}>{item.orderNo}</Text>,
+          },
+          {
+            key: 'seller',
+            label: 'Pengelola',
+            render: (item: any) => <Text style={masterText.secondary}>{item.seller?.name}</Text>,
+          },
+          {
+            key: 'material',
+            label: 'Material',
+            render: (item: any) => <Text style={masterText.secondary}>{item.lot?.material}</Text>,
+          },
+          {
+            key: 'quantity',
+            label: 'Dipesan',
+            render: (item: any) => (
+              <Text style={masterText.status}>
+                {Number(item.quantityKg).toLocaleString('id-ID')} kg
+              </Text>
+            ),
+          },
+        ]}
+      />
+      <FormDrawer
+        visible={Boolean(selected)}
+        title={`Konfirmasi ${selected?.orderNo ?? 'Penerimaan'}`}
+        description="Penerimaan bersifat final dan tidak dapat diedit. Pastikan angka sesuai hasil pemeriksaan."
+        dirty={Boolean(receivedKg)}
+        loading={receive.isPending}
+        submitLabel="Konfirmasi Penerimaan"
+        onClose={() => setSelected(null)}
+        onSubmit={save}
+      >
         <Input
-          key={order.id}
-          label={`Berat diterima untuk ${order.orderNo} (kg)`}
+          label="Berat diterima (kg)"
           keyboardType="decimal-pad"
-          value={weights[order.id] ?? String(Number(order.quantityKg))}
-          onChangeText={(value) => setWeights((current) => ({ ...current, [order.id]: value }))}
+          value={receivedKg}
+          onChangeText={setReceivedKg}
         />
-      ))}
-      {pending[0] ? (
-        <Button
-          label="Konfirmasi penerimaan pertama"
-          loading={receive.isPending}
-          onPress={() => {
-            const order = pending[0];
-            receive.mutate(
-              {
-                id: order.id,
-                receivedKg: Number(weights[order.id] ?? order.quantityKg),
-                residueKg: 0,
-                note: 'Diterima sesuai pemeriksaan Demo',
-              },
-              {
-                onSuccess: () =>
-                  Alert.alert('Penerimaan tercatat', 'Dashboard dampak telah diperbarui.'),
-                onError: (error) =>
-                  Alert.alert('Belum dikonfirmasi', extractApiErrorMessage(error)),
-              },
-            );
-          }}
+        <Input
+          label="Residu (kg)"
+          keyboardType="decimal-pad"
+          value={residueKg}
+          onChangeText={setResidueKg}
         />
-      ) : (
-        <Text style={styles.empty}>Tidak ada pesanan yang menunggu penerimaan.</Text>
-      )}
-    </ScrollView>
+        <Input
+          label="Catatan pemeriksaan"
+          value={note}
+          multiline
+          numberOfLines={4}
+          onChangeText={setNote}
+        />
+      </FormDrawer>
+    </>
   );
 }
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 100,
-    maxWidth: 900,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  subtitle: { color: colors.neutral600, marginTop: spacing.xs, marginBottom: spacing.xl },
-  empty: { color: colors.neutral600, fontWeight: '600' },
-});

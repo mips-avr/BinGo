@@ -1,97 +1,169 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { DataCard } from '../../src/components/pivot/DataListView';
-import { Button } from '../../src/components/ui/Button';
-import { Card } from '../../src/components/ui/Card';
+import { useMemo, useState } from 'react';
+import { Alert, Text } from 'react-native';
+import { FormDrawer } from '../../src/components/pivot/FormDrawer';
+import { ManagementPage } from '../../src/components/pivot/ManagementPage';
 import { Input } from '../../src/components/ui/Input';
-import { useBusinessCatalog, useCreateRequirement } from '../../src/features/pivot/hooks';
+import { Button } from '../../src/components/ui/Button';
+import {
+  useBusinessRequirementMutation,
+  useBusinessRequirements,
+  useCreateRequirement,
+} from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
-import { colors, screenStyles, spacing } from '../../src/theme';
+import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
 
-const materials = ['ORGANIC', 'PAPER', 'PET', 'HDPE', 'METAL', 'GLASS'] as const;
+const empty = {
+  title: '',
+  material: 'ORGANIC',
+  quantityKg: '',
+  pricePerKg: '',
+  region: '',
+  moistureMaxPct: '',
+  contaminationMaxPct: '',
+  notes: '',
+};
 export default function RequirementsScreen() {
-  const query = useBusinessCatalog();
+  const [search, setSearch] = useState('');
+  const [archived, setArchived] = useState(false);
+  const params = useMemo(() => ({ search, archived, pageSize: 50 }), [archived, search]);
+  const query = useBusinessRequirements(params);
   const create = useCreateRequirement();
-  const [title, setTitle] = useState('Bahan baku kompos Demo');
-  const [material, setMaterial] = useState('ORGANIC');
-  const [quantityKg, setQuantity] = useState('50');
-  const [pricePerKg, setPrice] = useState('1000');
-  const [region, setRegion] = useState('Jakarta Timur');
-  async function submit() {
-    await create.mutateAsync({
-      title,
-      material,
-      quantityKg: Number(quantityKg),
-      pricePerKg: Number(pricePerKg),
-      region,
-    });
-    Alert.alert('Kebutuhan diterbitkan', 'Pengelola dapat melihat kebutuhan material ini.');
+  const mutation = useBusinessRequirementMutation();
+  const [selected, setSelected] = useState<any>(null);
+  const [drawer, setDrawer] = useState(false);
+  const [form, setForm] = useState(empty);
+  function open(item?: any) {
+    setSelected(item ?? null);
+    setForm(
+      item
+        ? {
+            title: item.title,
+            material: item.material,
+            quantityKg: String(item.quantityKg),
+            pricePerKg: String(item.pricePerKg ?? ''),
+            region: item.region,
+            moistureMaxPct: String(item.qualitySpecs?.[0]?.moistureMaxPct ?? ''),
+            contaminationMaxPct: String(item.qualitySpecs?.[0]?.contaminationMaxPct ?? ''),
+            notes: item.qualitySpecs?.[0]?.notes ?? '',
+          }
+        : empty,
+    );
+    setDrawer(true);
+  }
+  async function save() {
+    const data = {
+      title: form.title,
+      material: form.material,
+      quantityKg: Number(form.quantityKg),
+      pricePerKg: form.pricePerKg ? Number(form.pricePerKg) : undefined,
+      region: form.region,
+      qualitySpec: {
+        moistureMaxPct: form.moistureMaxPct ? Number(form.moistureMaxPct) : undefined,
+        contaminationMaxPct: form.contaminationMaxPct
+          ? Number(form.contaminationMaxPct)
+          : undefined,
+        notes: form.notes,
+      },
+    };
+    try {
+      if (selected) await mutation.mutateAsync({ action: 'update', id: selected.id, data });
+      else await create.mutateAsync(data);
+      setDrawer(false);
+    } catch (error) {
+      Alert.alert('Belum tersimpan', extractApiErrorMessage(error));
+    }
   }
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={screenStyles.screenTitle}>Kebutuhan Material</Text>
-      <Text style={styles.subtitle}>
-        Nyatakan material, volume, wilayah, dan nilai yang dibutuhkan.
-      </Text>
-      <Card style={styles.panel}>
-        <Text style={styles.heading}>Buat kebutuhan</Text>
-        <Input label="Judul" value={title} onChangeText={setTitle} />
-        <View style={styles.choices}>
-          {materials.map((item) => (
-            <Button
-              key={item}
-              size="sm"
-              label={item}
-              variant={material === item ? 'primary' : 'secondary'}
-              onPress={() => setMaterial(item)}
-            />
-          ))}
-        </View>
-        <Input
-          label="Jumlah (kg)"
-          keyboardType="decimal-pad"
-          value={quantityKg}
-          onChangeText={setQuantity}
-        />
-        <Input
-          label="Target harga per kg"
-          keyboardType="number-pad"
-          value={pricePerKg}
-          onChangeText={setPrice}
-        />
-        <Input label="Wilayah" value={region} onChangeText={setRegion} />
-        <Button
-          label="Terbitkan kebutuhan"
-          loading={create.isPending}
-          onPress={() =>
-            submit().catch((error) =>
-              Alert.alert('Belum diterbitkan', extractApiErrorMessage(error)),
-            )
-          }
-        />
-      </Card>
-      <Text style={styles.heading}>Publikasi saya</Text>
-      {query.data?.requirements?.map((item: any) => (
-        <DataCard
-          key={item.id}
-          title={item.title}
-          detail={`${Number(item.quantityKg).toLocaleString('id-ID')} kg ${item.material}`}
-          meta={`${item.status} • ${item.region}`}
-        />
-      ))}
-    </ScrollView>
+    <>
+      <ManagementPage
+        title="Kebutuhan Material"
+        subtitle="Simpan sebagai draft, lalu publikasikan setelah volume dan spesifikasi mutu siap."
+        primaryAction={{ label: 'Buat Kebutuhan', onPress: () => open() }}
+        query={query}
+        items={query.data?.items ?? []}
+        search={search}
+        onSearchChange={setSearch}
+        archived={archived}
+        onArchivedChange={setArchived}
+        onEdit={(item) => (item.status === 'DRAFT' ? open(item) : undefined)}
+        canEdit={(item: any) => item.status === 'DRAFT'}
+        onArchive={(item) =>
+          mutation.mutate({ action: 'archive', id: item.id, reason: 'Tidak lagi dibutuhkan' })
+        }
+        onRestore={(item) => mutation.mutate({ action: 'restore', id: item.id })}
+        renderActions={
+          !archived
+            ? (item: any) =>
+                item.status === 'DRAFT' ? (
+                  <Button
+                    size="sm"
+                    label="Publikasikan"
+                    variant="ghost"
+                    onPress={() => mutation.mutate({ action: 'publish', id: item.id })}
+                  />
+                ) : item.status === 'PUBLISHED' ? (
+                  <Button
+                    size="sm"
+                    label="Tutup"
+                    variant="ghost"
+                    onPress={() => mutation.mutate({ action: 'close', id: item.id })}
+                  />
+                ) : null
+            : undefined
+        }
+        columns={[
+          {
+            key: 'title',
+            label: 'Kebutuhan',
+            render: (x: any) => <Text style={masterText.primary}>{x.title}</Text>,
+          },
+          {
+            key: 'material',
+            label: 'Material',
+            render: (x: any) => <Text style={masterText.secondary}>{x.material}</Text>,
+          },
+          {
+            key: 'quantity',
+            label: 'Volume',
+            render: (x: any) => (
+              <Text style={masterText.secondary}>
+                {Number(x.quantityKg).toLocaleString('id-ID')} kg
+              </Text>
+            ),
+          },
+          {
+            key: 'status',
+            label: 'Status',
+            render: (x: any) => <Text style={masterText.status}>{x.status}</Text>,
+          },
+        ]}
+      />
+      <FormDrawer
+        visible={drawer}
+        title={selected ? 'Edit Kebutuhan' : 'Buat Kebutuhan'}
+        loading={create.isPending || mutation.isPending}
+        dirty
+        onClose={() => setDrawer(false)}
+        onSubmit={save}
+      >
+        {Object.entries({
+          title: 'Judul',
+          material: 'Kategori material',
+          quantityKg: 'Jumlah (kg)',
+          pricePerKg: 'Target harga per kg',
+          region: 'Wilayah',
+          moistureMaxPct: 'Kadar air maksimum (%)',
+          contaminationMaxPct: 'Kontaminasi maksimum (%)',
+          notes: 'Catatan mutu',
+        }).map(([key, label]) => (
+          <Input
+            key={key}
+            label={label}
+            value={form[key as keyof typeof form]}
+            onChangeText={(value) => setForm((current) => ({ ...current, [key]: value }))}
+          />
+        ))}
+      </FormDrawer>
+    </>
   );
 }
-const styles = StyleSheet.create({
-  content: {
-    padding: spacing.xl,
-    paddingBottom: 100,
-    maxWidth: 900,
-    width: '100%',
-    alignSelf: 'center',
-  },
-  subtitle: { color: colors.neutral600, marginTop: spacing.xs, marginBottom: spacing.xl },
-  panel: { marginBottom: spacing.xl },
-  heading: { fontSize: 18, fontWeight: '800', color: colors.neutral900, marginBottom: spacing.md },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },
-});

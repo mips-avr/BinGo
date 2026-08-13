@@ -1,2 +1,39 @@
-import { useRouter } from 'expo-router'; import { Text } from 'react-native'; import { Button } from '../../../src/components/ui/Button'; import { DataCard,DataListView } from '../../../src/components/pivot/DataListView'; import { useQuery } from '@tanstack/react-query'; import { api } from '../../../src/lib/api/client';
-export default function Screen(){const router=useRouter();const q=useQuery({queryKey:['pivot','reports'],queryFn:async()=> (await api.get('/api/v1/pivot/reports')).data});return <DataListView title="Laporan Lingkungan" subtitle="Laporkan tumpukan sampah liar dan pantau tindak lanjut Pengelola." query={q} renderItems={(d)=><><Button label="Buat Laporan" onPress={()=>router.push('/(tabs)/reports/new')} style={{marginBottom:16}}/>{d.map((x:any)=><DataCard key={x.id} title={x.description} detail={x.address} meta={x.status.replaceAll('_',' ')} trailing={<Text>{x.status==='RESOLVED'?'✓':''}</Text>}/>)}</>}/>}
+import { useRouter } from 'expo-router';
+import { Text } from 'react-native';
+import { Button } from '../../../src/components/ui/Button';
+import { DataCard, DataListView } from '../../../src/components/pivot/DataListView';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../../../src/lib/api/client';
+export default function Screen() {
+  const router = useRouter();
+  const q = useQuery({
+    queryKey: ['pivot', 'reports'],
+    queryFn: async () => (await api.get('/api/v1/pivot/reports')).data,
+  });
+  return (
+    <DataListView
+      title="Laporan Lingkungan"
+      subtitle="Laporkan tumpukan sampah liar dan pantau tindak lanjut Pengelola."
+      query={q}
+      renderItems={(d) => (
+        <>
+          <Button
+            label="Buat Laporan"
+            onPress={() => router.push('/(tabs)/reports/new')}
+            style={{ marginBottom: 16 }}
+          />
+          {d.map((x: any) => (
+            <DataCard
+              key={x.id}
+              title={x.description}
+              detail={x.address}
+              meta={x.status.replaceAll('_', ' ')}
+              trailing={<Text>{x.status === 'RESOLVED' ? '✓' : ''}</Text>}
+              onPress={() => router.push(`/(tabs)/reports/${x.id}`)}
+            />
+          ))}
+        </>
+      )}
+    />
+  );
+}

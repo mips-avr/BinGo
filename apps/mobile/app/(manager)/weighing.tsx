@@ -22,11 +22,9 @@ export default function WeighingScreen() {
   const [weight, setWeight] = useState('10');
   const [direction, setDirection] = useState<(typeof directions)[number]>('IN');
   const [material, setMaterial] = useState('MIXED');
-  const batches = query.data?.batches ?? [];
+  const batches = useMemo(() => query.data?.batches ?? [], [query.data?.batches]);
   const selected = useMemo(
-    () =>
-      batches.find((item: any) => item.id === selectedId) ??
-      batches.find((item: any) => item.status !== 'APPROVED'),
+    () => batches.find((item: any) => item.id === selectedId),
     [batches, selectedId],
   );
 

@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
+import { Redirect } from 'expo-router';
 
-export default function PickupsStack() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function LegacyPickupRedirect() {
+  return <Redirect href={'/(tabs)/services' as never} />;
 }
