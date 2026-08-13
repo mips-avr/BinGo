@@ -6,6 +6,7 @@ import { ErrorState } from '../ui/ErrorState';
 import { Input } from '../ui/Input';
 import { SkeletonList } from '../ui/Skeleton';
 import { extractApiErrorMessage } from '../../lib/api/client';
+import { statusLabel } from '../../lib/presentation/status';
 import {
   useMyApplication,
   useSubmitMyApplication,
@@ -119,16 +120,24 @@ export function OrganizationOnboardingView() {
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={styles.statusRow}>
-        <Text style={styles.status}>{application.status.replaceAll('_', ' ')}</Text>
-        <Text style={styles.version}>Versi {application.version}</Text>
+        <Text style={styles.status}>{statusLabel(application.status)}</Text>
+        {!profileOnly ? <Text style={styles.version}>Versi {application.version}</Text> : null}
       </View>
       <Text style={screenStyles.screenTitle}>
-        {business ? 'Verifikasi Business' : 'Verifikasi Pengelola'}
+        {profileOnly
+          ? business
+            ? 'Profil Business'
+            : 'Profil Pengelola'
+          : business
+            ? 'Verifikasi Business'
+            : 'Verifikasi Pengelola'}
       </Text>
       <Text style={styles.subtitle}>
-        {editable
-          ? 'Lengkapi profil, unggah bukti, lalu kirim untuk ditinjau.'
-          : 'Pengajuan sedang diproses. Riwayat dan catatan reviewer tersimpan.'}
+        {profileOnly
+          ? 'Informasi organisasi yang digunakan pada layanan BinGo.'
+          : editable
+            ? 'Lengkapi profil, unggah bukti, lalu kirim untuk ditinjau.'
+            : 'Pengajuan sedang diproses. Riwayat dan catatan reviewer tersimpan.'}
       </Text>
       {application.status === 'CHANGES_REQUESTED' && application.reviews?.[0]?.reason ? (
         <View style={styles.note}>

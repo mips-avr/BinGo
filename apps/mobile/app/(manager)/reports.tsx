@@ -8,6 +8,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { useManagerOperations, useUpdateReportStatus } from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
+import { statusLabel } from '../../src/lib/presentation/status';
 
 const statuses = ['VERIFIED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'SUBMITTED'];
 
@@ -82,7 +83,7 @@ export default function ReportsScreen() {
             key: 'status',
             label: 'Status',
             render: (item: any) => (
-              <Text style={masterText.status}>{item.status.replaceAll('_', ' ')}</Text>
+              <Text style={masterText.status}>{statusLabel(item.status)}</Text>
             ),
           },
         ]}
@@ -103,7 +104,7 @@ export default function ReportsScreen() {
           <Button
             key={value}
             size="sm"
-            label={value.replaceAll('_', ' ')}
+            label={statusLabel(value)}
             variant={status === value ? 'primary' : 'secondary'}
             onPress={() => setStatus(value)}
           />

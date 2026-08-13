@@ -12,6 +12,7 @@ import { useHouseholdReportMutation } from '../../../src/features/pivot/hooks';
 import { uploadImage } from '../../../src/features/uploads/api';
 import { pickFromGallery } from '../../../src/lib/image/picker';
 import { api, extractApiErrorMessage } from '../../../src/lib/api/client';
+import { statusLabel } from '../../../src/lib/presentation/status';
 import { colors, screenStyles, spacing } from '../../../src/theme';
 
 export default function ReportDetail() {
@@ -78,7 +79,7 @@ export default function ReportDetail() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <ScreenHeader title="Detail Laporan" />
-      <Text style={screenStyles.screenTitle}>{report.status.replaceAll('_', ' ')}</Text>
+      <Text style={screenStyles.screenTitle}>{statusLabel(report.status)}</Text>
       <Text style={styles.help}>
         {editable
           ? 'Laporan masih dapat diperbarui atau ditarik sebelum diverifikasi Pengelola.'

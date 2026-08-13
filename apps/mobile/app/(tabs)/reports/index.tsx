@@ -6,6 +6,7 @@ import { ManagementPage } from '../../../src/components/pivot/ManagementPage';
 import { masterText } from '../../../src/components/pivot/ManagerMasterScreen';
 import { ReportPhoto } from '../../../src/components/pivot/ReportPhoto';
 import { api } from '../../../src/lib/api/client';
+import { statusLabel } from '../../../src/lib/presentation/status';
 
 export default function Screen() {
   const router = useRouter();
@@ -65,9 +66,7 @@ export default function Screen() {
         {
           key: 'status',
           label: 'Status',
-          render: (item: any) => (
-            <Text style={masterText.status}>{item.status.replaceAll('_', ' ')}</Text>
-          ),
+          render: (item: any) => <Text style={masterText.status}>{statusLabel(item.status)}</Text>,
         },
       ]}
     />
