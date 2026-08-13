@@ -17,7 +17,10 @@ const config: Config = {
     '^@bingo/i18n$': '<rootDir>/../../packages/i18n/src',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
+  setupFilesAfterEnv: [
+    '@testing-library/jest-native/extend-expect',
+    '<rootDir>/jest.setup.ts',
+  ],
 };
 
 export default config;
