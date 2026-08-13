@@ -20,6 +20,14 @@ env:
   # sudah tidak dipakai, jadi APK rilis diam-diam dibangun memanggil alamat
   # mati. app.config.ts kini menghentikan build di CI bila variabel ini kosong.
   EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+  # Langkah validasi menjalankan `prisma generate` dan uji unit backend.
+  # Keduanya tidak pernah menyentuh database, tetapi Prisma tetap menuntut
+  # setiap env() di skema dapat diselesaikan dan berhenti dengan P1012 bila
+  # tidak. Nilai di bawah ini sengaja jelas-jelas palsu supaya tidak ada yang
+  # mengira rilis APK berbicara ke database sungguhan.
+  DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused?schema=public
+  DIRECT_URL: postgresql://unused:unused@127.0.0.1:5432/unused?schema=public
+  JWT_SECRET: apk_cd_dummy_secret_yang_panjangnya_lebih_dari_32_karakter
 
 jobs:
   release-apk:

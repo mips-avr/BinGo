@@ -28,6 +28,15 @@ concurrency:
 env:
   CI: 'true'
   DATABASE_URL: postgresql://bingo:bingo_dev_password@localhost:5432/bingo?schema=public
+  # Skema mendeklarasikan directUrl sejak pindah ke Neon, dan Prisma menuntut
+  # SETIAP env() di skema dapat diselesaikan — termasuk saat `validate` dan
+  # `generate` yang tidak menyentuh database sama sekali. Tanpa ini, CI gagal
+  # dengan P1012 sebelum satu perintah pun berjalan.
+  #
+  # Di CI nilainya sama dengan DATABASE_URL: Postgres layanan GitHub tidak
+  # berada di balik pooler, jadi koneksi langsung dan koneksi pooled memang
+  # alamat yang sama. Yang berbeda hanya di produksi.
+  DIRECT_URL: postgresql://bingo:bingo_dev_password@localhost:5432/bingo?schema=public
   JWT_SECRET: ci_test_secret_yang_panjangnya_lebih_dari_32_karakter
 
 jobs:
