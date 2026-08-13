@@ -31,6 +31,7 @@ export default function WeighingScreen() {
   const [direction, setDirection] = useState<(typeof directions)[number]>('IN');
   const [material, setMaterial] = useState('MIXED');
   const [cardNumber, setCardNumber] = useState('BG-DEMO-0001');
+  const [cardSource, setCardSource] = useState('DEMO_CARD');
   const batches = useMemo(
     () =>
       (query.data?.batches ?? []).filter((item: any) =>
@@ -64,7 +65,7 @@ export default function WeighingScreen() {
             intakeBatchId: selected.id,
             deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
             cardCredential: cardNumber.trim(),
-            cardSource: cardNumber === 'BG-DEMO-0001' ? 'DEMO_CARD' : 'MANUAL_CARD_NUMBER',
+            cardSource,
             direction,
             material,
             weightKg: reading.weightKg,
@@ -192,7 +193,10 @@ export default function WeighingScreen() {
                   label="Kartu Petugas"
                   value={cardNumber}
                   autoCapitalize="characters"
-                  onChangeText={(value) => setCardNumber(value.toUpperCase())}
+                  onChangeText={(value) => {
+                    setCardNumber(value.toUpperCase());
+                    setCardSource('MANUAL_CARD_NUMBER');
+                  }}
                 />
                 <Button
                   label={nfc.reading ? 'Membaca Kartu...' : 'Baca Kartu NFC'}
@@ -201,7 +205,10 @@ export default function WeighingScreen() {
                   loading={nfc.reading}
                   onPress={async () => {
                     const credential = await nfc.readTag();
-                    if (credential) setCardNumber(credential.toUpperCase());
+                    if (credential) {
+                      setCardNumber(credential.toUpperCase());
+                      setCardSource('ANDROID_NFC');
+                    }
                   }}
                 />
               </>
