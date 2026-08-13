@@ -17,6 +17,10 @@ concurrency:
   group: backend-cd-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
+
 jobs:
   deploy:
     name: Deploy backend to Vercel
@@ -39,22 +43,80 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      # Dicek lebih dulu supaya kegagalan konfigurasi muncul dalam 20 detik,
+      # bukan setelah lima menit build.
+      - name: Check required secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+        run: |
+          missing=""
+          [ -z "$VERCEL_TOKEN" ]         && missing="$missing VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ]        && missing="$missing VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ]    && missing="$missing VERCEL_BACKEND_PROJECT_ID"
+          [ -z "$MIGRATE_DATABASE_URL" ] && missing="$missing MIGRATE_DATABASE_URL"
+          if [ -n "$missing" ]; then
+            echo "::error::Secret belum diset:$missing"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate build
+      - name: Build (validasi sebelum deploy)
         run: |
           pnpm shared:build
           pnpm --filter @bingo/backend exec prisma generate
           pnpm --filter @bingo/backend build
 
+      # Migrasi dijalankan SEBELUM deploy, dan memakai koneksi LANGSUNG Neon,
+      # bukan yang pooled. PgBouncer milik Neon tidak mendukung statement
+      # advisory lock yang dipakai Prisma untuk mengunci migrasi, sehingga lewat
+      # koneksi pooled perintah ini menggantung sampai timeout.
+      #
+      # Urutannya juga disengaja: kalau migrasi gagal, kode lama tetap melayani
+      # trafik. Deploy dulu baru migrasi akan membuat kode baru bertemu skema
+      # lama selama beberapa detik.
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+        run: pnpm --filter @bingo/backend exec prisma migrate deploy
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # pull/build/deploy --prebuilt, bukan `vercel --cwd apps/backend`.
+      #
+      # `--cwd` hanya mengunggah isi folder itu, sehingga paket workspace
+      # (@bingo/shared-types, @bingo/shared-utils, @bingo/i18n) yang berada di
+      # luar apps/backend tidak pernah ikut, dan build di Vercel gagal
+      # menemukannya. Dijalankan dari akar repo, seluruh workspace ikut.
+      #
+      # Root Directory proyek Vercel harus diset ke `apps/backend` di dashboard.
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::error::Missing Vercel deployment secrets: VERCEL_TOKEN, VERCEL_PROJECT_ID"
-            exit 1
-          fi
-          npx vercel --cwd apps/backend --prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT_ID" --confirm
+          vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          vercel build --prod --token="$VERCEL_TOKEN"
+          url=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
+          echo "Deployed: $url"
+
+      # Deploy yang "berhasil" tetapi menjawab 500 pada permintaan pertama adalah
+      # kegagalan yang paling mahal, karena baru ketahuan saat orang mencoba
+      # masuk. Diperiksa di sini.
+      - name: Smoke test
+        run: |
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS -o /tmp/health.txt -w '%{http_code}' "$DEPLOY_URL/health" || echo 000)
+            if [ "$code" = "200" ]; then
+              echo "Health OK: $(cat /tmp/health.txt)"
+              exit 0
+            fi
+            echo "Percobaan $i: HTTP $code — menunggu cold start…"
+            sleep 6
+          done
+          echo "::error::/health tidak menjawab 200 setelah 5 percobaan. Respons terakhir:"
+          cat /tmp/health.txt || true
+          exit 1

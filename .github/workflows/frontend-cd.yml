@@ -15,17 +15,55 @@ permissions:
 
 concurrency:
   group: frontend-cd-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_WEB_PROJECT_ID }}
 
 jobs:
   deploy:
-    name: Deploy frontend to Vercel
+    name: Deploy web to Vercel
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # Variabel ini ditanam ke dalam bundel saat BUILD, bukan dibaca saat
+      # runtime. Salah nilainya berarti harus build ulang — dan itulah persis
+      # yang membuat produksi sempat memanggil IP LAN laptop pengembang.
+      #
+      # Karena itu tidak ada nilai bawaan diam-diam di sini. Lebih baik gagal
+      # sekarang dengan pesan jelas daripada mengirim bundel yang tidak bisa
+      # dipakai siapa pun.
+      - name: Validate API base URL
+        env:
+          API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+        run: |
+          if [ -z "$API_BASE_URL" ]; then
+            echo "::error::Repository variable EXPO_PUBLIC_API_BASE_URL belum diset."
+            echo "Settings -> Secrets and variables -> Actions -> Variables."
+            echo "Contoh: https://bingo-api.vercel.app"
+            exit 1
+          fi
+          case "$API_BASE_URL" in
+            https://*) ;;
+            *)
+              echo "::error::EXPO_PUBLIC_API_BASE_URL harus https:// — nilai sekarang: $API_BASE_URL"
+              echo "Web disajikan lewat HTTPS; permintaan HTTP diblokir peramban sebagai mixed content."
+              exit 1
+              ;;
+          esac
+          # Alamat privat tidak dapat dijangkau pengunjung mana pun.
+          case "$API_BASE_URL" in
+            *//10.*|*//192.168.*|*//127.*|*//localhost*|*//172.1[6-9].*|*//172.2[0-9].*|*//172.3[01].*)
+              echo "::error::EXPO_PUBLIC_API_BASE_URL menunjuk alamat privat: $API_BASE_URL"
+              exit 1
+              ;;
+          esac
+          echo "API base URL: $API_BASE_URL"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -39,25 +77,65 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      - name: Check required secrets
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          missing=""
+          [ -z "$VERCEL_TOKEN" ]      && missing="$missing VERCEL_TOKEN"
+          [ -z "$VERCEL_ORG_ID" ]     && missing="$missing VERCEL_ORG_ID"
+          [ -z "$VERCEL_PROJECT_ID" ] && missing="$missing VERCEL_WEB_PROJECT_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Secret belum diset:$missing"
+            exit 1
+          fi
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate frontend build
+      - name: Build web bundle
         env:
-          EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL || 'https://bingo-api.vercel.app' }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
         run: |
           pnpm shared:build
-          pnpm --filter @bingo/mobile typecheck
-          pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist/web
+          pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist
+
+      # Bukti bahwa alamat yang benar benar-benar tertanam di bundel. Pemeriksaan
+      # di langkah pertama hanya memvalidasi variabelnya; ini memvalidasi
+      # hasilnya — dan keduanya pernah berbeda.
+      - name: Verify baked API URL
+        env:
+          API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
+        run: |
+          cd apps/mobile/dist
+          if grep -rqE 'http://(10\.|192\.168\.|127\.|localhost)' _expo/static/js/web/*.js; then
+            echo "::error::Bundel masih memuat alamat HTTP privat:"
+            grep -rohE 'http://(10\.|192\.168\.|127\.|localhost)[^"'"'"']*' _expo/static/js/web/*.js | sort -u | head
+            exit 1
+          fi
+          if ! grep -rqF "$API_BASE_URL" _expo/static/js/web/*.js; then
+            echo "::error::Bundel tidak memuat $API_BASE_URL — variabel tidak terbaca saat build."
+            exit 1
+          fi
+          echo "Bundel memuat $API_BASE_URL"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
 
       - name: Deploy to Vercel
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
         run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::error::Missing frontend deployment secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID_FRONTEND"
+          cd apps/mobile
+          url=$(vercel deploy dist --prod --yes --token="$VERCEL_TOKEN")
+          echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
+          echo "Deployed: $url"
+
+      - name: Smoke test
+        run: |
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$DEPLOY_URL/login")
+          if [ "$code" != "200" ]; then
+            echo "::error::/login menjawab HTTP $code"
             exit 1
           fi
-          npx vercel --cwd apps/mobile --prod --token "$VERCEL_TOKEN" --project "$VERCEL_PROJECT_ID" --confirm
+          echo "Web OK: $DEPLOY_URL"

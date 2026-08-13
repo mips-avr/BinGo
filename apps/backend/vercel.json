@@ -1,6 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["sin1"],
+  "framework": null,
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter @bingo/backend exec prisma generate && pnpm --filter @bingo/backend build",
-  "outputDirectory": "apps/backend/dist"
+  "buildCommand": "cd ../.. && pnpm shared:build && pnpm --filter @bingo/backend exec prisma generate && pnpm --filter @bingo/backend build",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.js"
+    }
+  ]
 }

@@ -6,7 +6,19 @@
 
 -- 1) Ekstensi PostGIS ---------------------------------------------------
 CREATE EXTENSION IF NOT EXISTS "postgis";
--- CREATE EXTENSION IF NOT EXISTS "postgis_topology";
+-- -- postgis_topology TIDAK tersedia di Neon, dan skema ini tidak pernah
+-- memakainya: yang dipakai hanya geometry(Point,4326), ST_DWithin, ST_Distance,
+-- ST_Azimuth, dan indeks GIST — semuanya milik ekstensi `postgis` saja.
+--
+-- Dibungkus supaya tetap terpasang di Postgres lokal (image postgis punya
+-- topology) tanpa menggagalkan `migrate deploy` di Neon.
+DO $$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS "postgis_topology";
+EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'postgis_topology dilewati: %', SQLERRM;
+END
+$$;
 
 -- 2) Enum types ---------------------------------------------------------
 CREATE TYPE "UserRole" AS ENUM ('CITIZEN', 'WASTE_AGENT', 'MSME');

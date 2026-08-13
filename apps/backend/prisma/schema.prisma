@@ -15,11 +15,21 @@
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
+  // Runtime serverless Vercel adalah Amazon Linux, bukan mesin yang membangun.
+  // Tanpa target ini, engine yang ikut terbundel salah arsitektur dan setiap
+  // query gagal dengan "Query engine library for current platform not found".
+  binaryTargets   = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
+  // Runtime memakai koneksi POOLED: fungsi serverless membuka banyak koneksi
+  // pendek dan akan menghabiskan kuota koneksi Postgres tanpa pooler.
   url      = env("DATABASE_URL")
+  // Migrasi memakai koneksi LANGSUNG. Prisma Migrate mengambil advisory lock
+  // yang tidak didukung PgBouncer, sehingga lewat pooler perintahnya
+  // menggantung sampai timeout tanpa pesan yang menjelaskan apa pun.
+  directUrl = env("DIRECT_URL")
 }
 
 // ----------------------------- Enum types -----------------------------
