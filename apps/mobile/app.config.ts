@@ -8,6 +8,22 @@ const androidVersionCode =
 const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
 /**
+ * Alamat API ditanam saat BUILD, tidak dibaca saat runtime. Karena itu nilai
+ * bawaan `localhost` hanya boleh hidup di mesin pengembang. Kalau ia sampai
+ * ikut ter-build di CI, hasilnya adalah bundel produksi yang memanggil
+ * komputer pengunjungnya sendiri — persis kegagalan yang sudah pernah terjadi.
+ *
+ * Jadi di CI ketiadaan variabel ini adalah kesalahan yang menghentikan build,
+ * bukan sesuatu yang diam-diam diganti.
+ */
+if (!configuredApiBaseUrl && process.env.CI) {
+  throw new Error(
+    'EXPO_PUBLIC_API_BASE_URL wajib diset saat build di CI. ' +
+      'Setel di Settings -> Secrets and variables -> Actions -> Variables.',
+  );
+}
+
+/**
  * Konfigurasi Expo dinamis.
  * Variabel dengan prefiks `EXPO_PUBLIC_*` akan otomatis ter-expose ke runtime.
  */
