@@ -172,21 +172,42 @@ jobs:
           echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
           echo "Deployed: $url"
 
-      # Dua permintaan, bukan satu. `/login` membuktikan rewrite SPA bekerja;
-      # bundel JS membuktikan `handle: filesystem` mendahuluinya. Kalau hanya
-      # /login yang diperiksa, konfigurasi rute yang menjawab index.html untuk
-      # SEMUA permintaan tetap lolos — dan itu persis bentuk halaman putih.
+      # Dua hal diperiksa, dan keduanya pernah gagal dengan cara berbeda.
+      #
+      # Pertama: MENUNGGU. `vercel deploy` kembali begitu deployment dibuat,
+      # bukan begitu ia siap melayani permintaan. Memanggil URL-nya seketika
+      # menghasilkan 404 dari deployment yang belum aktif — bukan dari rute
+      # yang salah. Versi sebelumnya gagal persis begitu, dalam 0 detik.
+      #
+      # Kedua: DUA PERMINTAAN, bukan satu. `/login` membuktikan rewrite SPA
+      # bekerja; bundel JS membuktikan `handle: filesystem` mendahuluinya.
+      # Kalau hanya /login yang diperiksa, konfigurasi yang menjawab
+      # index.html untuk SEMUA permintaan tetap lolos — dan itu persis bentuk
+      # halaman putih yang sudah dua kali terjadi.
       - name: Smoke test
         run: |
           set -uo pipefail
-          code=$(curl -sS -o /dev/null -w '%{http_code}' "$DEPLOY_URL/login")
+
+          code=000
+          for attempt in $(seq 1 30); do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$DEPLOY_URL/login" || echo 000)
+            case "$code" in
+              200) echo "siap setelah percobaan $attempt"; break ;;
+              401|403)
+                echo "::error::/login menjawab HTTP $code — Deployment Protection aktif di proyek Vercel ini."
+                echo "Matikan di: Project Settings -> Deployment Protection."
+                exit 1
+                ;;
+              *) echo "  percobaan $attempt: HTTP $code, menunggu"; sleep 5 ;;
+            esac
+          done
           if [ "$code" != "200" ]; then
-            echo "::error::/login menjawab HTTP $code"
+            echo "::error::/login tetap menjawab HTTP $code setelah 30 percobaan."
             exit 1
           fi
 
           bundle=$(cd apps/mobile/dist && ls _expo/static/js/web/*.js | head -1)
-          ctype=$(curl -sS -o /dev/null -w '%{content_type}' "$DEPLOY_URL/$bundle")
+          ctype=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 20 "$DEPLOY_URL/$bundle")
           echo "GET /$bundle -> $ctype"
           case "$ctype" in
             *javascript*) ;;
