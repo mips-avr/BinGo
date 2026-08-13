@@ -48,7 +48,7 @@ export default function ModerationScreen() {
     <>
       <ManagementPage
         title="Moderasi"
-        subtitle="Tinjau publikasi kebutuhan dan lot tanpa mengubah data komersial tenant."
+        subtitle="Tinjau publikasi kebutuhan dan lot dari seluruh organisasi."
         query={query}
         items={items}
         search={search}

@@ -77,6 +77,43 @@ export class PivotService {
     return application;
   }
 
+  async myOrganizationProfile(userId: string) {
+    const membership = await this.membership(userId, ['MANAGER', 'BUSINESS']);
+    const application = await this.prisma.organizationApplication.findFirst({
+      where: { applicantId: userId },
+      include: { documents: true, reviews: { orderBy: { createdAt: 'desc' } }, organization: true },
+    });
+    if (application) return application;
+    const organization = membership.organization;
+    return {
+      id: `organization-${organization.id}`,
+      organizationId: organization.id,
+      applicantId: userId,
+      organizationName: organization.name,
+      organizationType: organization.type,
+      responsibleName: organization.contactName ?? '',
+      contactPhone: organization.contactPhone ?? '',
+      address: organization.address ?? '',
+      serviceRegions: [],
+      authorityBasis: null,
+      managedFacilities: [],
+      acceptedMaterials: [],
+      capacityNote: null,
+      receivingSchedule: null,
+      qualityNotes: null,
+      declarationAccepted: true,
+      status: organization.status,
+      version: 1,
+      submittedAt: null,
+      createdAt: organization.createdAt,
+      updatedAt: organization.updatedAt,
+      documents: [],
+      reviews: [],
+      organization,
+      profileOnly: true,
+    };
+  }
+
   async updateMyApplication(userId: string, dto: UpdateApplicationDto) {
     const application = await this.myApplication(userId);
     if (!['DRAFT', 'CHANGES_REQUESTED'].includes(application.status)) {

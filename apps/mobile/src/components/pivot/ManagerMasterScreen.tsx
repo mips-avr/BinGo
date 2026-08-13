@@ -163,7 +163,7 @@ export function ManagerMasterScreen<T extends { id: string }>({
       <FormDrawer
         visible={Boolean(drawer)}
         title={drawer === 'edit' ? `Edit ${title}` : createLabel}
-        description="Isi data operasional yang diperlukan. Perubahan akan tercatat pada audit."
+        description="Lengkapi informasi yang dibutuhkan, lalu simpan perubahan."
         dirty={dirty}
         loading={mutation.isPending}
         onClose={() => setDrawer(null)}

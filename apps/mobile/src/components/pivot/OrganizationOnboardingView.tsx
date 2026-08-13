@@ -61,7 +61,8 @@ export function OrganizationOnboardingView() {
       </ScrollView>
     );
   const application = query.data;
-  const editable = ['DRAFT', 'CHANGES_REQUESTED'].includes(application.status);
+  const profileOnly = Boolean(application.profileOnly);
+  const editable = !profileOnly && ['DRAFT', 'CHANGES_REQUESTED'].includes(application.status);
   const business = application.organizationType === 'BUSINESS';
   const field = (key: keyof typeof form, label: string, multiline = false) => (
     <Input
@@ -135,6 +136,19 @@ export function OrganizationOnboardingView() {
           <Text style={styles.noteText}>{application.reviews[0].reason}</Text>
         </View>
       ) : null}
+      {profileOnly ? (
+        <View style={styles.profileCard}>
+          <Text style={styles.profileTitle}>{application.organizationName}</Text>
+          <Text style={styles.profileText}>
+            {application.responsibleName || 'Penanggung jawab belum diisi'}
+          </Text>
+          <Text style={styles.profileText}>
+            {application.contactPhone || 'Nomor kontak belum diisi'}
+          </Text>
+          <Text style={styles.profileText}>{application.address || 'Alamat belum diisi'}</Text>
+          <Text style={styles.activeStatus}>Organisasi aktif</Text>
+        </View>
+      ) : null}
       {editable ? (
         <>
           {field('organizationName', business ? 'Nama Business' : 'Nama Pengelola')}
@@ -187,7 +201,7 @@ export function OrganizationOnboardingView() {
             style={{ marginTop: spacing.lg }}
           />
         </>
-      ) : (
+      ) : profileOnly ? null : (
         <>
           <View style={styles.note}>
             <Text style={styles.noteTitle}>Status pengajuan</Text>
@@ -239,5 +253,25 @@ const styles = StyleSheet.create({
   },
   noteTitle: { fontSize: 15, fontWeight: '800', color: colors.amber800 },
   noteText: { fontSize: 14, lineHeight: 20, color: colors.neutral700, marginTop: 4 },
+  profileCard: {
+    borderWidth: 1,
+    borderColor: colors.neutral200,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+    padding: spacing.lg,
+  },
+  profileTitle: { fontSize: 20, fontWeight: '800', color: colors.neutral900 },
+  profileText: { marginTop: spacing.sm, fontSize: 14, color: colors.neutral600 },
+  activeStatus: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.lg,
+    borderRadius: radius.sm,
+    backgroundColor: colors.bingo100,
+    color: colors.bingo800,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    fontWeight: '800',
+  },
   documentCount: { fontSize: 13, color: colors.neutral600, marginTop: spacing.sm },
 });

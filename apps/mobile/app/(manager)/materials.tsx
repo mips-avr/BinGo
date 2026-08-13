@@ -7,7 +7,7 @@ export default function MaterialsScreen() {
     <ManagerMasterScreen<any>
       resource="lots"
       title="Lot Material"
-      subtitle="Pantau inventory dan publikasi lot. Lot dibuat sebagai DRAFT sebelum diterbitkan ke Business."
+      subtitle="Pantau stok material dan terbitkan lot yang siap ditawarkan kepada Business."
       createLabel="Buat Lot"
       initial={{ material: 'ORGANIC', quantityKg: '', pricePerKg: '' }}
       fields={[

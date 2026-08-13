@@ -56,7 +56,7 @@ export class ApplicationsController {
 
   @Get('mine')
   mine(@CurrentUser() user: AuthenticatedUser) {
-    return this.service.myApplication(user.id);
+    return this.service.myOrganizationProfile(user.id);
   }
 
   @Patch('mine')

@@ -57,7 +57,7 @@ export default function MaterialCategoriesScreen() {
     <>
       <ManagementPage
         title="Kategori Material"
-        subtitle="Enam kode sistem tetap. Admin dapat mengubah nama publik, panduan, ikon, urutan, dan status aktif."
+        subtitle="Kelola nama, panduan, ikon, urutan, dan status kategori material."
         query={query}
         items={items}
         search={search}
@@ -99,7 +99,7 @@ export default function MaterialCategoriesScreen() {
       <FormDrawer
         visible={Boolean(selected)}
         title={`Edit ${selected?.code ?? 'Kategori'}`}
-        description="Kode sistem tidak dapat diubah karena digunakan oleh transaksi timbang dan inventory."
+        description="Perbarui informasi kategori yang ditampilkan kepada pengguna BinGo."
         dirty
         loading={mutation.isPending}
         onClose={() => setSelected(null)}

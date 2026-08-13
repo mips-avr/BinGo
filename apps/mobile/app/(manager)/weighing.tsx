@@ -61,7 +61,7 @@ export default function WeighingScreen() {
         weightKg: reading.weightKg,
         source: reading.source,
       });
-      Alert.alert('Berat tercatat', `${reading.weightKg} kg dicatat sebagai ${reading.source}.`);
+      Alert.alert('Berat tercatat', `${reading.weightKg} kg berhasil ditambahkan ke batch.`);
     } catch (error) {
       Alert.alert('Belum tercatat', extractApiErrorMessage(error));
     }
@@ -173,7 +173,7 @@ export default function WeighingScreen() {
               onPress={() => record('MANUAL')}
             />
             <Button
-              label="Gunakan Simulator Demo"
+              label="Gunakan Data Contoh"
               variant="secondary"
               disabled={!Number.isFinite(Number(weight)) || Number(weight) <= 0}
               onPress={() => record('SIMULATOR')}

@@ -53,15 +53,12 @@ export default function ServicesScreen() {
                 Jatuh tempo {new Date(data.invoice.dueAt).toLocaleDateString('id-ID')}
               </Text>
               <Button
-                label="Bayar dengan Mock Payment"
+                label="Bayar"
                 loading={payment.isPending}
                 onPress={() =>
                   payment.mutate(data.invoice.id, {
                     onSuccess: () =>
-                      Alert.alert(
-                        'Pembayaran berhasil',
-                        'Invoice Demo tercatat lunas dan dapat diaudit.',
-                      ),
+                      Alert.alert('Pembayaran berhasil', 'Iuran bulan ini telah tercatat lunas.'),
                   })
                 }
                 style={{ marginTop: spacing.md }}

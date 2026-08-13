@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -73,6 +74,8 @@ export function ManagementPage<T extends { id: string }>({
   canArchive?: (item: T) => boolean;
   canOpen?: (item: T) => boolean;
 }) {
+  const { width } = useWindowDimensions();
+  const desktopTable = Platform.OS === 'web' && width >= 768;
   const showActions = Boolean(renderActions || onOpen || onEdit || onArchive || onRestore);
   return (
     <ScrollView
@@ -85,12 +88,17 @@ export function ManagementPage<T extends { id: string }>({
         />
       }
     >
-      <View style={styles.pageHeader}>
+      <View
+        style={[
+          styles.pageHeader,
+          desktopTable ? styles.pageHeaderDesktop : styles.pageHeaderCompact,
+        ]}
+      >
         <View style={styles.headerCopy}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
-        <View style={styles.headerActions}>
+        <View style={[styles.headerActions, !desktopTable ? styles.headerActionsCompact : null]}>
           {secondaryActions.map((action) => (
             <Button
               key={action.label}
@@ -105,8 +113,8 @@ export function ManagementPage<T extends { id: string }>({
           ) : null}
         </View>
       </View>
-      <View style={styles.toolbar}>
-        <View style={styles.search}>
+      <View style={[styles.toolbar, desktopTable ? styles.toolbarDesktop : styles.toolbarCompact]}>
+        <View style={[styles.search, desktopTable ? styles.searchDesktop : null]}>
           <Input
             label="Cari"
             value={search}
@@ -146,7 +154,7 @@ export function ManagementPage<T extends { id: string }>({
         />
       ) : (
         <View style={styles.table}>
-          {Platform.OS === 'web' ? (
+          {desktopTable ? (
             <View style={styles.tableHeader}>
               {columns.map((column) => (
                 <Text
@@ -176,6 +184,7 @@ export function ManagementPage<T extends { id: string }>({
               canArchive={canArchive(item)}
               canOpen={canOpen(item)}
               showActions={showActions}
+              desktopTable={desktopTable}
             />
           ))}
         </View>
@@ -220,6 +229,7 @@ function ManagementRow<T extends { id: string }>({
   canArchive,
   canOpen,
   showActions,
+  desktopTable,
 }: {
   item: T;
   columns: ManagementColumn<T>[];
@@ -233,6 +243,7 @@ function ManagementRow<T extends { id: string }>({
   canArchive: boolean;
   canOpen: boolean;
   showActions: boolean;
+  desktopTable: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -240,19 +251,29 @@ function ManagementRow<T extends { id: string }>({
       onPress={() => canOpen && onOpen?.(item)}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      style={[styles.row, hovered ? styles.rowHovered : null]}
+      style={[
+        styles.row,
+        desktopTable ? styles.rowDesktop : styles.rowCompact,
+        hovered ? styles.rowHovered : null,
+      ]}
     >
       {columns.map((column) => (
         <View
           key={column.key}
           style={[styles.cell, column.width ? { flexBasis: column.width } : null]}
         >
-          {Platform.OS !== 'web' ? <Text style={styles.mobileLabel}>{column.label}</Text> : null}
+          {!desktopTable ? <Text style={styles.mobileLabel}>{column.label}</Text> : null}
           {column.render(item)}
         </View>
       ))}
       {showActions ? (
-        <View style={[styles.cell, styles.actionColumn, styles.actions]}>
+        <View
+          style={[
+            styles.cell,
+            desktopTable ? styles.actionColumn : styles.actionColumnCompact,
+            styles.actions,
+          ]}
+        >
           {renderActions?.(item)}
           {onOpen && canOpen ? (
             <Action icon="eye" label="Buka" onPress={() => onOpen(item)} />
@@ -316,12 +337,12 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   pageHeader: {
-    flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
     gap: spacing.lg,
     marginBottom: spacing.xl,
   },
+  pageHeaderDesktop: { flexDirection: 'row', justifyContent: 'space-between' },
+  pageHeaderCompact: { flexDirection: 'column' },
   headerCopy: { flex: 1 },
   headerActions: {
     flexDirection: 'row',
@@ -329,6 +350,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     gap: spacing.sm,
   },
+  headerActionsCompact: { width: '100%', justifyContent: 'flex-start' },
   title: { fontSize: 25, fontFamily: fonts.bold, color: colors.neutral900 },
   subtitle: {
     marginTop: spacing.xs,
@@ -338,12 +360,13 @@ const styles = StyleSheet.create({
     color: colors.neutral600,
   },
   toolbar: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    alignItems: Platform.OS === 'web' ? 'flex-end' : 'stretch',
     gap: spacing.md,
     marginBottom: spacing.md,
   },
-  search: { flex: 1, maxWidth: Platform.OS === 'web' ? 420 : undefined },
+  toolbarDesktop: { flexDirection: 'row', alignItems: 'flex-end' },
+  toolbarCompact: { flexDirection: 'column', alignItems: 'stretch' },
+  search: { flex: 1 },
+  searchDesktop: { maxWidth: 420 },
   filters: { flexDirection: 'row', gap: spacing.sm, marginBottom: 14 },
   table: {
     borderWidth: 1,
@@ -369,15 +392,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   row: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
     minHeight: 66,
     padding: spacing.md,
-    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
-    gap: Platform.OS === 'web' ? spacing.md : spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.neutral200,
     cursor: 'pointer',
   },
+  rowDesktop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rowCompact: { flexDirection: 'column', alignItems: 'stretch', gap: spacing.sm },
   rowHovered: { backgroundColor: colors.bingo50 },
   cell: { flex: 1, minWidth: 0 },
   mobileLabel: {
@@ -388,6 +410,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   actionColumn: { flexGrow: 0, flexBasis: 190 },
+  actionColumnCompact: { flexGrow: 0, flexBasis: 'auto' },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs },
   action: {
     width: 36,
