@@ -1,3 +1,60 @@
-import { DataCard, DataListView } from '../../src/components/pivot/DataListView';
+import { useMemo, useState } from 'react';
+import { Text } from 'react-native';
+import { ManagementPage } from '../../src/components/pivot/ManagementPage';
+import { masterText } from '../../src/components/pivot/ManagerMasterScreen';
 import { usePlatformOrganizations } from '../../src/features/pivot/hooks';
-export default function Screen(){const q=usePlatformOrganizations();const query={...q,data:q.data?.filter((x:any)=>x.type==='BUSINESS')};return <DataListView title="Business" subtitle="Status verifikasi dan kesehatan organisasi pengolah." query={query} renderItems={(items)=>items.map((x:any)=><DataCard key={x.id} title={x.name} detail={x.status.replaceAll('_',' ')} meta={`${x._count.members} pengguna terdaftar`}/>)}/>}
+
+export default function BusinessScreen() {
+  const query = usePlatformOrganizations();
+  const [search, setSearch] = useState('');
+  const items = useMemo(
+    () =>
+      (query.data ?? []).filter(
+        (item: any) =>
+          item.type === 'BUSINESS' &&
+          `${item.name} ${item.status}`.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [query.data, search],
+  );
+  return (
+    <ManagementPage
+      title="Business"
+      subtitle="Pantau status verifikasi dan kesehatan organisasi pengolah."
+      query={query}
+      items={items}
+      search={search}
+      onSearchChange={setSearch}
+      archived={false}
+      onArchivedChange={() => undefined}
+      showArchiveFilter={false}
+      columns={[
+        {
+          key: 'name',
+          label: 'Business',
+          render: (item: any) => <Text style={masterText.primary}>{item.name}</Text>,
+        },
+        {
+          key: 'status',
+          label: 'Status',
+          render: (item: any) => (
+            <Text style={masterText.status}>{item.status.replaceAll('_', ' ')}</Text>
+          ),
+        },
+        {
+          key: 'members',
+          label: 'Pengguna',
+          render: (item: any) => (
+            <Text style={masterText.secondary}>{item._count.members} pengguna</Text>
+          ),
+        },
+        {
+          key: 'facilities',
+          label: 'Fasilitas',
+          render: (item: any) => (
+            <Text style={masterText.secondary}>{item._count.facilities} fasilitas</Text>
+          ),
+        },
+      ]}
+    />
+  );
+}

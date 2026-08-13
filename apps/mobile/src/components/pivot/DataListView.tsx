@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -53,6 +54,7 @@ export function DataCard({
   trailing?: React.ReactNode;
   onPress?: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   const content = (
     <Card style={styles.card}>
       <View style={styles.row}>
@@ -66,7 +68,16 @@ export function DataCard({
     </Card>
   );
   return onPress ? (
-    <Pressable accessibilityRole="button" onPress={onPress}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      style={({ pressed }) => [
+        hovered ? styles.cardHovered : null,
+        pressed ? styles.cardPressed : null,
+      ]}
+    >
       {content}
     </Pressable>
   ) : (
@@ -89,6 +100,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
   },
   card: { marginBottom: spacing.sm },
+  cardHovered: { transform: [{ translateY: -1 }], opacity: 0.96 },
+  cardPressed: { transform: [{ scale: 0.99 }], opacity: 0.9 },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   title: { fontSize: 16, fontFamily: fonts.bold, color: colors.neutral900 },
   detail: {

@@ -271,15 +271,26 @@ function Action({
   label: string;
   onPress: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       onPress={(event) => {
         event.stopPropagation();
         onPress();
       }}
-      style={styles.action}
+      style={({ pressed }) => [
+        styles.action,
+        hovered ? styles.actionHovered : null,
+        focused ? styles.actionFocused : null,
+        pressed ? styles.actionPressed : null,
+      ]}
     >
       <Feather name={icon} size={16} color={colors.bingo700} />
     </Pressable>
@@ -366,7 +377,7 @@ const styles = StyleSheet.create({
     color: colors.neutral500,
     textTransform: 'uppercase',
   },
-  actionColumn: { flexGrow: 0, flexBasis: 116 },
+  actionColumn: { flexGrow: 0, flexBasis: 190 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xs },
   action: {
     width: 36,
@@ -377,6 +388,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bingo100,
     cursor: 'pointer',
   },
+  actionHovered: { backgroundColor: colors.bingo200, transform: [{ translateY: -1 }] },
+  actionFocused: { boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.22)' },
+  actionPressed: { backgroundColor: colors.bingo200, opacity: 0.82, transform: [{ scale: 0.94 }] },
   pagination: {
     marginTop: spacing.md,
     flexDirection: 'row',

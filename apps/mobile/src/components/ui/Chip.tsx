@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, radius, spacing, touch } from '../../theme';
@@ -36,6 +37,7 @@ export function Chip({
   testID,
   style,
 }: ChipProps) {
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       onPress={onPress}
@@ -44,10 +46,13 @@ export function Chip({
       accessibilityState={{ selected, disabled }}
       accessibilityLabel={accessibilityLabel ?? label}
       testID={testID}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       style={({ pressed }) => [
         chipStyles.base,
         selected ? chipStyles.selected : chipStyles.idle,
         disabled ? chipStyles.disabled : null,
+        hovered && !disabled && !selected ? chipStyles.hovered : null,
         pressed && !disabled ? chipStyles.pressed : null,
         style,
       ]}
@@ -90,6 +95,7 @@ const chipStyles = StyleSheet.create({
   idle: { borderColor: colors.neutral300, backgroundColor: colors.white },
   disabled: { opacity: 0.5 },
   pressed: { opacity: 0.85 },
+  hovered: { borderColor: colors.bingo600, backgroundColor: colors.bingo100, cursor: 'pointer' },
   label: { fontSize: 14 },
   labelSelected: { fontWeight: '700', color: colors.white },
   labelIdle: { fontWeight: '500', color: colors.neutral800 },

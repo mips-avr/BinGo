@@ -7,11 +7,14 @@ import { AppSplash } from '../ui/AppSplash';
 import { useAuthStore } from '../../store/authStore';
 import { colors, fonts, radius, spacing } from '../../theme';
 import { getAuthenticatedHome } from '../../lib/navigation/role-routes';
+import { webRouteMatches } from '../../lib/navigation/web-nav';
 
 export interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentProps<typeof Feather>['name'];
+  /** Route saudara yang tetap berada di bawah menu ini, misalnya Rumah Tangga di bawah Pelanggan. */
+  matches?: readonly string[];
 }
 
 export function WebShell({
@@ -40,16 +43,18 @@ export function WebShell({
     <View style={styles.root}>
       <View style={styles.sidebar}>
         <View style={styles.logoRow}>
-          <View style={styles.logoMark}><Text style={styles.logoMarkText}>♻️</Text></View>
+          <View style={styles.logoMark}>
+            <Text style={styles.logoMarkText}>♻️</Text>
+          </View>
           <Text style={styles.logo}>BinGo</Text>
           <Text style={styles.demo}>DEMO</Text>
         </View>
-        <Text style={styles.workspace} numberOfLines={2}>{title}</Text>
+        <Text style={styles.workspace} numberOfLines={2}>
+          {title}
+        </Text>
         <ScrollView style={styles.navScroll} contentContainerStyle={styles.navContent}>
           {nav.map((item) => {
-            const active =
-              pathname === item.href ||
-              (item.href !== nav[0]?.href && pathname.startsWith(item.href));
+            const active = webRouteMatches(item, pathname);
             return (
               <NavigationItem
                 key={item.href}
@@ -78,7 +83,9 @@ export function WebShell({
             <Text style={styles.topbarTitle}>{currentPageLabel(nav, pathname)}</Text>
           </View>
           <View style={styles.userBlock}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{initials(user.name)}</Text></View>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials(user.name)}</Text>
+            </View>
             <View>
               <Text style={styles.userName}>{user.name}</Text>
               <Text style={styles.userRole}>{roleLabel(user.role)}</Text>
@@ -111,10 +118,11 @@ function NavigationItem({
       onPress={onPress}
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
-      style={[
+      style={({ pressed }) => [
         styles.nav,
         hovered && !active ? styles.navHovered : null,
         active ? styles.navActive : null,
+        pressed && !disabled ? styles.navPressed : null,
         disabled ? styles.navDisabled : null,
       ]}
     >
@@ -126,11 +134,16 @@ function NavigationItem({
 }
 
 function currentPageLabel(nav: NavItem[], pathname: string) {
-  return nav.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`))?.label ?? nav[0]?.label ?? 'Ringkasan';
+  return nav.find((item) => webRouteMatches(item, pathname))?.label ?? nav[0]?.label ?? 'Ringkasan';
 }
 
 function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 }
 
 function roleLabel(role: UserRole) {
@@ -144,7 +157,11 @@ function roleLabel(role: UserRole) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, flexDirection: Platform.OS === 'web' ? 'row' : 'column', backgroundColor: colors.neutral50 },
+  root: {
+    flex: 1,
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    backgroundColor: colors.neutral50,
+  },
   sidebar: {
     width: Platform.OS === 'web' ? 276 : '100%',
     maxHeight: Platform.OS === 'web' ? undefined : 150,
@@ -155,26 +172,84 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
-  logoMark: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: colors.bingo100, alignItems: 'center', justifyContent: 'center', marginRight: spacing.xs },
+  logoMark: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
+    backgroundColor: colors.bingo100,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.xs,
+  },
   logoMarkText: { fontSize: 20 },
   logo: { fontSize: 24, fontFamily: fonts.extraBold, color: colors.bingo800 },
-  demo: { marginLeft: spacing.xs, fontSize: 10, fontFamily: fonts.extraBold, backgroundColor: colors.amber100, color: colors.amber800, borderRadius: radius.xs, paddingHorizontal: 7, paddingVertical: 4 },
-  workspace: { marginTop: spacing.sm, marginBottom: spacing.lg, color: colors.neutral500, fontSize: 13, lineHeight: 18, fontFamily: fonts.regular },
+  demo: {
+    marginLeft: spacing.xs,
+    fontSize: 10,
+    fontFamily: fonts.extraBold,
+    backgroundColor: colors.amber100,
+    color: colors.amber800,
+    borderRadius: radius.xs,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+  },
+  workspace: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    color: colors.neutral500,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: fonts.regular,
+  },
   navScroll: { flex: 1 },
   navContent: { paddingBottom: spacing.md },
-  nav: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.sm, marginBottom: 4, cursor: 'pointer' },
+  nav: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: 'transparent',
+    marginBottom: 4,
+    cursor: 'pointer',
+  },
   navHovered: { backgroundColor: colors.neutral100 },
-  navActive: { backgroundColor: colors.bingo100 },
+  navActive: { backgroundColor: colors.bingo100, borderLeftColor: colors.bingo600 },
+  navPressed: { backgroundColor: colors.bingo200, transform: [{ scale: 0.985 }] },
   navDisabled: { opacity: 0.55 },
   navText: { flex: 1, fontSize: 14, fontFamily: fonts.semiBold, color: colors.neutral600 },
   navTextActive: { color: colors.bingo800, fontFamily: fonts.bold },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.bingo600 },
   contentColumn: { flex: 1, minWidth: 0 },
-  topbar: { minHeight: 76, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: colors.neutral200, backgroundColor: colors.white, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  topbarContext: { color: colors.neutral500, fontSize: 11, fontFamily: fonts.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+  topbar: {
+    minHeight: 76,
+    paddingHorizontal: spacing.xl,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral200,
+    backgroundColor: colors.white,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  topbarContext: {
+    color: colors.neutral500,
+    fontSize: 11,
+    fontFamily: fonts.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   topbarTitle: { marginTop: 2, color: colors.neutral900, fontSize: 20, fontFamily: fonts.bold },
   userBlock: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bingo100 },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bingo100,
+  },
   avatarText: { color: colors.bingo800, fontSize: 12, fontFamily: fonts.extraBold },
   userName: { color: colors.neutral900, fontSize: 13, fontFamily: fonts.bold },
   userRole: { marginTop: 2, color: colors.neutral500, fontSize: 11, fontFamily: fonts.regular },

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Button } from '../ui/Button';
@@ -11,6 +11,7 @@ export function FormDrawer({
   dirty = false,
   loading = false,
   submitLabel = 'Simpan',
+  showSubmit = true,
   onClose,
   onSubmit,
   children,
@@ -21,10 +22,12 @@ export function FormDrawer({
   dirty?: boolean;
   loading?: boolean;
   submitLabel?: string;
+  showSubmit?: boolean;
   onClose: () => void;
   onSubmit: () => void;
   children: React.ReactNode;
 }) {
+  const [closeHovered, setCloseHovered] = useState(false);
   function requestClose() {
     if (
       dirty &&
@@ -62,7 +65,13 @@ export function FormDrawer({
               accessibilityRole="button"
               accessibilityLabel="Tutup"
               onPress={requestClose}
-              style={styles.close}
+              onHoverIn={() => setCloseHovered(true)}
+              onHoverOut={() => setCloseHovered(false)}
+              style={({ pressed }) => [
+                styles.close,
+                closeHovered ? styles.closeHovered : null,
+                pressed ? styles.closePressed : null,
+              ]}
             >
               <Feather name="x" size={22} color={colors.neutral700} />
             </Pressable>
@@ -77,12 +86,14 @@ export function FormDrawer({
               onPress={requestClose}
               style={styles.footerButton}
             />
-            <Button
-              label={submitLabel}
-              loading={loading}
-              onPress={onSubmit}
-              style={styles.footerButton}
-            />
+            {showSubmit ? (
+              <Button
+                label={submitLabel}
+                loading={loading}
+                onPress={onSubmit}
+                style={styles.footerButton}
+              />
+            ) : null}
           </View>
         </View>
       </View>
@@ -124,6 +135,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     cursor: 'pointer',
   },
+  closeHovered: { backgroundColor: colors.neutral100 },
+  closePressed: { backgroundColor: colors.neutral200, transform: [{ scale: 0.94 }] },
   content: { padding: spacing.xl, paddingBottom: 80 },
   footer: {
     flexDirection: 'row',

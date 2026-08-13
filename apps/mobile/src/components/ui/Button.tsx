@@ -82,7 +82,13 @@ export function Button({
             : buttonStyles.lightHovered
           : null,
         focused && !isDisabled ? buttonStyles.focused : null,
-        pressed && !isDisabled ? buttonStyles.pressed : null,
+        pressed && !isDisabled
+          ? variant === 'primary'
+            ? buttonStyles.primaryPressed
+            : variant === 'secondary'
+              ? buttonStyles.secondaryPressed
+              : buttonStyles.ghostPressed
+          : null,
         style,
       ]}
       {...rest}
@@ -138,9 +144,23 @@ const buttonStyles = StyleSheet.create({
     borderColor: colors.bingo600,
   },
   ghost: { backgroundColor: 'transparent' },
-  pressed: { opacity: 0.88 },
-  primaryHovered: { backgroundColor: colors.bingo700, transform: [{ translateY: -1 }], cursor: 'pointer' },
-  lightHovered: { backgroundColor: colors.bingo100, transform: [{ translateY: -1 }], cursor: 'pointer' },
+  primaryHovered: {
+    backgroundColor: colors.bingo700,
+    transform: [{ translateY: -1 }],
+    cursor: 'pointer',
+  },
+  lightHovered: {
+    backgroundColor: colors.bingo100,
+    transform: [{ translateY: -1 }],
+    cursor: 'pointer',
+  },
+  primaryPressed: { backgroundColor: colors.bingo800, transform: [{ scale: 0.98 }] },
+  secondaryPressed: {
+    backgroundColor: colors.bingo200,
+    borderColor: colors.bingo800,
+    transform: [{ scale: 0.98 }],
+  },
+  ghostPressed: { backgroundColor: colors.neutral200, transform: [{ scale: 0.98 }] },
   focused: { boxShadow: '0 0 0 3px rgba(22, 163, 74, 0.22)' },
   disabled: { opacity: 0.55 },
   label: { fontSize: 16, fontFamily: fonts.bold },
