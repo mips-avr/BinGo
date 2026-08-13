@@ -41,6 +41,7 @@ export function ManagementPage<T extends { id: string }>({
   onOpen,
   renderActions,
   renderCompactItem,
+  compactBare = false,
   pagination,
   showArchiveFilter = true,
   secondaryActions = [],
@@ -64,6 +65,7 @@ export function ManagementPage<T extends { id: string }>({
   onOpen?: (item: T) => void;
   renderActions?: (item: T) => React.ReactNode;
   renderCompactItem?: (item: T) => React.ReactNode;
+  compactBare?: boolean;
   pagination?: {
     page: number;
     pageSize: number;
@@ -155,7 +157,7 @@ export function ManagementPage<T extends { id: string }>({
           }
         />
       ) : (
-        <View style={styles.table}>
+        <View style={[styles.table, !desktopTable && compactBare ? styles.tableCompactBare : null]}>
           {desktopTable ? (
             <View style={styles.tableHeader}>
               {columns.map((column) => (
@@ -183,6 +185,7 @@ export function ManagementPage<T extends { id: string }>({
               onOpen={onOpen}
               renderActions={renderActions}
               renderCompactItem={renderCompactItem}
+              compactBare={compactBare}
               canEdit={canEdit(item)}
               canArchive={canArchive(item)}
               canOpen={canOpen(item)}
@@ -229,6 +232,7 @@ function ManagementRow<T extends { id: string }>({
   onOpen,
   renderActions,
   renderCompactItem,
+  compactBare,
   canEdit,
   canArchive,
   canOpen,
@@ -244,6 +248,7 @@ function ManagementRow<T extends { id: string }>({
   onOpen?: (item: T) => void;
   renderActions?: (item: T) => React.ReactNode;
   renderCompactItem?: (item: T) => React.ReactNode;
+  compactBare: boolean;
   canEdit: boolean;
   canArchive: boolean;
   canOpen: boolean;
@@ -259,6 +264,7 @@ function ManagementRow<T extends { id: string }>({
       style={[
         styles.row,
         desktopTable ? styles.rowDesktop : styles.rowCompact,
+        !desktopTable && compactBare ? styles.rowCompactBare : null,
         hovered ? styles.rowHovered : null,
       ]}
     >
@@ -382,6 +388,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.white,
   },
+  tableCompactBare: {
+    overflow: 'visible',
+    borderWidth: 0,
+    borderRadius: 0,
+    backgroundColor: 'transparent',
+  },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: colors.neutral100,
@@ -407,6 +419,12 @@ const styles = StyleSheet.create({
   },
   rowDesktop: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowCompact: { flexDirection: 'column', alignItems: 'stretch', gap: spacing.sm },
+  rowCompactBare: {
+    padding: 0,
+    paddingBottom: spacing.xl,
+    borderTopWidth: 0,
+    backgroundColor: 'transparent',
+  },
   rowHovered: { backgroundColor: colors.bingo50 },
   cell: { flex: 1, minWidth: 0 },
   mobileLabel: {
