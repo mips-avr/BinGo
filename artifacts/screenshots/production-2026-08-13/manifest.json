@@ -1,0 +1,679 @@
+[
+  {
+    "index": 1,
+    "group": "auth-web",
+    "name": "Masuk",
+    "route": "/login",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "auth-web/001-masuk.png"
+  },
+  {
+    "index": 2,
+    "group": "auth-web",
+    "name": "Pilih Peran",
+    "route": "/role-select",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "auth-web/002-pilih-peran.png"
+  },
+  {
+    "index": 3,
+    "group": "auth-web",
+    "name": "Daftar Warga",
+    "route": "/register",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "auth-web/003-daftar-warga.png"
+  },
+  {
+    "index": 4,
+    "group": "auth-web",
+    "name": "Daftar Pengelola",
+    "route": "/register",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "auth-web/004-daftar-pengelola.png"
+  },
+  {
+    "index": 5,
+    "group": "auth-web",
+    "name": "Daftar Business",
+    "route": "/register",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "auth-web/005-daftar-business.png"
+  },
+  {
+    "index": 6,
+    "group": "auth-mobile",
+    "name": "Masuk",
+    "route": "/login",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "auth-mobile/006-masuk.png"
+  },
+  {
+    "index": 7,
+    "group": "auth-mobile",
+    "name": "Pilih Peran",
+    "route": "/role-select",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "auth-mobile/007-pilih-peran.png"
+  },
+  {
+    "index": 8,
+    "group": "auth-mobile",
+    "name": "Daftar Warga",
+    "route": "/register",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "auth-mobile/008-daftar-warga.png"
+  },
+  {
+    "index": 9,
+    "group": "auth-mobile",
+    "name": "Daftar Pengelola",
+    "route": "/register",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "auth-mobile/009-daftar-pengelola.png"
+  },
+  {
+    "index": 10,
+    "group": "auth-mobile",
+    "name": "Daftar Business",
+    "route": "/register",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "auth-mobile/010-daftar-business.png"
+  },
+  {
+    "index": 11,
+    "group": "platform",
+    "name": "Ringkasan Platform",
+    "route": "/",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/011-ringkasan-platform.png"
+  },
+  {
+    "index": 12,
+    "group": "platform",
+    "name": "Antrean Verifikasi",
+    "route": "/applications",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/012-antrean-verifikasi.png"
+  },
+  {
+    "index": 13,
+    "group": "platform",
+    "name": "Organisasi",
+    "route": "/organizations",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/013-organisasi.png"
+  },
+  {
+    "index": 14,
+    "group": "platform",
+    "name": "Business",
+    "route": "/business",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/014-business.png"
+  },
+  {
+    "index": 15,
+    "group": "platform",
+    "name": "Fasilitas",
+    "route": "/facilities",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/015-fasilitas.png"
+  },
+  {
+    "index": 16,
+    "group": "platform",
+    "name": "Kategori Material",
+    "route": "/materials",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/016-kategori-material.png"
+  },
+  {
+    "index": 17,
+    "group": "platform",
+    "name": "Moderasi",
+    "route": "/moderation",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/017-moderasi.png"
+  },
+  {
+    "index": 18,
+    "group": "platform",
+    "name": "Audit",
+    "route": "/audit",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/018-audit.png"
+  },
+  {
+    "index": 19,
+    "group": "platform",
+    "name": "Bantuan",
+    "route": "/help",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "platform/019-bantuan.png"
+  },
+  {
+    "index": 20,
+    "group": "manager",
+    "name": "Ringkasan",
+    "route": "/",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/020-ringkasan.png"
+  },
+  {
+    "index": 21,
+    "group": "manager",
+    "name": "Wilayah dan Pelanggan",
+    "route": "/customers",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/021-wilayah-dan-pelanggan.png"
+  },
+  {
+    "index": 22,
+    "group": "manager",
+    "name": "Tagihan",
+    "route": "/billing",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/022-tagihan.png"
+  },
+  {
+    "index": 23,
+    "group": "manager",
+    "name": "Kalender dan Rute",
+    "route": "/routes",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/023-kalender-dan-rute.png"
+  },
+  {
+    "index": 24,
+    "group": "manager",
+    "name": "Petugas dan Kartu",
+    "route": "/collectors",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/024-petugas-dan-kartu.png"
+  },
+  {
+    "index": 25,
+    "group": "manager",
+    "name": "Timbang dan Pemilahan",
+    "route": "/weighing",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/025-timbang-dan-pemilahan.png"
+  },
+  {
+    "index": 26,
+    "group": "manager",
+    "name": "Material",
+    "route": "/materials",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/026-material.png"
+  },
+  {
+    "index": 27,
+    "group": "manager",
+    "name": "Pesanan",
+    "route": "/orders",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/027-pesanan.png"
+  },
+  {
+    "index": 28,
+    "group": "manager",
+    "name": "Fasilitas",
+    "route": "/facilities",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/028-fasilitas.png"
+  },
+  {
+    "index": 29,
+    "group": "manager",
+    "name": "Laporan",
+    "route": "/reports",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/029-laporan.png"
+  },
+  {
+    "index": 30,
+    "group": "manager",
+    "name": "Bantuan",
+    "route": "/help",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/030-bantuan.png"
+  },
+  {
+    "index": 31,
+    "group": "manager",
+    "name": "Pengaturan",
+    "route": "/settings",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/031-pengaturan.png"
+  },
+  {
+    "index": 32,
+    "group": "manager",
+    "name": "rumah-tangga",
+    "route": "/households",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/032-rumah-tangga.png"
+  },
+  {
+    "index": 33,
+    "group": "manager",
+    "name": "paket-layanan",
+    "route": "/service-plans",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/033-paket-layanan.png"
+  },
+  {
+    "index": 34,
+    "group": "manager",
+    "name": "langganan",
+    "route": "/subscriptions",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/034-langganan.png"
+  },
+  {
+    "index": 35,
+    "group": "manager",
+    "name": "kalender",
+    "route": "/calendars",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/035-kalender.png"
+  },
+  {
+    "index": 36,
+    "group": "manager",
+    "name": "tugas-pengumpulan",
+    "route": "/runs",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/036-tugas-pengumpulan.png"
+  },
+  {
+    "index": 37,
+    "group": "manager",
+    "name": "kendaraan",
+    "route": "/vehicles",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/037-kendaraan.png"
+  },
+  {
+    "index": 38,
+    "group": "manager",
+    "name": "stasiun-timbang",
+    "route": "/weigh-stations",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/038-stasiun-timbang.png"
+  },
+  {
+    "index": 39,
+    "group": "manager",
+    "name": "operasional",
+    "route": "/runs",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "manager/039-operasional.png"
+  },
+  {
+    "index": 40,
+    "group": "business",
+    "name": "Ringkasan",
+    "route": "/",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/040-ringkasan.png"
+  },
+  {
+    "index": 41,
+    "group": "business",
+    "name": "Kebutuhan Material",
+    "route": "/requirements",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/041-kebutuhan-material.png"
+  },
+  {
+    "index": 42,
+    "group": "business",
+    "name": "Pasokan",
+    "route": "/supply",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/042-pasokan.png"
+  },
+  {
+    "index": 43,
+    "group": "business",
+    "name": "Pesanan",
+    "route": "/orders",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/043-pesanan.png"
+  },
+  {
+    "index": 44,
+    "group": "business",
+    "name": "Penerimaan",
+    "route": "/receipts",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/044-penerimaan.png"
+  },
+  {
+    "index": 45,
+    "group": "business",
+    "name": "Riwayat",
+    "route": "/history",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/045-riwayat.png"
+  },
+  {
+    "index": 46,
+    "group": "business",
+    "name": "Profil dan Verifikasi",
+    "route": "/profile",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/046-profil-dan-verifikasi.png"
+  },
+  {
+    "index": 47,
+    "group": "business",
+    "name": "Bantuan",
+    "route": "/help",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/047-bantuan.png"
+  },
+  {
+    "index": 48,
+    "group": "business",
+    "name": "Katalog Pasokan",
+    "route": "/catalog",
+    "viewport": {
+      "width": 1440,
+      "height": 1000
+    },
+    "file": "business/048-katalog-pasokan.png"
+  },
+  {
+    "index": 49,
+    "group": "household",
+    "name": "Beranda",
+    "route": "/",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/049-beranda.png"
+  },
+  {
+    "index": 50,
+    "group": "household",
+    "name": "Layanan",
+    "route": "/services",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/050-layanan.png"
+  },
+  {
+    "index": 51,
+    "group": "household",
+    "name": "Jalur Setor",
+    "route": "/facilities",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/051-jalur-setor.png"
+  },
+  {
+    "index": 52,
+    "group": "household",
+    "name": "Laporan",
+    "route": "/reports",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/052-laporan.png"
+  },
+  {
+    "index": 53,
+    "group": "household",
+    "name": "Akun",
+    "route": "/profile",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/053-akun.png"
+  },
+  {
+    "index": 54,
+    "group": "household",
+    "name": "Buat Laporan",
+    "route": "/reports/new",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/054-buat-laporan.png"
+  },
+  {
+    "index": 55,
+    "group": "household",
+    "name": "Detail Laporan",
+    "route": "/reports/demo-waste-report-1",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "household/055-detail-laporan.png"
+  },
+  {
+    "index": 56,
+    "group": "collector",
+    "name": "Hari Ini",
+    "route": "/",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "collector/056-hari-ini.png"
+  },
+  {
+    "index": 57,
+    "group": "collector",
+    "name": "Rute",
+    "route": "/route",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "collector/057-rute.png"
+  },
+  {
+    "index": 58,
+    "group": "collector",
+    "name": "Timbang",
+    "route": "/weigh",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "collector/058-timbang.png"
+  },
+  {
+    "index": 59,
+    "group": "collector",
+    "name": "Riwayat",
+    "route": "/history",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "collector/059-riwayat.png"
+  },
+  {
+    "index": 60,
+    "group": "collector",
+    "name": "Akun",
+    "route": "/profile",
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "deviceScaleFactor": 1
+    },
+    "file": "collector/060-akun.png"
+  }
+]
