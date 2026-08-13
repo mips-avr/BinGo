@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '../../../src/components/ui/Button';
@@ -13,7 +13,7 @@ import { uploadImage } from '../../../src/features/uploads/api';
 import { pickFromGallery } from '../../../src/lib/image/picker';
 import { api, extractApiErrorMessage } from '../../../src/lib/api/client';
 import { statusLabel } from '../../../src/lib/presentation/status';
-import { colors, screenStyles, spacing } from '../../../src/theme';
+import { colors, fonts, radius, screenStyles, spacing } from '../../../src/theme';
 
 export default function ReportDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,6 +32,7 @@ export default function ReportDetail() {
     photoKey: '',
   });
   const [replacementPhoto, setReplacementPhoto] = useState('');
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
     if (report)
       setForm({
@@ -63,6 +64,8 @@ export default function ReportDetail() {
         id,
         data: { ...form, photoKey, lat: Number(form.lat), lng: Number(form.lng) },
       });
+      setEditing(false);
+      setReplacementPhoto('');
       Alert.alert('Laporan diperbarui');
     } catch (error) {
       Alert.alert('Belum tersimpan', extractApiErrorMessage(error));
@@ -79,68 +82,193 @@ export default function ReportDetail() {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <ScreenHeader title="Detail Laporan" />
-      <Text style={screenStyles.screenTitle}>{statusLabel(report.status)}</Text>
-      <Text style={styles.help}>
-        {editable
-          ? 'Laporan masih dapat diperbarui atau ditarik sebelum diverifikasi Pengelola.'
-          : 'Laporan telah diproses dan tidak dapat diubah.'}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text style={screenStyles.screenTitle}>{report.description}</Text>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusText}>{statusLabel(report.status)}</Text>
+        </View>
+      </View>
       <ReportPhoto uri={replacementPhoto || report.photoKey} />
-      {editable ? (
-        <Button
-          label="Ganti Foto"
-          variant="secondary"
-          style={{ marginBottom: spacing.lg }}
-          onPress={async () => {
-            try {
-              const image = await pickFromGallery();
-              if (image) setReplacementPhoto(image.uri);
-            } catch (error) {
-              Alert.alert('Foto belum dipilih', extractApiErrorMessage(error));
-            }
-          }}
-        />
-      ) : null}
-      <Input
-        label="Deskripsi"
-        value={form.description}
-        editable={editable}
-        multiline
-        onChangeText={(value) => setForm((current) => ({ ...current, description: value }))}
-      />
-      <Input
-        label="Alamat"
-        value={form.address}
-        editable={editable}
-        onChangeText={(value) => setForm((current) => ({ ...current, address: value }))}
-      />
-      <Input
-        label="Latitude"
-        value={form.lat}
-        editable={editable}
-        onChangeText={(value) => setForm((current) => ({ ...current, lat: value }))}
-      />
-      <Input
-        label="Longitude"
-        value={form.lng}
-        editable={editable}
-        onChangeText={(value) => setForm((current) => ({ ...current, lng: value }))}
-      />
-      {editable ? (
+      {editing ? (
         <>
+          <Button
+            label="Ganti Foto"
+            variant="secondary"
+            style={{ marginBottom: spacing.lg }}
+            onPress={async () => {
+              try {
+                const image = await pickFromGallery();
+                if (image) setReplacementPhoto(image.uri);
+              } catch (error) {
+                Alert.alert('Foto belum dipilih', extractApiErrorMessage(error));
+              }
+            }}
+          />
+          <Input
+            label="Nama laporan"
+            value={form.description}
+            multiline
+            onChangeText={(value) => setForm((current) => ({ ...current, description: value }))}
+          />
+          <Input
+            label="Alamat"
+            value={form.address}
+            onChangeText={(value) => setForm((current) => ({ ...current, address: value }))}
+          />
+          <Input
+            label="Latitude"
+            value={form.lat}
+            onChangeText={(value) => setForm((current) => ({ ...current, lat: value }))}
+          />
+          <Input
+            label="Longitude"
+            value={form.lng}
+            onChangeText={(value) => setForm((current) => ({ ...current, lng: value }))}
+          />
           <Button label="Simpan Perubahan" loading={mutation.isPending} onPress={save} />
           <Button
-            label="Tarik Laporan"
+            label="Batal"
             variant="secondary"
-            onPress={withdraw}
+            onPress={() => {
+              setEditing(false);
+              setReplacementPhoto('');
+              setForm({
+                description: report.description,
+                address: report.address,
+                lat: String(report.lat),
+                lng: String(report.lng),
+                photoKey: report.photoKey,
+              });
+            }}
             style={{ marginTop: spacing.sm }}
           />
         </>
-      ) : null}
+      ) : (
+        <>
+          <View style={styles.detailCard}>
+            <Detail label="Lokasi" value={report.address} />
+            <Detail
+              label="Dibuat"
+              value={new Date(report.createdAt).toLocaleString('id-ID', {
+                dateStyle: 'long',
+                timeStyle: 'short',
+              })}
+            />
+            <Detail
+              label="Terakhir diperbarui"
+              value={new Date(report.updatedAt).toLocaleString('id-ID', {
+                dateStyle: 'long',
+                timeStyle: 'short',
+              })}
+            />
+            {report.resolutionNote ? (
+              <Detail label="Catatan penanganan" value={report.resolutionNote} />
+            ) : null}
+            <Button
+              label="Buka Lokasi"
+              size="sm"
+              variant="secondary"
+              onPress={() =>
+                Linking.openURL(
+                  `https://www.google.com/maps/dir/?api=1&destination=${report.lat},${report.lng}`,
+                )
+              }
+            />
+          </View>
+          {report.events?.length ? (
+            <View style={styles.historyCard}>
+              <Text style={styles.sectionTitle}>Riwayat Penanganan</Text>
+              {[...report.events]
+                .sort(
+                  (a: any, b: any) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+                )
+                .map((event: any) => (
+                  <View key={event.id} style={styles.historyItem}>
+                    <View style={styles.timelineDot} />
+                    <View style={styles.historyCopy}>
+                      <Text style={styles.historyStatus}>{statusLabel(event.status)}</Text>
+                      {event.note ? <Text style={styles.historyNote}>{event.note}</Text> : null}
+                      <Text style={styles.historyDate}>
+                        {new Date(event.createdAt).toLocaleString('id-ID')}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          ) : null}
+          {editable ? (
+            <View style={styles.actions}>
+              <Button label="Edit Laporan" onPress={() => setEditing(true)} />
+              <Button label="Tarik Laporan" variant="secondary" onPress={withdraw} />
+            </View>
+          ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailItem}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 100, backgroundColor: colors.white },
-  help: { color: colors.neutral600, marginVertical: spacing.md },
+  titleRow: { gap: spacing.sm, marginBottom: spacing.md },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bingo100,
+  },
+  statusText: { fontSize: 12, fontFamily: fonts.bold, color: colors.bingo800 },
+  detailCard: {
+    gap: spacing.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.neutral200,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+  },
+  detailItem: { gap: spacing.xs },
+  detailLabel: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: colors.neutral500,
+    textTransform: 'uppercase',
+  },
+  detailValue: { fontSize: 15, lineHeight: 22, fontFamily: fonts.medium, color: colors.neutral900 },
+  historyCard: {
+    gap: spacing.md,
+    marginTop: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.neutral50,
+  },
+  sectionTitle: { fontSize: 18, fontFamily: fonts.bold, color: colors.neutral900 },
+  historyItem: { flexDirection: 'row', gap: spacing.md },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    marginTop: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bingo600,
+  },
+  historyCopy: { flex: 1, gap: 2 },
+  historyStatus: { fontSize: 14, fontFamily: fonts.bold, color: colors.neutral900 },
+  historyNote: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: fonts.regular,
+    color: colors.neutral700,
+  },
+  historyDate: { fontSize: 12, fontFamily: fonts.regular, color: colors.neutral500 },
+  actions: { gap: spacing.sm, marginTop: spacing.lg },
 });

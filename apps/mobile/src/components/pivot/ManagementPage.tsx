@@ -40,6 +40,7 @@ export function ManagementPage<T extends { id: string }>({
   onRestore,
   onOpen,
   renderActions,
+  renderCompactItem,
   pagination,
   showArchiveFilter = true,
   secondaryActions = [],
@@ -62,6 +63,7 @@ export function ManagementPage<T extends { id: string }>({
   onRestore?: (item: T) => void;
   onOpen?: (item: T) => void;
   renderActions?: (item: T) => React.ReactNode;
+  renderCompactItem?: (item: T) => React.ReactNode;
   pagination?: {
     page: number;
     pageSize: number;
@@ -180,6 +182,7 @@ export function ManagementPage<T extends { id: string }>({
               onRestore={onRestore}
               onOpen={onOpen}
               renderActions={renderActions}
+              renderCompactItem={renderCompactItem}
               canEdit={canEdit(item)}
               canArchive={canArchive(item)}
               canOpen={canOpen(item)}
@@ -225,6 +228,7 @@ function ManagementRow<T extends { id: string }>({
   onRestore,
   onOpen,
   renderActions,
+  renderCompactItem,
   canEdit,
   canArchive,
   canOpen,
@@ -239,6 +243,7 @@ function ManagementRow<T extends { id: string }>({
   onRestore?: (item: T) => void;
   onOpen?: (item: T) => void;
   renderActions?: (item: T) => React.ReactNode;
+  renderCompactItem?: (item: T) => React.ReactNode;
   canEdit: boolean;
   canArchive: boolean;
   canOpen: boolean;
@@ -257,16 +262,18 @@ function ManagementRow<T extends { id: string }>({
         hovered ? styles.rowHovered : null,
       ]}
     >
-      {columns.map((column) => (
-        <View
-          key={column.key}
-          style={[styles.cell, column.width ? { flexBasis: column.width } : null]}
-        >
-          {!desktopTable ? <Text style={styles.mobileLabel}>{column.label}</Text> : null}
-          {column.render(item)}
-        </View>
-      ))}
-      {showActions ? (
+      {!desktopTable && renderCompactItem
+        ? renderCompactItem(item)
+        : columns.map((column) => (
+            <View
+              key={column.key}
+              style={[styles.cell, column.width ? { flexBasis: column.width } : null]}
+            >
+              {!desktopTable ? <Text style={styles.mobileLabel}>{column.label}</Text> : null}
+              {column.render(item)}
+            </View>
+          ))}
+      {showActions && (desktopTable || !renderCompactItem) ? (
         <View
           style={[
             styles.cell,

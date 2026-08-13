@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { ManagementPage } from '../../../src/components/pivot/ManagementPage';
@@ -7,6 +7,7 @@ import { masterText } from '../../../src/components/pivot/ManagerMasterScreen';
 import { ReportPhoto } from '../../../src/components/pivot/ReportPhoto';
 import { api } from '../../../src/lib/api/client';
 import { statusLabel } from '../../../src/lib/presentation/status';
+import { colors, fonts, radius, spacing } from '../../../src/theme';
 
 export default function Screen() {
   const router = useRouter();
@@ -37,6 +38,14 @@ export default function Screen() {
       onArchivedChange={() => undefined}
       showArchiveFilter={false}
       onOpen={(item: any) => router.push(`/(tabs)/reports/${item.id}`)}
+      renderCompactItem={(item: any) => (
+        <View style={styles.reportCard}>
+          <ReportPhoto uri={item.photoKey} />
+          <Text style={styles.reportTitle} numberOfLines={2}>
+            {item.description}
+          </Text>
+        </View>
+      )}
       columns={[
         {
           key: 'photo',
@@ -72,3 +81,19 @@ export default function Screen() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  reportCard: {
+    width: '100%',
+    overflow: 'hidden',
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+  },
+  reportTitle: {
+    paddingTop: spacing.xs,
+    fontSize: 16,
+    lineHeight: 23,
+    fontFamily: fonts.bold,
+    color: colors.neutral900,
+  },
+});
