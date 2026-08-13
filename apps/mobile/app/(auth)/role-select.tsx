@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from 'react-native';
 import type { UserRole } from '@bingo/shared-types';
+import { AuthPage } from '../../src/components/auth/AuthPage';
 import { t } from '../../src/i18n';
 import { colors, screenStyles, spacing, touch } from '../../src/theme';
 
@@ -37,12 +37,7 @@ export default function RoleSelectScreen() {
   const router = useRouter();
 
   return (
-    <SafeAreaView style={screenStyles.safeRoot} edges={['top', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={screenStyles.scrollContentForm}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={{ fontSize: 48, marginBottom: spacing.xs }}>♻️</Text>
+    <AuthPage contentWidth={560}>
         <Text style={screenStyles.screenTitle} accessibilityRole="header">
           {t.auth.chooseRole}
         </Text>
@@ -81,7 +76,6 @@ export default function RoleSelectScreen() {
             {t.auth.haveAccount} <Text style={screenStyles.footerLink}>{t.auth.login}</Text>
           </Text>
         </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+    </AuthPage>
   );
 }

@@ -1,9 +1,8 @@
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from 'react-native';
 import type { UserRole } from '@bingo/shared-types';
+import { AuthPage } from '../../src/components/auth/AuthPage';
 import { RegisterForm } from '../../src/components/forms/RegisterForm';
-import { KeyboardAvoider } from '../../src/components/ui/KeyboardAvoider';
 import { t } from '../../src/i18n';
 import { colors, screenStyles, spacing } from '../../src/theme';
 
@@ -29,14 +28,7 @@ export default function RegisterScreen() {
     : 'HOUSEHOLD';
 
   return (
-    <SafeAreaView style={screenStyles.safeRoot} edges={['top', 'bottom']}>
-      <KeyboardAvoider>
-        <ScrollView
-          contentContainerStyle={screenStyles.scrollContentForm}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
+    <AuthPage contentWidth={500}>
           <Pressable
             onPress={() => router.back()}
             style={screenStyles.backRow}
@@ -68,8 +60,6 @@ export default function RegisterScreen() {
               {t.auth.login}
             </Link>
           </View>
-        </ScrollView>
-      </KeyboardAvoider>
-    </SafeAreaView>
+    </AuthPage>
   );
 }

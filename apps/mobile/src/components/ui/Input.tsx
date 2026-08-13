@@ -1,4 +1,4 @@
-import { forwardRef, useId } from 'react';
+import { forwardRef, useId, useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { colors, radius, spacing, typography } from '../../theme';
 
@@ -9,8 +9,9 @@ export interface InputProps extends TextInputProps {
 }
 
 export const Input = forwardRef<TextInput, InputProps>(
-  ({ label, error, testID, accessibilityLabel, ...rest }, ref) => {
+  ({ label, error, testID, accessibilityLabel, onFocus, onBlur, ...rest }, ref) => {
     const errorId = useId();
+    const [focused, setFocused] = useState(false);
     return (
       <View style={inputStyles.wrap}>
         <Text style={inputStyles.label} nativeID={`${errorId}-label`}>
@@ -25,7 +26,19 @@ export const Input = forwardRef<TextInput, InputProps>(
           // Galat diumumkan pembaca layar, bukan hanya diwarnai merah.
           accessibilityState={{ disabled: rest.editable === false }}
           accessibilityHint={error ?? undefined}
-          style={[inputStyles.field, error ? inputStyles.fieldError : null]}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
+          style={[
+            inputStyles.field,
+            focused ? inputStyles.fieldFocused : null,
+            error ? inputStyles.fieldError : null,
+          ]}
           {...rest}
         />
         {error ? (
@@ -60,5 +73,6 @@ const inputStyles = StyleSheet.create({
     color: colors.neutral900,
   },
   fieldError: { borderColor: colors.red500 },
+  fieldFocused: { borderColor: colors.bingo600, borderWidth: 2 },
   error: { marginTop: spacing.xxs + 2, ...typography.error },
 });

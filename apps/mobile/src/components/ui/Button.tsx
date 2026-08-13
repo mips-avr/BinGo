@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -31,9 +32,12 @@ export function Button({
   testID,
   style,
   accessibilityLabel,
+  onHoverIn,
+  onHoverOut,
   ...rest
 }: ButtonProps) {
   const isDisabled = Boolean(disabled || loading);
+  const [hovered, setHovered] = useState(false);
   const containerStyle =
     variant === 'primary'
       ? buttonStyles.primary
@@ -48,11 +52,20 @@ export function Button({
       accessibilityState={{ disabled: isDisabled, busy: loading }}
       testID={testID}
       disabled={isDisabled}
+      onHoverIn={(event) => {
+        setHovered(true);
+        onHoverIn?.(event);
+      }}
+      onHoverOut={(event) => {
+        setHovered(false);
+        onHoverOut?.(event);
+      }}
       style={({ pressed }) => [
         buttonStyles.base,
         size === 'sm' ? buttonStyles.sizeSm : buttonStyles.sizeMd,
         containerStyle,
         isDisabled ? buttonStyles.disabled : null,
+        hovered && !isDisabled ? buttonStyles.hovered : null,
         pressed && !isDisabled ? buttonStyles.pressed : null,
         style,
       ]}
@@ -110,6 +123,7 @@ const buttonStyles = StyleSheet.create({
   },
   ghost: { backgroundColor: 'transparent' },
   pressed: { opacity: 0.88 },
+  hovered: { opacity: 0.94, transform: [{ translateY: -1 }], cursor: 'pointer' },
   disabled: { opacity: 0.55 },
   label: { fontSize: 16, fontWeight: '700' },
   labelSm: { fontSize: 14 },

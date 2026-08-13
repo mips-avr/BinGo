@@ -105,10 +105,7 @@ Project Vercel terpisah, root `apps/mobile`. Deploy dilakukan
 | Secret | `VERCEL_TOKEN` | Account Settings → Tokens |
 | Secret | `VERCEL_ORG_ID` | dari `apps/mobile/.vercel/project.json` |
 | Secret | `VERCEL_WEB_PROJECT_ID` | project id web |
-| Variable | `EXPO_PUBLIC_API_BASE_URL` | `https://bingo-api.onrender.com` |
-
-`MIGRATE_DATABASE_URL` dan `VERCEL_BACKEND_PROJECT_ID` hanya dibutuhkan bila
-kembali ke jalur Vercel.
+| Variable | `EXPO_PUBLIC_API_BASE_URL` | `https://bingo-api-j4j6.onrender.com` |
 
 ---
 
@@ -117,7 +114,7 @@ kembali ke jalur Vercel.
 ```
 1. Neon dibuat, CREATE EXTENSION postgis
 2. Render Blueprint dibuat, env diisi, tunggu deploy pertama selesai
-3. curl https://bingo-api.onrender.com/health   -> harus 200
+3. curl https://bingo-api-j4j6.onrender.com/health   -> harus 200
 4. Seed dari laptop
 5. Set variable EXPO_PUBLIC_API_BASE_URL ke domain Render itu
 6. Jalankan Frontend CD
@@ -130,14 +127,8 @@ salah.
 
 ---
 
-## 6. Jalur Vercel sebagai cadangan
+## 6. Target deployment yang dipakai
 
-Berkas `apps/backend/{api/index.js,src/serverless.ts,vercel.json}` sengaja
-dipertahankan. Keduanya tidak mengganggu Render — `main.ts` yang dipakai di sana
-— tetapi membuat backend bisa dipindahkan ke Vercel dalam hitungan menit bila
-Render bermasalah di hari-H.
-
-Bedanya: Vercel cold start 1–3 detik (bukan 50), tetapi ThrottlerGuard jadi
-per-instance dan unggahan wajib lewat Blob. Jalankan `backend-cd.yml` secara
-manual, dan isi secret `MIGRATE_DATABASE_URL` serta
-`VERCEL_BACKEND_PROJECT_ID`.
+Backend produksi hanya memakai Render. Frontend produksi hanya memakai project
+Vercel `bingo-web`. Project backend Vercel dan project web percobaan telah
+dihapus agar tidak ada domain mati yang keliru dianggap sebagai production.

@@ -1,4 +1,4 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { RoleDashboard } from '@bingo/shared-types';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card } from '../ui/Card';
@@ -14,7 +14,7 @@ export function RoleDashboardView({ query }: { query: { data?: RoleDashboard; is
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={query.isFetching && !query.isLoading} onRefresh={() => query.refetch()} tintColor={colors.bingo700} />}
       >
-        <View style={styles.brandRow}><Text style={styles.brand}>BinGo</Text><Text style={styles.demo}>DEMO</Text></View>
+        {Platform.OS !== 'web' ? <View style={styles.brandRow}><Text style={styles.brand}>BinGo</Text><Text style={styles.demo}>DEMO</Text></View> : null}
         {query.isLoading ? <SkeletonList count={4} /> : query.isError ? <ErrorState message={extractApiErrorMessage(query.error)} onRetry={() => query.refetch()} /> : query.data ? <DashboardContent data={query.data} /> : null}
       </ScrollView>
     </SafeAreaView>

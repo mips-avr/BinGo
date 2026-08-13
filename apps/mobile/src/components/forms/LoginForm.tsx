@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { isValidPhoneID } from '@bingo/shared-utils';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
-import { spacing } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
@@ -24,6 +24,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitError, setSubmitError] = useState('');
 
   function validate(): FormErrors {
     const next: FormErrors = {};
@@ -37,6 +38,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
   }
 
   async function handleSubmit() {
+    setSubmitError('');
     const issues = validate();
     setErrors(issues);
     if (Object.keys(issues).length > 0) return;
@@ -45,7 +47,7 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
       await login({ phone, password });
       onSuccess?.();
     } catch (err) {
-      Alert.alert(t.common.error, extractApiErrorMessage(err, t.auth.loginFailed));
+      setSubmitError(extractApiErrorMessage(err, t.auth.loginFailed));
     }
   }
 
@@ -70,7 +72,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
         onChangeText={setPassword}
         error={errors.password}
         testID="login-password"
+        onSubmitEditing={handleSubmit}
       />
+      {submitError ? (
+        <View style={formS.errorBox} accessibilityLiveRegion="polite">
+          <Text style={formS.errorTitle}>Masuk belum berhasil</Text>
+          <Text style={formS.errorText}>{submitError}</Text>
+        </View>
+      ) : null}
       <Button
         label={t.auth.login}
         onPress={handleSubmit}
@@ -84,4 +93,14 @@ export function LoginForm({ onSuccess }: LoginFormProps) {
 
 const formS = StyleSheet.create({
   submit: { marginTop: spacing.xs },
+  errorBox: {
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.red500,
+    backgroundColor: colors.red100,
+  },
+  errorTitle: { color: colors.red700, fontSize: 14, fontWeight: '800' },
+  errorText: { marginTop: 2, color: colors.red700, fontSize: 13, lineHeight: 18 },
 });

@@ -1,7 +1,6 @@
 jest.mock('expo-secure-store');
 jest.mock('../../../features/auth/api');
 
-import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { LoginForm } from '../LoginForm';
 import { loginApi } from '../../../features/auth/api';
@@ -55,17 +54,14 @@ describe('<LoginForm />', () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalled());
   });
 
-  it('menampilkan Alert berbahasa Indonesia saat API gagal', async () => {
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+  it('menampilkan galat inline berbahasa Indonesia saat API gagal', async () => {
     (loginApi as jest.Mock).mockRejectedValue(new Error('Nomor telepon atau kata sandi salah'));
 
-    const { getByTestId } = render(<LoginForm />);
+    const { getByTestId, findByText } = render(<LoginForm />);
     fireEvent.changeText(getByTestId('login-phone'), '08123456789');
     fireEvent.changeText(getByTestId('login-password'), 'rahasia123');
     fireEvent.press(getByTestId('login-submit'));
 
-    await waitFor(() => expect(alertSpy).toHaveBeenCalled());
-    const message = alertSpy.mock.calls[0]?.[1] as string;
-    expect(message).toMatch(/Nomor telepon atau kata sandi salah/i);
+    expect(await findByText(/Nomor telepon atau kata sandi salah/i)).toBeTruthy();
   });
 });

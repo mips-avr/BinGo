@@ -1,8 +1,10 @@
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { PointsBadge } from '../ui/PointsBadge';
 import { VerificationBadge, verificationLevelSummary } from '../agent/VerificationBadge';
 import { colors, radius, spacing, shadow, typography } from '../../theme';
@@ -37,17 +39,12 @@ export function ProfileView({ footer }: ProfileViewProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const insets = useSafeAreaInsets();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
 
   if (!user) return null;
 
-  function confirmLogout() {
-    Alert.alert(t.profile.logoutConfirmTitle, t.profile.logoutConfirmMessage, [
-      { text: t.common.cancel, style: 'cancel' },
-      { text: t.auth.logout, style: 'destructive', onPress: () => logout() },
-    ]);
-  }
-
   return (
+    <>
     <ScrollView
       style={profileS.scroll}
       contentContainerStyle={[
@@ -111,11 +108,21 @@ export function ProfileView({ footer }: ProfileViewProps) {
       <Button
         label={t.auth.logout}
         variant="secondary"
-        onPress={confirmLogout}
+        onPress={() => setConfirmingLogout(true)}
         testID="logout-button"
         style={profileS.logout}
       />
     </ScrollView>
+    <ConfirmDialog
+      visible={confirmingLogout}
+      title={t.profile.logoutConfirmTitle}
+      message={t.profile.logoutConfirmMessage}
+      confirmLabel={t.auth.logout}
+      destructive
+      onCancel={() => setConfirmingLogout(false)}
+      onConfirm={logout}
+    />
+    </>
   );
 }
 

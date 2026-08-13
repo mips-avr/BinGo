@@ -16,6 +16,7 @@ env:
   CI: 'true'
   EXPO_NO_TELEMETRY: '1'
   EXPO_NO_GIT_STATUS: '1'
+  EXPO_NO_DOTENV: '1'
   # Tanpa nilai cadangan. Cadangan sebelumnya menunjuk backend Vercel yang
   # sudah tidak dipakai, jadi APK rilis diam-diam dibangun memanggil alamat
   # mati. app.config.ts kini menghentikan build di CI bila variabel ini kosong.

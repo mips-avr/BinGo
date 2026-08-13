@@ -108,9 +108,10 @@ jobs:
         env:
           EXPO_PUBLIC_API_BASE_URL: ${{ vars.EXPO_PUBLIC_API_BASE_URL }}
           EXPO_PUBLIC_WEB_BUILD: '1'
+          EXPO_NO_DOTENV: '1'
         run: |
           pnpm shared:build
-          pnpm --filter @bingo/mobile exec expo export --platform web --output-dir dist
+          pnpm --filter @bingo/mobile exec expo export --clear --platform web --output-dir dist
 
       # Satu pemeriksaan, bukan grep ke seluruh bundel.
       #

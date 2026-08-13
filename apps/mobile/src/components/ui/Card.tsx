@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, View, type ViewProps } from 'react-native';
 import { colors, radius, spacing, shadow } from '../../theme';
 
@@ -14,6 +15,7 @@ export function Card({
   accessibilityRole,
   ...rest
 }: CardProps) {
+  const [hovered, setHovered] = useState(false);
   const baseStyle = [cardStyles.container, padded ? cardStyles.padded : null, style];
 
   if (onPress) {
@@ -22,7 +24,13 @@ export function Card({
       // `accessibilityLabel` diam-diam hilang pada setiap kartu yang bisa ditekan.
       <Pressable
         onPress={onPress}
-        style={({ pressed }) => [...baseStyle, pressed ? cardStyles.pressed : null]}
+        onHoverIn={() => setHovered(true)}
+        onHoverOut={() => setHovered(false)}
+        style={({ pressed }) => [
+          ...baseStyle,
+          hovered ? cardStyles.hovered : null,
+          pressed ? cardStyles.pressed : null,
+        ]}
         accessibilityRole={accessibilityRole ?? 'button'}
         {...rest}
       >
@@ -50,5 +58,10 @@ const cardStyles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  hovered: {
+    borderColor: colors.bingo200,
+    transform: [{ translateY: -1 }],
+    cursor: 'pointer',
   },
 });

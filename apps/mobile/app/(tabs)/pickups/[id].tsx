@@ -1,9 +1,11 @@
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { formatWaktuID } from '@bingo/shared-utils';
 import { Card } from '../../../src/components/ui/Card';
 import { Button } from '../../../src/components/ui/Button';
+import { ConfirmDialog } from '../../../src/components/ui/ConfirmDialog';
 import { StatusBadge } from '../../../src/components/ui/StatusBadge';
 import { ScreenHeader } from '../../../src/components/ui/ScreenHeader';
 import { useCancelPickup, usePickup } from '../../../src/features/pickups/hooks';
@@ -24,23 +26,17 @@ export default function PickupDetail() {
   // penyetornya tidak menyelesaikan apa pun.
   const { receipt } = useReceiptForPickup(id);
   const bottomInset = useBottomInset();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
-  function confirmCancel() {
-    Alert.alert(t.pickup.cancelConfirm, undefined, [
-      { text: t.common.cancel, style: 'cancel' },
-      {
-        text: t.pickup.cancel,
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await cancel.mutateAsync(id);
-            router.back();
-          } catch (err) {
-            Alert.alert(t.common.error, extractApiErrorMessage(err, t.common.error));
-          }
-        },
-      },
-    ]);
+  async function cancelPickup() {
+    try {
+      await cancel.mutateAsync(id);
+      setConfirmingCancel(false);
+      router.back();
+    } catch (err) {
+      setConfirmingCancel(false);
+      Alert.alert(t.common.error, extractApiErrorMessage(err, t.common.error));
+    }
   }
 
   if (query.isLoading) {
@@ -68,6 +64,7 @@ export default function PickupDetail() {
   const p = query.data;
 
   return (
+    <>
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScreenHeader title={t.pickup.detailTitle} subtitle={p.address} />
       <ScrollView
@@ -121,13 +118,23 @@ export default function PickupDetail() {
             <Button
               label={t.pickup.cancel}
               variant="secondary"
-              onPress={confirmCancel}
+              onPress={() => setConfirmingCancel(true)}
               loading={cancel.isPending}
             />
           </View>
         ) : null}
       </ScrollView>
     </SafeAreaView>
+    <ConfirmDialog
+      visible={confirmingCancel}
+      title={t.pickup.cancelConfirm}
+      confirmLabel={t.pickup.cancel}
+      destructive
+      loading={cancel.isPending}
+      onCancel={() => setConfirmingCancel(false)}
+      onConfirm={cancelPickup}
+    />
+    </>
   );
 }
 

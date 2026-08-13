@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialType, type LatLng } from '@bingo/shared-types';
@@ -67,9 +67,7 @@ export default function NewPickupScreen() {
         estimatedWeightKg: Number(weight.replace(',', '.')),
         notes: notes.trim() || undefined,
       });
-      Alert.alert(t.common.success, t.pickup.createSuccess, [
-        { text: t.common.ok, onPress: () => router.back() },
-      ]);
+      router.back();
     } catch (err) {
       setSubmitError(extractApiErrorMessage(err, t.common.error));
     }

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { isValidPhoneID } from '@bingo/shared-utils';
 import type { UserRole } from '@bingo/shared-types';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { useAuthStore } from '../../store/authStore';
 import { extractApiErrorMessage } from '../../lib/api/client';
-import { spacing } from '../../theme';
+import { colors, radius, spacing } from '../../theme';
 import { t } from '../../i18n';
 
 interface FormErrors {
@@ -41,6 +41,7 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
   const [password, setPassword] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [submitError, setSubmitError] = useState('');
 
   function validate(): FormErrors {
     const next: FormErrors = {};
@@ -54,6 +55,7 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
   }
 
   async function handleSubmit() {
+    setSubmitError('');
     const issues = validate();
     setErrors(issues);
     if (Object.keys(issues).length > 0) return;
@@ -68,7 +70,7 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
       });
       onSuccess?.();
     } catch (err) {
-      Alert.alert(t.common.error, extractApiErrorMessage(err, t.auth.registerFailed));
+      setSubmitError(extractApiErrorMessage(err, t.auth.registerFailed));
     }
   }
 
@@ -109,7 +111,14 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
         onChangeText={setPassword}
         error={errors.password}
         testID="register-password"
+        onSubmitEditing={handleSubmit}
       />
+      {submitError ? (
+        <View style={formS.errorBox} accessibilityLiveRegion="polite">
+          <Text style={formS.errorTitle}>Pendaftaran belum berhasil</Text>
+          <Text style={formS.errorText}>{submitError}</Text>
+        </View>
+      ) : null}
       <Button
         label={t.auth.register}
         onPress={handleSubmit}
@@ -123,4 +132,14 @@ export function RegisterForm({ role, onSuccess }: RegisterFormProps) {
 
 const formS = StyleSheet.create({
   submit: { marginTop: spacing.md },
+  errorBox: {
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.red500,
+    backgroundColor: colors.red100,
+  },
+  errorTitle: { color: colors.red700, fontSize: 14, fontWeight: '800' },
+  errorText: { marginTop: 2, color: colors.red700, fontSize: 13, lineHeight: 18 },
 });

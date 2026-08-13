@@ -43,7 +43,7 @@ Build mobile membaca URL backend melalui `EXPO_PUBLIC_API_BASE_URL`. Repository
 variable GitHub dengan nama yang sama harus berisi origin HTTPS backend, misalnya:
 
 ```text
-https://bingo-api.onrender.com
+https://bingo-api-j4j6.onrender.com
 ```
 
 Nilai ini dimasukkan saat build APK. Perubahan URL memerlukan build APK baru;
