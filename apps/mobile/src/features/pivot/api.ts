@@ -342,6 +342,10 @@ export async function createWeightEvent(input: Record<string, unknown>) {
   const response = await api.post('/api/v1/pivot/weight-events', input);
   return response.data;
 }
+export async function createStationWeight(input: Record<string, unknown>) {
+  const response = await api.post('/api/v1/pivot/weigh-stations/record', input);
+  return response.data;
+}
 export async function createIntakeBatch(input: { batchNo?: string } = {}) {
   const response = await api.post('/api/v1/pivot/manager/intake-batches', input);
   return response.data;

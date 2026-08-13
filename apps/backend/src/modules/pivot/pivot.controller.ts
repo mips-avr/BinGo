@@ -31,6 +31,7 @@ import {
   CreateOrderDto,
   CreateRequirementDto,
   CreateWeightEventDto,
+  CreateStationWeightDto,
   CreateWasteReportDto,
   IssueCollectorCardDto,
   MockPaymentDto,
@@ -351,6 +352,11 @@ export class PivotOperationsController {
     @Body() dto: CreateWeightEventDto,
   ) {
     return this.service.createWeightEvent(user.id, dto);
+  }
+  @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR')
+  @Post('weigh-stations/record')
+  stationWeight(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateStationWeightDto) {
+    return this.service.createStationWeight(user.id, dto);
   }
   @Roles('MANAGER_ADMIN', 'MANAGER_OPERATOR') @Post('manager/intake-batches') intakeBatch(
     @CurrentUser() user: AuthenticatedUser,

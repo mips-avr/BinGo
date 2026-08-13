@@ -9,10 +9,12 @@ import {
   useApproveBatch,
   useCreateIntakeBatch,
   useCreateWeight,
+  useCreateStationWeight,
   useManagerOperations,
 } from '../../src/features/pivot/hooks';
 import { extractApiErrorMessage } from '../../src/lib/api/client';
 import { DemoScale, ManualScale } from '../../src/features/weighing/ScaleAdapter';
+import { useNfcTag } from '../../src/features/nfc/useNfcTag';
 
 const directions = ['IN', 'SORTED_OUTPUT', 'RESIDUE'] as const;
 
@@ -20,12 +22,15 @@ export default function WeighingScreen() {
   const query = useManagerOperations();
   const createBatch = useCreateIntakeBatch();
   const createWeight = useCreateWeight();
+  const createStationWeight = useCreateStationWeight();
+  const nfc = useNfcTag();
   const approve = useApproveBatch();
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [weight, setWeight] = useState('10');
   const [direction, setDirection] = useState<(typeof directions)[number]>('IN');
   const [material, setMaterial] = useState('MIXED');
+  const [cardNumber, setCardNumber] = useState('BG-DEMO-0001');
   const batches = useMemo(
     () =>
       (query.data?.batches ?? []).filter((item: any) =>
@@ -53,15 +58,32 @@ export default function WeighingScreen() {
       const adapter =
         source === 'SIMULATOR' ? new DemoScale(Number(weight)) : new ManualScale(Number(weight));
       const reading = await adapter.read();
-      await createWeight.mutateAsync({
-        intakeBatchId: selected.id,
-        deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        direction,
-        material,
-        weightKg: reading.weightKg,
-        source: reading.source,
-      });
-      Alert.alert('Berat tercatat', `${reading.weightKg} kg berhasil ditambahkan ke batch.`);
+      const inputEvent = direction === 'IN';
+      const result = inputEvent
+        ? await createStationWeight.mutateAsync({
+            intakeBatchId: selected.id,
+            deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            cardCredential: cardNumber.trim(),
+            cardSource: cardNumber === 'BG-DEMO-0001' ? 'DEMO_CARD' : 'MANUAL_CARD_NUMBER',
+            direction,
+            material,
+            weightKg: reading.weightKg,
+            source: reading.source,
+          })
+        : await createWeight.mutateAsync({
+            intakeBatchId: selected.id,
+            deviceEventId: `weight-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            direction,
+            material,
+            weightKg: reading.weightKg,
+            source: reading.source,
+          });
+      Alert.alert(
+        'Berat tercatat',
+        inputEvent
+          ? `${result.collector.name} · ${reading.weightKg} kg`
+          : `${reading.weightKg} kg berhasil ditambahkan ke batch.`,
+      );
     } catch (error) {
       Alert.alert('Belum tercatat', extractApiErrorMessage(error));
     }
@@ -160,6 +182,30 @@ export default function WeighingScreen() {
               value={material}
               onChangeText={(value) => setMaterial(value.toUpperCase())}
             />
+            {direction === 'IN' ? (
+              <>
+                <Text style={masterText.secondary}>
+                  Tempelkan Kartu Petugas pada pembaca NFC stasiun timbang. Untuk demonstrasi web,
+                  gunakan nomor kartu tercetak.
+                </Text>
+                <Input
+                  label="Kartu Petugas"
+                  value={cardNumber}
+                  autoCapitalize="characters"
+                  onChangeText={(value) => setCardNumber(value.toUpperCase())}
+                />
+                <Button
+                  label={nfc.reading ? 'Membaca Kartu...' : 'Baca Kartu NFC'}
+                  variant="secondary"
+                  disabled={nfc.availability !== 'siap'}
+                  loading={nfc.reading}
+                  onPress={async () => {
+                    const credential = await nfc.readTag();
+                    if (credential) setCardNumber(credential.toUpperCase());
+                  }}
+                />
+              </>
+            ) : null}
             <Input
               label="Berat (kg)"
               value={weight}
@@ -168,14 +214,22 @@ export default function WeighingScreen() {
             />
             <Button
               label="Catat Manual"
-              loading={createWeight.isPending}
-              disabled={!Number.isFinite(Number(weight)) || Number(weight) <= 0}
+              loading={createWeight.isPending || createStationWeight.isPending}
+              disabled={
+                !Number.isFinite(Number(weight)) ||
+                Number(weight) <= 0 ||
+                (direction === 'IN' && cardNumber.trim().length < 3)
+              }
               onPress={() => record('MANUAL')}
             />
             <Button
               label="Gunakan Data Contoh"
               variant="secondary"
-              disabled={!Number.isFinite(Number(weight)) || Number(weight) <= 0}
+              disabled={
+                !Number.isFinite(Number(weight)) ||
+                Number(weight) <= 0 ||
+                (direction === 'IN' && cardNumber.trim().length < 3)
+              }
               onPress={() => record('SIMULATOR')}
             />
           </>

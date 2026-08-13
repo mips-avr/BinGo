@@ -58,6 +58,20 @@ export class CreateWeightEventDto {
   @IsOptional() @IsString() note?: string;
 }
 
+export class CreateStationWeightDto {
+  @IsString() intakeBatchId!: string;
+  @IsOptional() @IsString() sortingBatchId?: string;
+  @IsOptional() @IsString() scaleChannelId?: string;
+  @IsString() @Length(3, 100) cardCredential!: string;
+  @IsString() @Length(3, 32) cardSource!: string;
+  @IsString() @Length(5, 100) deviceEventId!: string;
+  @IsEnum(WeightDirection) direction!: WeightDirection;
+  @IsEnum(WeightSource) source!: WeightSource;
+  @IsEnum(MaterialType) material!: MaterialType;
+  @Transform(({ value }) => Number(value)) @IsNumber() @Min(0.01) weightKg!: number;
+  @IsOptional() @IsString() note?: string;
+}
+
 export class CreateIntakeBatchDto {
   @IsOptional() @IsString() stationId?: string;
   @IsOptional() @IsString() @Length(3, 80) batchNo?: string;

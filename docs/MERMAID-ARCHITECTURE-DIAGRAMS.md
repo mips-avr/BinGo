@@ -15,7 +15,7 @@ Dokumen ini merangkum arsitektur MVP BinGo lima role dalam format Mermaid. Diagr
 9. Sequence Registrasi dan Verifikasi Organisasi
 10. Sequence Layanan Warga dan Pembayaran
 11. Sequence Rute Pengumpulan
-12. Sequence NFC dan Sinkronisasi Offline
+12. Sequence NFC pada Stasiun Timbang
 13. Sequence Penimbangan, Pemilahan, dan Inventory
 14. Sequence Marketplace Material
 15. Sequence Pelaporan Sampah Liar
@@ -423,48 +423,34 @@ sequenceDiagram
     API->>DB: Complete run when all stops terminal
 ```
 
-## 12. Sequence NFC dan Sinkronisasi Offline
+## 12. Sequence NFC pada Stasiun Timbang
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Collector as Petugas
-    participant Reader as CardReaderAdapter
-    participant APK as BinGo APK
-    participant Queue as Encrypted Queue
+    actor Operator as Operator Pengelola
+    participant Reader as Pembaca NFC Stasiun
+    participant Scale as Timbangan
+    participant UI as Dashboard Timbang
     participant API as BinGo API
     participant DB as PostgreSQL
 
-    alt Android NFC tersedia
-        Collector->>Reader: Tap kartu fisik
-        Reader-->>APK: credential + ANDROID_NFC
-    else Nomor kartu manual
-        Collector->>Reader: Ketik nomor kartu
-        Reader-->>APK: credential + MANUAL
-    else Simulator
-        Collector->>Reader: Tap Kartu Demo
-        Reader-->>APK: demo credential + DEMO
-    end
+    Collector->>Reader: Tempelkan Kartu Petugas
+    Reader-->>UI: Credential kartu
+    Operator->>Scale: Pilih material dan stabilkan muatan
+    Scale-->>UI: Berat stabil + sumber pembacaan
+    UI->>UI: Generate deviceEventId
+    UI->>API: POST /pivot/weigh-stations/record
 
-    APK->>APK: Generate deviceEventId
-    APK->>API: POST /pivot/cards/tap
-
-    alt Online dan event baru
-        API->>DB: Resolve hashed credential and active assignment
-        API->>DB: Store idempotent activity
-        API-->>APK: accepted
-    else Event pernah diterima
-        API-->>APK: duplicate
-    else Tidak ada jaringan
-        APK->>Queue: Encrypt and enqueue event
-        Queue-->>APK: queued
-    end
-
-    Collector->>APK: Sinkronkan setelah online
-    loop Setiap queued event
-        APK->>API: Send event with same deviceEventId
-        API-->>APK: accepted / duplicate / rejected
-        APK->>Queue: Remove accepted or duplicate event
+    alt Kartu aktif dan event baru
+        API->>DB: Resolve hashed credential dalam organisasi
+        API->>DB: Transaction CardTapEvent + WeightEvent collectorId
+        API-->>UI: accepted + identitas Petugas + berat
+    else Device event pernah diterima
+        API-->>UI: duplicate tanpa menggandakan berat
+    else Kartu tidak aktif atau lintas organisasi
+        API-->>UI: rejected
     end
 ```
 
@@ -475,7 +461,7 @@ sequenceDiagram
     autonumber
     actor Operator as Operator Pengelola
     participant UI as Dashboard Timbang
-    participant Scale as ScaleAdapter
+    participant Scale as ScaleAdapter dan CardReaderAdapter
     participant API as BinGo API
     participant DB as PostgreSQL
 
@@ -485,9 +471,10 @@ sequenceDiagram
     API-->>UI: Batch number
 
     loop Berat masuk dan keluaran
-        Operator->>Scale: Ambil bacaan manual atau simulator
-        Scale-->>UI: weightKg + source
-        UI->>API: POST /pivot/weight-events + deviceEventId
+        Operator->>Scale: Baca kartu untuk IN dan ambil berat
+        Scale-->>UI: credential + weightKg + source
+        UI->>API: POST /pivot/weigh-stations/record untuk IN
+        UI->>API: POST /pivot/weight-events untuk hasil pemilahan
         API->>DB: Append WeightEvent
         API-->>UI: accepted / duplicate
     end

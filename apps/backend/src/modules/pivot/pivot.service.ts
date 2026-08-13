@@ -30,6 +30,7 @@ import type {
   CreateOrderDto,
   CreateRequirementDto,
   CreateWeightEventDto,
+  CreateStationWeightDto,
   MockPaymentDto,
   ReceiveOrderDto,
   UpdateApplicationDto,
@@ -798,19 +799,32 @@ export class PivotService {
     });
     if (!collector) throw new NotFoundException('Profil Petugas tidak ditemukan');
     this.assertOrganizationActive(collector.organization.status);
-    const run = await this.prisma.collectionRun.findFirst({
-      where: {
-        assignments: { some: { collectorId: collector.id } },
-        status: { in: ['PLANNED', 'IN_PROGRESS'] },
-      },
-      include: {
-        route: { include: { stops: { orderBy: { sequence: 'asc' } } } },
-        vehicle: true,
-        assignments: true,
-      },
-      orderBy: { scheduledFor: 'asc' },
-    });
-    return { collector, run };
+    const [run, recentWeights] = await Promise.all([
+      this.prisma.collectionRun.findFirst({
+        where: {
+          assignments: { some: { collectorId: collector.id } },
+          status: { in: ['PLANNED', 'IN_PROGRESS'] },
+        },
+        include: {
+          route: { include: { stops: { orderBy: { sequence: 'asc' } } } },
+          vehicle: true,
+          assignments: true,
+        },
+        orderBy: { scheduledFor: 'asc' },
+      }),
+      this.prisma.weightEvent.findMany({
+        where: { collectorId: collector.id, direction: 'IN' },
+        include: { intakeBatch: { include: { station: true } } },
+        orderBy: { occurredAt: 'desc' },
+        take: 20,
+      }),
+    ]);
+    return {
+      collector,
+      run,
+      recentWeights,
+      totalWeightKg: recentWeights.reduce((sum, event) => sum + Number(event.weightKg), 0),
+    };
   }
 
   async updateStop(userId: string, stopId: string, dto: UpdateStopDto) {
@@ -1377,6 +1391,99 @@ export class PivotService {
     });
     await this.recalculateBatch(batch.id);
     return { deviceEventId: dto.deviceEventId, result: 'accepted', event };
+  }
+
+  async createStationWeight(userId: string, dto: CreateStationWeightDto) {
+    if (dto.direction !== 'IN')
+      throw new BadRequestException(
+        'Pencatatan dengan Kartu Petugas hanya digunakan untuk berat masuk',
+      );
+    const duplicate = await this.prisma.weightEvent.findUnique({
+      where: { deviceEventId: dto.deviceEventId },
+      include: { collector: { include: { user: true } } },
+    });
+    if (duplicate)
+      return {
+        deviceEventId: dto.deviceEventId,
+        result: 'duplicate',
+        event: duplicate,
+        collector: duplicate.collector
+          ? {
+              id: duplicate.collector.id,
+              employeeNo: duplicate.collector.employeeNo,
+              name: duplicate.collector.user.name,
+            }
+          : null,
+      };
+
+    const membership = await this.membership(userId, ['MANAGER']);
+    this.assertOrganizationActive(membership.organization.status);
+    const batch = await this.prisma.intakeBatch.findFirst({
+      where: { id: dto.intakeBatchId, organizationId: membership.organizationId },
+    });
+    if (!batch) throw new NotFoundException('Batch tidak ditemukan');
+    if (batch.status === 'APPROVED')
+      throw new ConflictException('Batch yang disahkan tidak dapat menerima timbang baru');
+
+    const credential = dto.cardCredential.trim().toUpperCase();
+    const uidHash = createHash('sha256').update(credential).digest('hex');
+    const card = await this.prisma.collectorCard.findFirst({
+      where: {
+        active: true,
+        collector: { organizationId: membership.organizationId, active: true },
+        OR: [{ cardNumber: credential }, { uidHash }],
+      },
+      include: { collector: { include: { user: true } } },
+    });
+    if (!card) throw new NotFoundException('Kartu Petugas tidak aktif pada Pengelola ini');
+
+    if (dto.scaleChannelId) {
+      const channel = await this.prisma.scaleChannel.findFirst({
+        where: {
+          id: dto.scaleChannelId,
+          active: true,
+          station: { id: batch.stationId, organizationId: membership.organizationId },
+        },
+      });
+      if (!channel) throw new NotFoundException('Kanal timbang aktif tidak ditemukan');
+    }
+
+    const event = await this.prisma.$transaction(async (tx) => {
+      await tx.cardTapEvent.create({
+        data: {
+          cardId: card.id,
+          userId,
+          organizationId: membership.organizationId,
+          deviceEventId: `tap-${dto.deviceEventId}`,
+          source: dto.cardSource,
+        },
+      });
+      return tx.weightEvent.create({
+        data: {
+          intakeBatchId: dto.intakeBatchId,
+          sortingBatchId: dto.sortingBatchId,
+          collectorId: card.collectorId,
+          scaleChannelId: dto.scaleChannelId,
+          deviceEventId: dto.deviceEventId,
+          direction: dto.direction,
+          source: dto.source,
+          material: dto.material,
+          weightKg: new Prisma.Decimal(dto.weightKg),
+          note: dto.note,
+        },
+      });
+    });
+    await this.recalculateBatch(batch.id);
+    return {
+      deviceEventId: dto.deviceEventId,
+      result: 'accepted',
+      event,
+      collector: {
+        id: card.collector.id,
+        employeeNo: card.collector.employeeNo,
+        name: card.collector.user.name,
+      },
+    };
   }
 
   private async recalculateBatch(batchId: string) {

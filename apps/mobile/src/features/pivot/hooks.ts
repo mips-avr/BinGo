@@ -26,6 +26,7 @@ import {
   createOrder,
   receiveOrder,
   createWeightEvent,
+  createStationWeight,
   createIntakeBatch,
   approveBatch,
   updateMyApplication,
@@ -564,6 +565,13 @@ export function useCreateWeight() {
   const q = useQueryClient();
   return useMutation({
     mutationFn: createWeightEvent,
+    onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
+  });
+}
+export function useCreateStationWeight() {
+  const q = useQueryClient();
+  return useMutation({
+    mutationFn: createStationWeight,
     onSuccess: () => q.invalidateQueries({ queryKey: pivotKeys.manager }),
   });
 }

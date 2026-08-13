@@ -123,18 +123,18 @@ Jangan memakai nomor atau dokumen identitas nyata. Semua data buatan tester haru
 
 ## 8. Golden Path Petugas
 
-| ID     | Kanal   | Langkah                                          | Hasil yang diharapkan                                        | Hasil | Catatan |
-| ------ | ------- | ------------------------------------------------ | ------------------------------------------------------------ | ----- | ------- |
-| COL-01 | APK     | Buka Hari Ini                                    | Tugas aktif, jumlah titik, dan status tampil                 |       |         |
-| COL-02 | APK     | Buka Rute dan mulai titik pertama                | Status perhentian berubah dan waktunya tercatat              |       |         |
-| COL-03 | APK     | Tandai kendala pada titik                        | Catatan kendala tersimpan dan terlihat Pengelola             |       |         |
-| COL-04 | APK     | Selesaikan perhentian                            | Status menjadi selesai dan tidak dapat diselesaikan dua kali |       |         |
-| COL-05 | APK NFC | Tap kartu fisik yang terdaftar                   | Identitas Petugas dan organisasi ditemukan                   |       |         |
-| COL-06 | APK     | Masukkan nomor kartu tercetak                    | Jalur backend sama dengan NFC dan event diterima             |       |         |
-| COL-07 | APK/Web | Tap Kartu Demo                                   | Event berlabel Demo dan diterima                             |       |         |
-| COL-08 | API     | Kirim `deviceEventId` yang sama dua kali         | Hasil kedua `duplicate`; aktivitas tidak berlipat            |       |         |
-| COL-09 | APK     | Putus jaringan, lakukan event, lalu buka Riwayat | Event masuk antrean offline terenkripsi                      |       |         |
-| COL-10 | APK     | Sambungkan jaringan dan Sinkronkan sekarang      | Hasil accepted/duplicate/rejected tampil; antrean berkurang  |       |         |
+| ID     | Kanal       | Langkah                                          | Hasil yang diharapkan                                           | Hasil | Catatan |
+| ------ | ----------- | ------------------------------------------------ | --------------------------------------------------------------- | ----- | ------- |
+| COL-01 | APK         | Buka Hari Ini                                    | Tugas aktif, jumlah titik, dan status tampil                    |       |         |
+| COL-02 | APK         | Buka Rute dan mulai titik pertama                | Status perhentian berubah dan waktunya tercatat                 |       |         |
+| COL-03 | APK         | Tandai kendala pada titik                        | Catatan kendala tersimpan dan terlihat Pengelola                |       |         |
+| COL-04 | APK         | Selesaikan perhentian                            | Status menjadi selesai dan tidak dapat diselesaikan dua kali    |       |         |
+| COL-05 | Stasiun NFC | Tap kartu fisik pada mesin timbang               | Identitas Petugas ditemukan sebelum berat disahkan              |       |         |
+| COL-06 | Web         | Gunakan nomor kartu tercetak pada mode cadangan  | Jalur backend sama dengan pembaca NFC stasiun                   |       |         |
+| COL-07 | Web         | Timbang kartu Demo dan berat contoh              | Satu WeightEvent mencatat Petugas, stasiun, material, dan berat |       |         |
+| COL-08 | API         | Kirim `deviceEventId` timbang yang sama dua kali | Hasil kedua `duplicate`; berat tidak berlipat                   |       |         |
+| COL-09 | APK         | Buka Kontribusi Timbang                          | Riwayat dan total berat yang terhubung ke akun Petugas tampil   |       |         |
+| COL-10 | Web         | Gunakan kartu tidak aktif                        | Timbang ditolak dan tidak membuat WeightEvent                   |       |         |
 
 ## 9. Golden Path Business/Pengolah
 

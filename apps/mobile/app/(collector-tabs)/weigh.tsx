@@ -1,81 +1,78 @@
-import { Alert, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
-import { Button } from '../../src/components/ui/Button';
-import { Input } from '../../src/components/ui/Input';
-import { useTapCard } from '../../src/features/pivot/hooks';
-import { useNfcTag } from '../../src/features/nfc/useNfcTag';
-import { DemoCardReader, ManualCardNumberReader } from '../../src/features/nfc/CardReaderAdapter';
-import { screenStyles, spacing } from '../../src/theme';
+import { Card } from '../../src/components/ui/Card';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { SkeletonList } from '../../src/components/ui/Skeleton';
+import { useCollectorToday } from '../../src/features/pivot/hooks';
+import { colors, fonts, screenStyles, spacing } from '../../src/theme';
 
 export default function Screen() {
-  const [card, setCard] = useState('BG-DEMO-0001');
-  const mutation = useTapCard();
-  const nfc = useNfcTag();
-  const submit = (credential: string, source: string) =>
-    mutation.mutate(
-      { credential, source },
-      {
-        onSuccess: (result: any) =>
-          Alert.alert(
-            result.result === 'accepted'
-              ? 'Kartu dikenali'
-              : result.result === 'queued'
-                ? 'Disimpan offline'
-                : 'Tap tidak diproses',
-            result.result === 'accepted'
-              ? `Petugas ${result.collector.employeeNo} tercatat.`
-              : (result.reason ?? result.result),
-          ),
-      },
-    );
+  const query = useCollectorToday();
   return (
     <SafeAreaView style={styles.root}>
-      <Text style={screenStyles.screenTitle}>Kartu Petugas</Text>
-      <Text style={styles.body}>
-        Gunakan NFC atau masukkan nomor yang tercetak pada kartu Petugas.
-      </Text>
-      <Button
-        label={
-          nfc.reading
-            ? 'Membaca NFC...'
-            : nfc.availability === 'siap'
-              ? 'Tap NFC Android'
-              : 'NFC tidak tersedia'
-        }
-        disabled={nfc.availability !== 'siap'}
-        loading={nfc.reading}
-        onPress={async () => {
-          const credential = await nfc.readTag();
-          if (credential) submit(credential, 'ANDROID_NFC');
-        }}
-      />
-      <Text style={styles.divider}>atau gunakan nomor kartu</Text>
-      <Input label="Nomor kartu" value={card} onChangeText={setCard} />
-      <Button
-        label="Catat Nomor Kartu"
-        variant="secondary"
-        loading={mutation.isPending}
-        onPress={async () => {
-          const value = await new ManualCardNumberReader(card).read();
-          if (value) submit(value.credential, value.source);
-        }}
-      />
-      <Button
-        label="Gunakan Kartu Contoh"
-        variant="ghost"
-        loading={mutation.isPending}
-        onPress={async () => {
-          const value = await new DemoCardReader().read();
-          if (value) submit(value.credential, value.source);
-        }}
-        style={{ marginTop: spacing.sm }}
-      />
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={screenStyles.screenTitle}>Kontribusi Timbang</Text>
+        <Text style={styles.body}>
+          Tempelkan Kartu Petugas pada pembaca NFC di stasiun timbang. Berat akan otomatis terhubung
+          ke akun Anda setelah dikonfirmasi operator.
+        </Text>
+        {query.isLoading ? (
+          <SkeletonList count={3} />
+        ) : query.isError ? (
+          <ErrorState
+            message="Riwayat timbang belum dapat dimuat"
+            onRetry={() => query.refetch()}
+          />
+        ) : (
+          <>
+            <Card>
+              <Text style={styles.label}>TOTAL KONTRIBUSI TERBARU</Text>
+              <Text style={styles.total}>
+                {Number(query.data?.totalWeightKg ?? 0).toFixed(1)} kg
+              </Text>
+            </Card>
+            <Text style={styles.sectionTitle}>Riwayat Terakhir</Text>
+            {(query.data?.recentWeights ?? []).map((event: any) => (
+              <Card key={event.id} style={styles.eventCard}>
+                <View style={styles.row}>
+                  <View style={styles.eventCopy}>
+                    <Text style={styles.eventTitle}>{event.material}</Text>
+                    <Text style={styles.meta}>{event.intakeBatch.station.name}</Text>
+                    <Text style={styles.meta}>
+                      {new Date(event.occurredAt).toLocaleString('id-ID')}
+                    </Text>
+                  </View>
+                  <Text style={styles.weight}>{Number(event.weightKg).toFixed(1)} kg</Text>
+                </View>
+              </Card>
+            ))}
+          </>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, padding: spacing.lg },
-  body: { marginVertical: spacing.md, fontSize: 15, lineHeight: 22 },
-  divider: { textAlign: 'center', marginVertical: spacing.md, fontSize: 13 },
+  root: { flex: 1, backgroundColor: colors.neutral50 },
+  content: { padding: spacing.lg, paddingBottom: 100 },
+  body: { marginVertical: spacing.md, fontSize: 15, lineHeight: 22, color: colors.neutral700 },
+  label: { fontSize: 11, fontFamily: fonts.bold, color: colors.bingo700 },
+  total: {
+    marginTop: spacing.xs,
+    fontSize: 32,
+    fontFamily: fonts.extraBold,
+    color: colors.neutral900,
+  },
+  sectionTitle: {
+    marginVertical: spacing.md,
+    fontSize: 18,
+    fontFamily: fonts.bold,
+    color: colors.neutral900,
+  },
+  eventCard: { marginBottom: spacing.sm },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  eventCopy: { flex: 1, gap: 2 },
+  eventTitle: { fontSize: 15, fontFamily: fonts.bold, color: colors.neutral900 },
+  meta: { fontSize: 12, fontFamily: fonts.regular, color: colors.neutral600 },
+  weight: { fontSize: 17, fontFamily: fonts.bold, color: colors.bingo700 },
 });
