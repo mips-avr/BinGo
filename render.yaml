@@ -7,6 +7,7 @@
 # Root direktori sengaja akar repo, bukan apps/backend: ini monorepo pnpm dan
 # paket workspace (@bingo/shared-types, @bingo/shared-utils, @bingo/i18n)
 # berada di luar apps/backend. Build dari akar membuat semuanya ikut.
+
 services:
   - type: web
     name: bingo-api
@@ -37,7 +38,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: "22"
+        value: '22'
 
       # sync: false = nilainya diisi manual di dashboard dan TIDAK tersimpan di
       # repo. Render akan menanyakannya saat blueprint pertama kali dibuat.
