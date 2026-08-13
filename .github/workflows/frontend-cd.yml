@@ -172,42 +172,78 @@ jobs:
           echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
           echo "Deployed: $url"
 
-      # Dua hal diperiksa, dan keduanya pernah gagal dengan cara berbeda.
+      # URL unik hasil `vercel deploy` sering DILINDUNGI, sedangkan domain
+      # produksi tidak. Ketika Deployment Protection aktif, URL unik itu
+      # menjawab 302 ke SSO Vercel selamanya — menunggu tidak akan pernah
+      # menyembuhkannya, dan versi sebelumnya menunggu 30 kali sia-sia.
       #
-      # Pertama: MENUNGGU. `vercel deploy` kembali begitu deployment dibuat,
-      # bukan begitu ia siap melayani permintaan. Memanggil URL-nya seketika
-      # menghasilkan 404 dari deployment yang belum aktif — bukan dari rute
-      # yang salah. Versi sebelumnya gagal persis begitu, dalam 0 detik.
-      #
-      # Kedua: DUA PERMINTAAN, bukan satu. `/login` membuktikan rewrite SPA
-      # bekerja; bundel JS membuktikan `handle: filesystem` mendahuluinya.
-      # Kalau hanya /login yang diperiksa, konfigurasi yang menjawab
-      # index.html untuk SEMUA permintaan tetap lolos — dan itu persis bentuk
-      # halaman putih yang sudah dua kali terjadi.
+      # Karena itu targetnya dipilih, bukan diasumsikan: bila WEB_BASE_URL
+      # diset, itu yang diuji (domain yang benar-benar dipakai orang). Bila
+      # tidak, URL deployment dipakai apa adanya.
+      - name: Resolve smoke target
+        env:
+          WEB_BASE_URL: ${{ vars.WEB_BASE_URL }}
+        run: |
+          if [ -n "$WEB_BASE_URL" ]; then
+            echo "SMOKE_URL=${WEB_BASE_URL%/}" >> "$GITHUB_ENV"
+            echo "Menguji domain produksi: $WEB_BASE_URL"
+          else
+            echo "SMOKE_URL=$DEPLOY_URL" >> "$GITHUB_ENV"
+            echo "::warning::vars.WEB_BASE_URL belum diset. Menguji URL deployment unik, yang bisa terlindungi Deployment Protection. Set WEB_BASE_URL ke domain produksi (mis. https://bingo-web-delta.vercel.app) agar yang diuji adalah alamat yang benar-benar dipakai orang."
+            echo "Menguji URL deployment: $DEPLOY_URL"
+          fi
+
+      # Dua hal diperiksa. `/login` membuktikan rewrite SPA bekerja; bundel JS
+      # membuktikan `handle: filesystem` mendahuluinya. Kalau hanya /login yang
+      # diperiksa, konfigurasi yang menjawab index.html untuk SEMUA permintaan
+      # tetap lolos — dan itu persis bentuk halaman putih yang sudah dua kali
+      # terjadi.
       - name: Smoke test
         run: |
           set -uo pipefail
 
           code=000
-          for attempt in $(seq 1 30); do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$DEPLOY_URL/login" || echo 000)
+          for attempt in $(seq 1 20); do
+            out=$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 20 "$SMOKE_URL/login" || echo '000 -')
+            code=${out%% *}
+            location=${out#* }
             case "$code" in
-              200) echo "siap setelah percobaan $attempt"; break ;;
+              200)
+                echo "siap setelah percobaan $attempt"
+                break
+                ;;
+              30[0-9])
+                # Redirect ke domain lain berarti gerbang, bukan aplikasi.
+                case "$location" in
+                  *vercel.com*|*sso*)
+                    echo "::error::$SMOKE_URL/login dialihkan ke $location — Deployment Protection aktif."
+                    echo "Dua jalan keluar, pilih salah satu:"
+                    echo "  1. Vercel -> Project Settings -> Deployment Protection -> matikan."
+                    echo "  2. Set repository variable WEB_BASE_URL ke domain produksi yang publik."
+                    exit 1
+                    ;;
+                esac
+                echo "  percobaan $attempt: HTTP $code -> $location, menunggu"
+                sleep 5
+                ;;
               401|403)
-                echo "::error::/login menjawab HTTP $code — Deployment Protection aktif di proyek Vercel ini."
-                echo "Matikan di: Project Settings -> Deployment Protection."
+                echo "::error::$SMOKE_URL/login menjawab HTTP $code — Deployment Protection aktif."
+                echo "Matikan di Project Settings -> Deployment Protection, atau set WEB_BASE_URL."
                 exit 1
                 ;;
-              *) echo "  percobaan $attempt: HTTP $code, menunggu"; sleep 5 ;;
+              *)
+                echo "  percobaan $attempt: HTTP $code, menunggu"
+                sleep 5
+                ;;
             esac
           done
           if [ "$code" != "200" ]; then
-            echo "::error::/login tetap menjawab HTTP $code setelah 30 percobaan."
+            echo "::error::$SMOKE_URL/login tetap menjawab HTTP $code setelah 20 percobaan."
             exit 1
           fi
 
           bundle=$(cd apps/mobile/dist && ls _expo/static/js/web/*.js | head -1)
-          ctype=$(curl -sS -o /dev/null -w '%{content_type}' --max-time 20 "$DEPLOY_URL/$bundle")
+          ctype=$(curl -sSL -o /dev/null -w '%{content_type}' --max-time 20 "$SMOKE_URL/$bundle")
           echo "GET /$bundle -> $ctype"
           case "$ctype" in
             *javascript*) ;;
@@ -217,4 +253,4 @@ jobs:
               exit 1
               ;;
           esac
-          echo "Web OK: $DEPLOY_URL"
+          echo "Web OK: $SMOKE_URL"
