@@ -131,20 +131,69 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      # `vercel deploy dist` memperlakukan dist sebagai AKAR PROYEK, lalu
+      # menjalankan build-nya sendiri dan mencari Output Directory bernama
+      # "dist" di dalamnya. Tidak ada yang perlu dibangun dan folder itu tidak
+      # ada, jadi deploy gagal meski bundelnya sudah jadi dan sudah lolos
+      # verifikasi.
+      #
+      # Build Output API v3 menghindari seluruh persoalan itu: artefaknya
+      # diserahkan sudah jadi, dan Vercel tidak membangun apa pun. Efek
+      # sampingnya penting — pengaturan Framework/Build/Output di dashboard
+      # tidak lagi ikut menentukan hasil, sehingga deploy tidak bisa lagi rusak
+      # karena seseorang mengubah setelan proyek.
+      - name: Package for Vercel (Build Output API)
+        working-directory: apps/mobile
+        run: |
+          rm -rf .vercel/output
+          mkdir -p .vercel/output/static
+          cp -R dist/. .vercel/output/static/
+          # `handle: filesystem` dulu, baru fallback ke index.html. Tanpa
+          # urutan itu, setiap permintaan aset — termasuk bundel JS-nya
+          # sendiri — akan dijawab index.html dan halaman kembali putih.
+          cat > .vercel/output/config.json <<'JSON'
+          {
+            "version": 3,
+            "routes": [
+              { "handle": "filesystem" },
+              { "src": "/.*", "dest": "/index.html" }
+            ]
+          }
+          JSON
+          echo "Isi .vercel/output/static:"
+          ls .vercel/output/static
+
       - name: Deploy to Vercel
         working-directory: apps/mobile
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          url=$(vercel deploy dist --prod --yes --token="$VERCEL_TOKEN")
+          url=$(vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")
           echo "DEPLOY_URL=$url" >> "$GITHUB_ENV"
           echo "Deployed: $url"
 
+      # Dua permintaan, bukan satu. `/login` membuktikan rewrite SPA bekerja;
+      # bundel JS membuktikan `handle: filesystem` mendahuluinya. Kalau hanya
+      # /login yang diperiksa, konfigurasi rute yang menjawab index.html untuk
+      # SEMUA permintaan tetap lolos — dan itu persis bentuk halaman putih.
       - name: Smoke test
         run: |
+          set -uo pipefail
           code=$(curl -sS -o /dev/null -w '%{http_code}' "$DEPLOY_URL/login")
           if [ "$code" != "200" ]; then
             echo "::error::/login menjawab HTTP $code"
             exit 1
           fi
+
+          bundle=$(cd apps/mobile/dist && ls _expo/static/js/web/*.js | head -1)
+          ctype=$(curl -sS -o /dev/null -w '%{content_type}' "$DEPLOY_URL/$bundle")
+          echo "GET /$bundle -> $ctype"
+          case "$ctype" in
+            *javascript*) ;;
+            *)
+              echo "::error::Bundel JS dijawab sebagai '$ctype', bukan JavaScript."
+              echo "Rewrite SPA menelan permintaan aset — halaman akan putih."
+              exit 1
+              ;;
+          esac
           echo "Web OK: $DEPLOY_URL"
