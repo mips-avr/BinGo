@@ -14,7 +14,6 @@ concurrency:
 
 env:
   CI: 'true'
-  NODE_ENV: production
   EXPO_NO_TELEMETRY: '1'
   EXPO_NO_GIT_STATUS: '1'
   EXPO_NO_DOTENV: '1'
@@ -149,11 +148,14 @@ jobs:
 
       - name: Generate Android native project
         working-directory: apps/mobile
+        env:
+          NODE_ENV: production
         run: pnpm exec expo prebuild --platform android --clean --no-install
 
       - name: Build signed release APK
         working-directory: apps/mobile/android
         env:
+          NODE_ENV: production
           BINGO_ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/bingo-release.jks
           BINGO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.BINGO_ANDROID_KEYSTORE_PASSWORD }}
           BINGO_ANDROID_KEY_ALIAS: ${{ secrets.BINGO_ANDROID_KEY_ALIAS }}
