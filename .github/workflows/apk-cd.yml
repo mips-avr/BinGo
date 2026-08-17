@@ -2,6 +2,15 @@ name: APK CD
 
 on:
   workflow_dispatch:
+    inputs:
+      apk_target:
+        description: Target kompatibilitas APK
+        required: true
+        type: choice
+        default: universal-arm
+        options:
+          - universal-arm
+          - arm64
   push:
     tags: ['v*']
 
@@ -29,6 +38,9 @@ env:
   DATABASE_URL: postgresql://unused:unused@127.0.0.1:5432/unused?schema=public
   DIRECT_URL: postgresql://unused:unused@127.0.0.1:5432/unused?schema=public
   JWT_SECRET: apk_cd_dummy_secret_yang_panjangnya_lebih_dari_32_karakter
+  # Tag builds and manual builds default to broad physical-device support.
+  # The ARM64 profile remains available when minimum download size matters.
+  APK_TARGET: ${{ inputs.apk_target || 'universal-arm' }}
 
 jobs:
   release-apk:
@@ -161,8 +173,14 @@ jobs:
           BINGO_ANDROID_KEY_ALIAS: ${{ secrets.BINGO_ANDROID_KEY_ALIAS }}
           BINGO_ANDROID_KEY_PASSWORD: ${{ secrets.BINGO_ANDROID_KEY_PASSWORD }}
         run: |
+          case "$APK_TARGET" in
+            universal-arm) REACT_NATIVE_ARCHS='arm64-v8a,armeabi-v7a' ;;
+            arm64) REACT_NATIVE_ARCHS='arm64-v8a' ;;
+            *) echo "::error::Unknown APK target: $APK_TARGET"; exit 1 ;;
+          esac
+          echo "Building $APK_TARGET for $REACT_NATIVE_ARCHS"
           ./gradlew :app:assembleRelease --no-daemon \
-            -PreactNativeArchitectures=arm64-v8a \
+            -PreactNativeArchitectures="$REACT_NATIVE_ARCHS" \
             -Pandroid.enableMinifyInReleaseBuilds=true \
             -Pandroid.enableShrinkResourcesInReleaseBuilds=true
 
@@ -198,8 +216,24 @@ jobs:
             *) echo "::error::APK API URL is not HTTPS: $EMBEDDED_API"; exit 1 ;;
           esac
 
+          APK_ABIS=$(unzip -Z1 "$SOURCE_APK" | awk -F/ '/^lib\// { print $2 }' | sort -u | paste -sd, -)
+          case "$APK_TARGET" in
+            universal-arm)
+              test "$APK_ABIS" = 'arm64-v8a,armeabi-v7a' || {
+                echo "::error::Universal ARM APK contains unexpected ABIs: $APK_ABIS"
+                exit 1
+              }
+              ;;
+            arm64)
+              test "$APK_ABIS" = 'arm64-v8a' || {
+                echo "::error::ARM64 APK contains unexpected ABIs: $APK_ABIS"
+                exit 1
+              }
+              ;;
+          esac
+
           mkdir -p dist
-          APK_NAME="BinGo-${APK_LABEL}-arm64.apk"
+          APK_NAME="BinGo-${APK_LABEL}-${APK_TARGET}.apk"
           cp "$SOURCE_APK" "dist/$APK_NAME"
           (cd dist && sha256sum "$APK_NAME" > "$APK_NAME.sha256")
           APK_BYTES=$(stat -c '%s' "dist/$APK_NAME")
@@ -209,6 +243,7 @@ jobs:
           echo "checksum_path=dist/$APK_NAME.sha256" >> "$GITHUB_OUTPUT"
           echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
           echo "apk_mib=$APK_MIB" >> "$GITHUB_OUTPUT"
+          echo "apk_abis=$APK_ABIS" >> "$GITHUB_OUTPUT"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -227,7 +262,8 @@ jobs:
             echo
             echo "- File: \`${{ steps.package.outputs.apk_name }}\`"
             echo "- Size: ${{ steps.package.outputs.apk_mib }} MiB"
-            echo "- ABI: arm64-v8a"
+            echo "- Target: $APK_TARGET"
+            echo "- ABI: ${{ steps.package.outputs.apk_abis }}"
             echo "- API: \`$EXPO_PUBLIC_API_BASE_URL\`"
             echo "- SHA-256: \`$(cut -d' ' -f1 '${{ steps.package.outputs.checksum_path }}')\`"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -245,7 +281,7 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "$APK_PATH" "$CHECKSUM_PATH" --clobber
           else
             gh release create "$GITHUB_REF_NAME" \
-              "$APK_PATH#BinGo Android APK (ARM64)" \
+              "$APK_PATH#BinGo Android APK ($APK_TARGET)" \
               "$CHECKSUM_PATH#SHA-256 checksum" \
               --verify-tag \
               --generate-notes
